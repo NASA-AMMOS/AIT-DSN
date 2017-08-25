@@ -778,3 +778,152 @@ class ISP1Credentials(univ.Sequence):
         namedtype.NamedType('randomNumber', univ.Integer().subtype(subTypeSpec=constraint.ValueRangeConstraint(0, 2147483647))),
         namedtype.NamedType('theProtected', univ.OctetString().subtype(subTypeSpec=constraint.ValueSizeConstraint(20, 30)))
     )
+
+
+# RafGetParameter ::= CHOICE
+# { parBufferSize [0] SEQUENCE
+ # { parameterName ParameterName (bufferSize)
+ # , parameterValue IntPosShort
+ # -- bufferSize in number of invocations
+ # -- that can be held in buffer
+ # }
+# , parDeliveryMode [1] SEQUENCE
+ # { parameterName ParameterName (deliveryMode)
+ # , parameterValue RafDeliveryMode
+ # }
+# , parLatencyLimit [2] SEQUENCE
+ # { parameterName ParameterName (latencyLimit)
+ # , parameterValue CHOICE
+ # { online [0] IntPosShort
+ # -- latencyLimit in seconds
+ # , offline [1] NULL
+ # }
+ # }
+# , parMinReportingCycle [7] SEQUENCE
+ # { parameterName ParameterName (minReportingCycle)
+ # , parameterValue IntPosShort (1 .. 600)
+ # }
+# , parPermittedFrameQuality [6] SEQUENCE
+ # { parameterName ParameterName (permittedFrameQuality)
+ # , parameterValue PermittedFrameQualitySet
+ # }
+# , parReportingCycle [3] SEQUENCE
+ # { parameterName ParameterName (reportingCycle)
+ # , parameterValue CurrentReportingCycle
+ # }
+# , parReqFrameQuality [4] SEQUENCE
+ # { parameterName ParameterName (requestedFrameQuality)
+ # , parameterValue INTEGER
+ # { goodFramesOnly (0)
+ # , erredFrameOnly (1)
+ # , allFrames (2)
+ # }
+ # }
+# , parReturnTimeout [5] SEQUENCE
+ # { parameterName ParameterName (returnTimeoutPeriod)
+ # , parameterValue TimeoutPeriod
+ # }
+# } 
+
+# RafDeliveryMode ::= DeliveryMode
+# ( rtnTimelyOnline
+# | rtnCompleteOnline
+# | rtnOffline
+# ) 
+class RafDeliveryMode(DeliveryMode):
+    pass
+
+class RafGetParameter(univ.Choice):
+    pass
+
+RafGetParameter.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('parBufferSize', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', IntPosShort())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+
+    namedtype.NamedType('parDeliveryMode', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', RafDeliveryMode())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+
+    namedtype.NamedType('parLatencyLimit', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Choice(componentType=namedtype.NamedTypes(
+            namedtype.NamedType('online', IntPosShort().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+            namedtype.NamedType('offline', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+
+    namedtype.NamedType('parMinReportingCycle', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', IntPosShort())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 7))),
+
+    namedtype.NamedType('parPermittedFrameQuality', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', PermittedFrameQualitySet())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 6))),
+
+    namedtype.NamedType('parReportingCycle', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', CurrentReportingCycle())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3))),
+
+    namedtype.NamedType('parReqFrameQuality', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('goodFrameOnly', 0),
+            ('erredFrameOnly', 1),
+            ('allFrames', 2)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4))),
+    namedtype.NamedType('parReportingCycle', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', TimeoutPeriod())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 5))),
+)
+
+# class RafUsertoProviderPdu(univ.Choice):
+    # pass
+
+
+# RafUsertoProviderPdu.componentType = namedtype.NamedTypes(
+    # namedtype.NamedType('rafBindInvocation', SleBindInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 100))),
+    # namedtype.NamedType('rafBindReturn', SleBindReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 101))),
+    # namedtype.NamedType('rafUnbindInvocation', SleUnbindInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 102))),
+    # namedtype.NamedType('rafUnbindReturn', SleUnbindReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 103))),
+    # namedtype.NamedType('rafStartInvocation', RafStartInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+    # namedtype.NamedType('rafStopInvocation', SleStopInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+    # namedtype.NamedType('rafScheduleStatusReportInvocation', SleScheduleStatusReportInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4))),
+    # namedtype.NamedType('rafGetParameterInvocation', RafGetParameterInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 6))),
+    # namedtype.NamedType('rafPeerAbortInvocation', SlePeerAbort().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 104)))
+# )
+
+
+class RafGetParameterReturn(univ.Sequence):
+    pass
+
+RafGetParameterReturn.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('performerCredentials', Credentials()),
+    namedtype.NamedType('invokeId', InvokeId()),
+    namedtype.NamedType('result', univ.Choice(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('positiveResult', RafGetParameter().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.NamedType('negativeResult', DiagnosticRafGet().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
+    )))
+)
+
+class RafProvidertoUserPdu(univ.Choice):
+    componentType = namedtype.NamedTypes(
+        namedtype.NamedType('rafBindInvocation', SleBindInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 100))),
+        namedtype.NamedType('rafBindReturn', SleBindReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 101))),
+        namedtype.NamedType('rafUnbindInvocation', SleUnbindInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 102))),
+        namedtype.NamedType('rafUnbindReturn', SleUnbindReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 103))),
+        namedtype.NamedType('rafStartReturn', RafStartReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+        namedtype.NamedType('rafStopReturn', SleAcknowledgement().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3))),
+        namedtype.NamedType('rafTransferBuffer', RafTransferBuffer().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 8))),
+        namedtype.NamedType('rafScheduleStatusReportReturn', SleScheduleStatusReportReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 5))),
+        namedtype.NamedType('rafStatusReportInvocation', RafStatusReportInvocation().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 9))),
+        namedtype.NamedType('rafGetParameterReturn', RafGetParameterReturn().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 7))),
+        namedtype.NamedType('rafPeerAbortInvocation', SlePeerAbort().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 104)))
+    )
