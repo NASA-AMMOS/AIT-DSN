@@ -12,8 +12,6 @@ import gevent.queue
 import gevent.socket
 import gevent.monkey; gevent.monkey.patch_all()
 
-import hexdump
-
 from pyasn1.codec.ber.encoder import encode
 from pyasn1.codec.der.encoder import encode as derencode
 from pyasn1.codec.der.decoder import decode
