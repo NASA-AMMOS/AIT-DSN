@@ -5,8 +5,10 @@ import fcntl
 import socket
 import struct
 import sys
+import time
 
 import gevent
+import gevent.queue
 import gevent.socket
 import gevent.monkey; gevent.monkey.patch_all()
 
@@ -32,17 +34,18 @@ TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
 
 CCSDS_EPOCH = dt.datetime(1958, 1, 1)
 
-DATA_QUEUE = []
+DATA_QUEUE = gevent.queue.Queue()
 
 def _hexint(b):
     return int(binascii.hexlify(b), 16)
 
 class TMTransFrame(dict):
-    is_idle = False
-    has_no_pkts = False
-    data = []
-
     def __init__(self, data=None):
+        super(TMTransFrame, self).__init__()
+
+        self._data = []
+        self.is_idle = False
+        self.has_no_pkts = False
         if data:
             self.decode(data)
 
@@ -86,7 +89,7 @@ class TMTransFrame(dict):
             pkt_data_len = _hexint(pkt_data[4:6])
 
             if pkt_data_len <= len(pkt_data[6:]):
-                self.data.append(pkt_data[6:6 + pkt_data_len])
+                self._data.append(pkt_data[6:6 + pkt_data_len])
 
                 try:
                     pkt_data = pkt_data[6 + pkt_data_len:]
@@ -95,7 +98,7 @@ class TMTransFrame(dict):
             # We're not handling the case where packets are split
             # across TM frames at the moment.
             else:
-                print 'Pkt split across TM frames. AAAHHHHH!!!'
+                # print 'Pkt split across TM frames. AAAHHHHH!!!'
                 break
 
     def encode(self):
@@ -140,11 +143,21 @@ class SLE(object):
             self._heartbeat,
             self._deadfactor
         )
+        bliss.core.log.info('Connecting to SLE ...')
         self.send(context_msg)
 
     def send(self, data):
         ''' Send supplied data to DSN '''
         self._socket.send(data)
+
+    def send_heartbeat(self):
+        ''''''
+        hb = struct.pack(
+                TML_CONTEXT_HB_FORMAT,
+                TML_CONTEXT_HEARTBEAT_TYPE,
+                0
+        )
+        self.send(hb)
 
 class RAF(SLE):
     def __init__(self, *args, **kwargs):
@@ -153,7 +166,9 @@ class RAF(SLE):
 
     def connect(self):
         super(RAF, self).connect()
-        self._conn_monitor = gevent.spawn(monitor_data, self)
+        # self._conn_monitor = gevent.spawn(monitor_data, self)
+        # self._conn_monitor = gevent.spawn(drop_handler, self)
+        self._conn_monitor = gevent.spawn(jason3_handler, self)
 
     def bind(self):
         bind_invoc = RafUsertoProviderPdu()
@@ -193,6 +208,7 @@ class RAF(SLE):
                 len(en),
         ) + en
 
+        bliss.core.log.info('Binding to RAF interface ...')
         self.send(TML_SLE_MSG)
 
     def unbind(self, reason=0):
@@ -210,6 +226,7 @@ class RAF(SLE):
                 TML_SLE_TYPE,
                 len(en),
         ) + en
+        bliss.core.log.info('Unbinding from RAF interface ...')
         self.send(TML_SLE_MSG)
 
     def send_start_invocation(self, start_time, end_time):
@@ -236,6 +253,7 @@ class RAF(SLE):
                 TML_SLE_TYPE,
                 len(en),
         ) + en
+        bliss.core.log.info('Sending data start invocation ...')
         self.send(TML_SLE_MSG)
 
     def stop(self):
@@ -253,19 +271,32 @@ class RAF(SLE):
                 TML_SLE_TYPE,
                 len(en),
         ) + en
+        bliss.core.log.info('Sending data stop invocation ...')
         self.send(TML_SLE_MSG)
 
-    def decode(self, message):
+    @staticmethod
+    def decode(message):
         decoded_msg, remainder = decode(message, asn1Spec=RafProvidertoUserPdu())
         return (decoded_msg, remainder)
 
 def monitor_data(RafHandler):
     tmp_hdr = None
     tmp_bdy = ''
+    hb_time = int(time.time())
+    read_msgs = 0
     while True:
         gevent.sleep(0)
+
+        now = int(time.time())
+        if now - hb_time >= RafHandler._heartbeat:
+            hb_time = now
+            RafHandler.send_heartbeat()
+
         try:
             msg = RafHandler._socket.recv(RafHandler._buffer_size)
+            if len(msg) > 0:
+                read_msgs += 1
+                print 'Receiving message: {}, {}'.format(len(msg), read_msgs)
         except socket.error, e:
             err = e.args[0]
             if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
@@ -291,7 +322,7 @@ def monitor_data(RafHandler):
             exp_body_len = int(binascii.hexlify(bytearray(tmp_hdr)[4:]), 16)
 
             if exp_body_len == len(msg):
-                DATA_QUEUE.append((tmp_hdr, msg))
+                DATA_QUEUE.put((tmp_hdr, msg))
                 tmp_hdr = None
                 tmp_bdy = ''
             elif exp_body_len < len(msg):
@@ -302,7 +333,7 @@ def monitor_data(RafHandler):
                 while len(msg) > exp_body_len:
                     body = msg[:exp_body_len]
                     msg = msg[exp_body_len:]
-                    DATA_QUEUE.append((tmp_hdr, body))
+                    DATA_QUEUE.put((tmp_hdr, body))
 
                     if len(msg) >= 8:
                         tmp_hdr = msg[:8]
@@ -316,3 +347,75 @@ def monitor_data(RafHandler):
                         tmp_bdy = msg
             else:
                 tmp_bdy = msg
+
+def drop_handler(RafHandler):
+    ignore_init = True
+    msg = ''
+    hb_time = int(time.time())
+    cnt = 0
+    while True:
+        gevent.sleep(0)
+
+        now = int(time.time())
+        if now - hb_time >= RafHandler._heartbeat:
+            hb_time = now
+            RafHandler.send_heartbeat()
+
+        msg = msg + RafHandler._socket.recv(RafHandler._buffer_size)
+
+        if ignore_init and len(msg) > 56:
+            msg = msg[56:]
+            ignore_init = False
+
+        while len(msg) > 1576:
+            print 'Processing msg(s): {}'.format(len(msg))
+            pdu = msg[:1576]
+            hdr = pdu[:8]
+            body = pdu[8:]
+
+            if binascii.hexlify(hdr[:4]) == '01000000':
+                DATA_QUEUE.put((hdr, body))
+                cnt += 1
+                print "Wrote {} pdu".format(cnt)
+                msg = msg[1576:]
+            elif binascii.hexlify(hdr[:8]) == '0300000000000000':
+                msg = msg[8:]
+            else:
+                print 'What does this start with. No one knows'
+                print binascii.hexlify(hdr)
+
+
+def jason3_handler(RafHandler):
+    ignore_init = True
+    msg = ''
+    hb_time = int(time.time())
+    cnt = 0
+    while True:
+        gevent.sleep(0)
+
+        now = int(time.time())
+        if now - hb_time >= RafHandler._heartbeat:
+            hb_time = now
+            RafHandler.send_heartbeat()
+
+        read = RafHandler._socket.recv(RafHandler._buffer_size)
+        msg = msg + read
+
+        if ignore_init and len(msg) > 56:
+            msg = msg[56:]
+            ignore_init = False
+
+        while len(msg) > 251:
+            pdu = msg[:251]
+            hdr = pdu[:8]
+            body = pdu[8:]
+
+            if binascii.hexlify(hdr[:4]) == '01000000':
+                DATA_QUEUE.put((hdr, body))
+                cnt += 1
+                msg = msg[251:]
+            elif binascii.hexlify(hdr[:8]) == '0300000000000000':
+                msg = msg[8:]
+            else:
+                bliss.core.log.error('Unexpected packet header ...')
+
