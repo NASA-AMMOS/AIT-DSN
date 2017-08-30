@@ -471,7 +471,7 @@ class PortId(LogicalPortName):
 class ServiceInstanceAttributeElement(univ.Sequence):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('identifier', univ.ObjectIdentifier()),
-        namedtype.NamedType('siAttributeValue', char.VisibleString().subtype(subTypeSpec=constraint.ValueSizeConstraint(1, 256)))
+        namedtype.NamedType('siAttributeValue', char.VisibleString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 256)))
     )
 
 
@@ -485,8 +485,8 @@ class ServiceInstanceIdentifier(univ.SequenceOf):
 
 class HashInput(univ.Sequence):
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('time', univ.OctetString().subtype(subTypeSpec=constraint.ValueSizeConstraint(8, 8))),
-        namedtype.NamedType('randomNumber', univ.Integer().subtype(subTypeSpec=constraint.ValueRangeConstraint(0, 2147483647))),
+        namedtype.NamedType('time', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(8, 8))),
+        namedtype.NamedType('randomNumber', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 2147483647))),
         namedtype.NamedType('userName', char.VisibleString()),
         namedtype.NamedType('passWord', univ.OctetString())
     )
@@ -494,9 +494,9 @@ class HashInput(univ.Sequence):
 
 class ISP1Credentials(univ.Sequence):
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('time', univ.OctetString().subtype(subTypeSpec=constraint.ValueSizeConstraint(8, 8))),
-        namedtype.NamedType('randomNumber', univ.Integer().subtype(subTypeSpec=constraint.ValueRangeConstraint(0, 2147483647))),
-        namedtype.NamedType('theProtected', univ.OctetString().subtype(subTypeSpec=constraint.ValueSizeConstraint(20, 30)))
+        namedtype.NamedType('time', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(8, 8))),
+        namedtype.NamedType('randomNumber', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 2147483647))),
+        namedtype.NamedType('theProtected', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(20, 30)))
     )
 
 class SleBindInvocation(univ.Sequence):
