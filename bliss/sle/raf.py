@@ -345,7 +345,6 @@ class RAF(object):
             bliss.core.log.info(err)
             return
 
-        bliss.core.log.info('We got some data. Length: {}'.format(len(tm_data)))
         tmf = frames.TMTransFrame(tm_data)
         self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
 
