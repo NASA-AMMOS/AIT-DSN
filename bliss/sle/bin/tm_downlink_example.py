@@ -131,7 +131,7 @@ start_time = struct.pack(
 
 stop_time = struct.pack(
     '!HIH',
-    21780,
+    21999,
     0,
     0
 )
