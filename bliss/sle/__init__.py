@@ -104,6 +104,11 @@ class TMTransFrame(dict):
         pass
 
 
+class AOSTransFrame(object):
+    ''''''
+    pass
+
+
 class RAF(object):
     ''''''
     # TODO: Add error checking for actions based on current state
