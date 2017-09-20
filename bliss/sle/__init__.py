@@ -106,6 +106,7 @@ class TMTransFrame(dict):
 
 class AOSTransFrame(object):
     ''''''
+    # TODO: Implement
     pass
 
 
@@ -130,6 +131,7 @@ class RAF(object):
                                              kwargs.get('buffer_size', 256000))
         self._credentials = bliss.config.get('sle.credentials', None)
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._inst_id = kwargs.get('inst_id', None)
 
         if not self._hostname or not self._port:
             msg = 'Connection configuration missing hostname ({}) or port ({})'
@@ -173,7 +175,7 @@ class RAF(object):
                 bliss.core.log.error('Unexpected error encountered when sending data. Aborting ...')
                 raise e
 
-    def bind(self):
+    def bind(self, inst_id=None):
         ''''''
         bind_invoc = RafUsertoProviderPdu()
 
@@ -187,10 +189,13 @@ class RAF(object):
         bind_invoc['rafBindInvocation']['serviceType'] = 'rtnAllFrames'
         bind_invoc['rafBindInvocation']['versionNumber'] = 5
 
-        inst_ids = 'sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1'.split('.')
+        inst_id = inst_id if inst_id else self._inst_id
+        if not inst_id:
+            raise AttributeError('No instance id provided. Unable to bind.')
+
         inst_ids = [
             st.split('=')
-            for st in inst_ids
+            for st in inst_id.split('.')
         ]
 
         sii = ServiceInstanceIdentifier()
@@ -270,6 +275,7 @@ class RAF(object):
 
     def disconnect(self):
         ''''''
+        # TODO: Implement
         pass
 
     def start(self, start_time, end_time):
