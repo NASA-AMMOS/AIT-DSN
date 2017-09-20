@@ -20,8 +20,8 @@ import bliss.core
 import bliss.core.log
 
 import frames
-from bliss.sle.pdus.raf import *
-from bliss.sle.pdus import raf
+from bliss.sle.pdu.raf import *
+from bliss.sle.pdu import raf
 import util
 
 TML_SLE_FORMAT = '!ii'
