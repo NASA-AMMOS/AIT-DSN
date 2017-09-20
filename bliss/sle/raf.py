@@ -5,7 +5,6 @@ import errno
 import fcntl
 import socket
 import struct
-import sys
 import time
 
 import gevent
@@ -202,9 +201,10 @@ class RAF(object):
 
     def disconnect(self):
         ''''''
-        # TODO: Implement
-        # TODO: Turn off gevent stuff
-        pass
+        self._conn_monitor.kill()
+        self._data_processor.kill()
+        self._socket.close()
+        self._telem_sock.close()
 
     def start(self, start_time, end_time):
         start_invoc = RafUsertoProviderPdu()
@@ -447,22 +447,14 @@ def raf_conn_handler(raf_handler):
 
             # PDU Received
             if binascii.hexlify(hdr[:4]) == '01000000':
-                # Get length of body
+                # Get length of body and check if the entirety of the
+                # body has been received. If we can, process the message(s)
                 body_len = util.hexint(hdr[4:])
-                # Check if the entirety of the body has been received
                 if len(rem) < body_len:
-                    # If it hasn't, break
                     break
                 else:
-                    # If it has, read the body
                     body = rem[:body_len]
-                    # Write out the hdr + body to the data queue
                     raf_handler._data_queue.put(hdr + body)
-                    # import hexdump 
-                    # hexdump.hexdump(hdr + body)
-                    # DATA_QUEUE.put(hdr + body)
-                    # shrink msg by the expected size
-                    # msg = msg[:len(hdr) + len(body)]
                     msg = msg[len(hdr) + len(body):]
             # Heartbeat Received
             elif binascii.hexlify(hdr[:8]) == '0300000000000000':
