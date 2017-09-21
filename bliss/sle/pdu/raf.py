@@ -4,34 +4,6 @@ from common import *
 from pyasn1.type import univ, char, namedtype, namedval, tag, constraint, useful
 
 
-class ReportingCycle(univ.Integer):
-    pass
-
-
-ReportingCycle.subtypeSpec = constraint.ValueRangeConstraint(2, 600)
-
-
-class ReportRequestType(univ.Choice):
-    pass
-
-
-ReportRequestType.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('immediately', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-    namedtype.NamedType('periodically', ReportingCycle().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1))),
-    namedtype.NamedType('stop', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2)))
-)
-
-
-class DiagnosticScheduleStatusReport(univ.Choice):
-    pass
-
-
-DiagnosticScheduleStatusReport.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('common', Diagnostics().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-    namedtype.NamedType('specific', univ.Integer(namedValues=namedval.NamedValues(('notSupportedInThisDeliveryMode', 0), ('alreadyStopped', 1), ('invalidReportingCycle', 2))).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
-)
-
-
 class SleScheduleStatusReportReturn(univ.Sequence):
     pass
 
