@@ -33,7 +33,7 @@ class GvcId(univ.Sequence):
 
 
 GvcId.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('spacecrcftId', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 1023))),
+    namedtype.NamedType('spacecraftId', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 1023))),
     namedtype.NamedType('versionNumber', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 3))),
     namedtype.NamedType('vcId', univ.Choice(componentType=namedtype.NamedTypes(
         namedtype.NamedType('masterChannel', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
@@ -47,7 +47,7 @@ class MasterChannelComposition(univ.Sequence):
 
 
 MasterChannelComposition.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('spacecrcftId', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 1023))),
+    namedtype.NamedType('spacecraftId', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 1023))),
     namedtype.NamedType('versionNumber', univ.Integer().subtype(subtypeSpec=constraint.ValueRangeConstraint(0, 3))),
     namedtype.NamedType('mcOrVcList', univ.Choice(componentType=namedtype.NamedTypes(
         namedtype.NamedType('masterChannel', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
