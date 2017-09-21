@@ -29,62 +29,6 @@ DiagnosticRafGet.componentType = namedtype.NamedTypes(
 )
 
 
-class LockStatus(univ.Integer):
-    pass
-
-
-LockStatus.namedValues = namedval.NamedValues(
-    ('inLock', 0),
-    ('outOfLock', 1),
-    ('notInUse', 2),
-    ('unknown', 3)
-)
-
-
-class CarrierLockStatus(univ.Integer):
-    pass
-
-
-CarrierLockStatus.namedValues = namedval.NamedValues(
-    ('inLock', 0),
-    ('outOfLock', 1),
-    ('unknown', 3)
-)
-
-class SymbolLockStatus(univ.Integer):
-    pass
-
-
-SymbolLockStatus.namedValues = namedval.NamedValues(
-    ('inLock', 0),
-    ('outOfLock', 1),
-    ('unknown', 3)
-)
-
-
-class FrameSyncLockStatus(univ.Integer):
-    pass
-
-
-FrameSyncLockStatus.namedValues = namedval.NamedValues(
-    ('inLock', 0),
-    ('outOfLock', 1),
-    ('unknown', 3)
-)
-
-
-class LockStatusReport(univ.Sequence):
-    pass
-
-
-LockStatusReport.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('time', Time()),
-    namedtype.NamedType('carrierLockStatus', CarrierLockStatus()),
-    namedtype.NamedType('subcarrierLockStatus', LockStatus()),
-    namedtype.NamedType('symbolSyncLockStatus', SymbolLockStatus())
-)
-
-
 class RafProductionStatus(univ.Integer):
     pass
 
@@ -132,10 +76,6 @@ Notification.componentType = namedtype.NamedTypes(
     namedtype.NamedType('excessiveDataBacklog', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2))),
     namedtype.NamedType('endOfData', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 3)))
 )
-
-
-class SlePeerAbort(PeerAbortDiagnostic):
-    pass
 
 
 class SleScheduleStatusReportInvocation(univ.Sequence):
@@ -218,38 +158,6 @@ RafUsertoProviderPdu.componentType = namedtype.NamedTypes(
 )
 
 
-class SleAcknowledgement(univ.Sequence):
-    pass
-
-
-SleAcknowledgement.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('credentials', Credentials()),
-    namedtype.NamedType('invokeId', InvokeId()),
-    namedtype.NamedType('result', univ.Choice(componentType=namedtype.NamedTypes(
-        namedtype.NamedType('positiveResult', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-        namedtype.NamedType('negativeResult', Diagnostics().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
-    ))
-    )
-)
-
-
-class AntennaId(univ.Choice):
-    pass
-
-
-AntennaId.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('globalForm', univ.ObjectIdentifier().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-    namedtype.NamedType('localForm', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 16)).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
-)
-
-
-class TimeoutPeriod(univ.Integer):
-    pass
-
-
-TimeoutPeriod.subtypeSpec = constraint.ValueRangeConstraint(1, 600)
-
-
 class DiagnosticRafStart(univ.Choice):
     pass
 
@@ -257,16 +165,6 @@ class DiagnosticRafStart(univ.Choice):
 DiagnosticRafStart.componentType = namedtype.NamedTypes(
     namedtype.NamedType('common', Diagnostics().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
     namedtype.NamedType('specific', univ.Integer(namedValues=namedval.NamedValues(('outOfService', 0), ('unableToComply', 1), ('invalidStartTime', 2), ('invalidStopTime', 3), ('missingTimeValue', 4))).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
-)
-
-
-class CurrentReportingCycle(univ.Choice):
-    pass
-
-
-CurrentReportingCycle.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('periodicReportingOff', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-    namedtype.NamedType('periodicReportingOn', ReportingCycle().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
 )
 
 

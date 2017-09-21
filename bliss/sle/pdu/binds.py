@@ -77,6 +77,10 @@ PeerAbortDiagnostic.namedValues = namedval.NamedValues(
 )
 
 
+class SlePeerAbort(PeerAbortDiagnostic):
+    pass
+
+
 class PortId(LogicalPortName):
     pass
 

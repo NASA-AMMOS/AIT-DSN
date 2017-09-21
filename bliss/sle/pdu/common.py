@@ -206,11 +206,7 @@ ConditionalTime.componentType = namedtype.NamedTypes(
     namedtype.NamedType('known', Time().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
 )
 
-###############################################################################
-#
-# SLE Service Common PDUS
-#
-###############################################################################
+
 class DiagnosticScheduleStatusReport(univ.Choice):
     pass
 
@@ -239,6 +235,95 @@ ReportRequestType.componentType = namedtype.NamedTypes(
 )
 
 
+class AntennaId(univ.Choice):
+    pass
+
+
+AntennaId.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('globalForm', univ.ObjectIdentifier().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+    namedtype.NamedType('localForm', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 16)).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
+)
+
+
+class CarrierLockStatus(univ.Integer):
+    pass
+
+
+CarrierLockStatus.namedValues = namedval.NamedValues(
+    ('inLock', 0),
+    ('outOfLock', 1),
+    ('unknown', 3)
+)
+
+
+class CurrentReportingCycle(univ.Choice):
+    pass
+
+
+CurrentReportingCycle.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('periodicReportingOff', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+    namedtype.NamedType('periodicReportingOn', ReportingCycle().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
+)
+
+
+class LockStatus(univ.Integer):
+    pass
+
+
+LockStatus.namedValues = namedval.NamedValues(
+    ('inLock', 0),
+    ('outOfLock', 1),
+    ('notInUse', 2),
+    ('unknown', 3)
+)
+
+
+class SymbolLockStatus(univ.Integer):
+    pass
+
+
+SymbolLockStatus.namedValues = namedval.NamedValues(
+    ('inLock', 0),
+    ('outOfLock', 1),
+    ('unknown', 3)
+)
+
+
+class FrameSyncLockStatus(univ.Integer):
+    pass
+
+
+FrameSyncLockStatus.namedValues = namedval.NamedValues(
+    ('inLock', 0),
+    ('outOfLock', 1),
+    ('unknown', 3)
+)
+
+
+class TimeoutPeriod(univ.Integer):
+    pass
+
+
+TimeoutPeriod.subtypeSpec = constraint.ValueRangeConstraint(1, 600)
+
+
+class LockStatusReport(univ.Sequence):
+    pass
+
+
+LockStatusReport.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('time', Time()),
+    namedtype.NamedType('carrierLockStatus', CarrierLockStatus()),
+    namedtype.NamedType('subcarrierLockStatus', LockStatus()),
+    namedtype.NamedType('symbolSyncLockStatus', SymbolLockStatus())
+)
+
+
+###############################################################################
+#
+# SLE Service Common PDUS
+#
+###############################################################################
 class SleAcknowledgement(univ.Sequence):
     pass
 
