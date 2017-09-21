@@ -206,7 +206,12 @@ class RAF(object):
         self._socket.close()
         self._telem_sock.close()
 
-    def start(self, start_time, end_time):
+    def get_parameter(self):
+        ''''''
+        #TODO: Implement get parameter
+        pass
+
+    def start(self, start_time, end_time, frame_quality=2):
         start_invoc = RafUsertoProviderPdu()
 
         if self._credentials:
@@ -222,7 +227,7 @@ class RAF(object):
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
-        start_invoc['rafStartInvocation']['requestedFrameQuality'] = 2
+        start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
         en = encode(start_invoc)
         TML_SLE_MSG = struct.pack(
