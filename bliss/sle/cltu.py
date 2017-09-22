@@ -496,7 +496,7 @@ class CLTU(object):
             reason = diag_options[int(diag.getComponent())]
             bliss.core.log.warning('Status Report Scheduling Failed. Reason: {}'.format(reason))
 
-     def _status_report_invoc_handler(self, pdu):
+    def _status_report_invoc_handler(self, pdu):
         ''''''
         pdu = pdu['cltuStatusReportInvocation']
 
