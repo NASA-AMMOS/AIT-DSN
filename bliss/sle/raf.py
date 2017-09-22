@@ -65,16 +65,16 @@ class RAF(object):
             bliss.core.log.error(msg)
             raise ValueError(msg)
 
-        self._handlers['SleBindReturn'].append(self._bind_return_handlers)
-        self._handlers['SleUnbindReturn'].append(self._unbind_return_handlers)
+        self._handlers['RafBindReturn'].append(self._bind_return_handlers)
+        self._handlers['RafUnbindReturn'].append(self._unbind_return_handlers)
         self._handlers['RafStartReturn'].append(self._start_return_handlers)
         self._handlers['RafStopReturn'].append(self._stop_return_handlers)
         self._handlers['RafTransferBuffer'].append(self._data_transfer_handlers)
-        self._handlers['SleScheduleStatusReportReturn'].append(self._schedule_status_report_return_handlers)
+        self._handlers['RafScheduleStatusReportReturn'].append(self._schedule_status_report_return_handlers)
         self._handlers['RafStatusReportInvocation'].append(self._status_report_invoc_handlers)
         self._handlers['RafGetParameterReturn'].append(self._get_param_return_handlers)
-        self._handlers['RafTransferDataInvocation'].append(self._transfer_data_invoc_handlers)
-        self._handlers['RafSyncNotifiyInvocation'].append(self._sync_notify_handlers)
+        self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handlers)
+        self._handlers['SyncNotification'].append(self._sync_notify_handlers)
 
         self._conn_monitor = gevent.spawn(raf_conn_handler, self)
         self._data_processor = gevent.spawn(raf_data_processor, self)
@@ -276,16 +276,18 @@ class RAF(object):
 
     def _handle_pdu(self, pdu):
         ''''''
-        try:
-            pdu_handlerss = self._handlers[pdu.getComponent().__class__.__name__]
+        pdu_key = pdu.getName()
+        pdu_key = pdu_key[:1].upper() + pdu_key[1:]
+        if pdu_key in self._handlers:
+            pdu_handlerss = self._handlers[pdu_key]
             for h in pdu_handlerss:
                 h(pdu)
-        except KeyError as e:
+        else:
             err = (
                 'PDU of type {} has no associated handlers. '
                 'Unable to process further and skipping ...'
             )
-            bliss.core.log.error(err.format(pdu.getName()))
+            bliss.core.log.error(err.format(pdu_key))
 
     def _bind_return_handlers(self, pdu):
         ''''''
@@ -341,7 +343,6 @@ class RAF(object):
         frame = pdu.getComponent()
         if 'data' in frame and frame['data'].isValue:
             tm_data = frame['data'].asOctets()
-
         else:
             err = (
                 'RafTransferBuffer received but data cannot be located. '
@@ -351,14 +352,15 @@ class RAF(object):
             return
 
         tmf = frames.TMTransFrame(tm_data)
+        bliss.core.log.info('Sending {} bytes to telemetry port'.format(len(tmf._data[0])))
         self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
 
     def _sync_notify_handlers(self, pdu):
         ''''''
-        notification_name = pdu['notification'].getName()
-        notification = pdu['notification'].getComponent()
+        notification_name = pdu.getComponent()['notification'].getName()
+        notification = pdu.getComponent()['notification'].getComponent()
 
-        if notification_name() == 'lossFrameSync':
+        if notification_name == 'lossFrameSync':
             report = (
                 'Frame Sync has been lost. See report below ... \n\n'
                 'Lock Status Report\n'
@@ -372,19 +374,19 @@ class RAF(object):
                 notification['subcarrierLockStatus'],
                 notification['symbolSynclockStatus']
             )
-        elif notification_name() == 'productionStatusChange':
+        elif notification_name == 'productionStatusChange':
             prod_status_labels = ['running', 'interrupted', 'halted']
             report = 'Production Status Report: {}'.format(
                 prod_status_labels[int(notification)]
             )
-        elif notification_name() == 'excessiveDataBacklog':
+        elif notification_name == 'excessiveDataBacklog':
             report = 'Excessive Data Backlog Detected'
-        elif notification_name() == 'endOfData':
+        elif notification_name == 'endOfData':
             report = 'End of Data Received'
         else:
             report = 'Received unknown sync notification: {}'.format(notification_name)
 
-        bliss.core.log.warn(report)
+        bliss.core.log.info(report)
 
     def _schedule_status_report_return_handlers(self, pdu):
         ''''''
