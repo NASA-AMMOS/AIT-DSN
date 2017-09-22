@@ -12,6 +12,7 @@ import gevent.queue
 import gevent.socket
 import gevent.monkey; gevent.monkey.patch_all()
 
+import pyasn1.error
 from pyasn1.codec.ber.encoder import encode
 from pyasn1.codec.der.encoder import encode as derencode
 from pyasn1.codec.der.decoder import decode
@@ -101,7 +102,7 @@ class RCF(object):
                 bliss.core.log.error('Unexpected error encountered when sending data. Aborting ...')
                 raise e
 
-    def bind(self, inst_id=None):
+    def bind(self, inst_id=None, version=4):
         ''''''
         bind_invoc = RcfUsertoProviderPdu()
 
@@ -113,7 +114,7 @@ class RCF(object):
         bind_invoc['rcfBindInvocation']['initiatorIdentifier'] = 'LSE'
         bind_invoc['rcfBindInvocation']['responderPortIdentifier'] = 'default'
         bind_invoc['rcfBindInvocation']['serviceType'] = 'rtnChFrames'
-        bind_invoc['rcfBindInvocation']['versionNumber'] = 5
+        bind_invoc['rcfBindInvocation']['versionNumber'] = version
 
         inst_id = inst_id if inst_id else self._inst_id
         if not inst_id:
