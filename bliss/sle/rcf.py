@@ -410,6 +410,7 @@ class RCF(object):
 
     def _schedule_status_report_return_handler(self, pdu):
         ''''''
+        pdu = pdu['rcfScheduleStatusReportReturn']
         if pdu['result'].getName() == 'positiveResult':
             bliss.core.log.info('Status Report Scheduled Successfully')
         else:
@@ -425,6 +426,7 @@ class RCF(object):
 
     def _status_report_invoc_handler(self, pdu):
         ''''''
+        pdu = pdu['rcfStatusReportInvocation']
         report = 'Status Report\n'
         report += 'Number of Error Free Frames: {}\n'.format(pdu['errorFreeFrameNumber'])
         report += 'Number of Delivered Frames: {}\n'.format(pdu['deliveredFrameNumber'])
@@ -448,7 +450,7 @@ class RCF(object):
 
     def _get_param_return_handler(self, pdu):
         ''''''
-        pass
+        pdu = pdu['rcfGetParameterReturn']
 
 
 def rcf_conn_handler(rcf_handler):
