@@ -391,6 +391,7 @@ class RAF(object):
 
     def _schedule_status_report_return_handler(self, pdu):
         ''''''
+        pdu = pdu['rafScheduleStatusReportReturn']
         if pdu['result'].getName() == 'positiveResult':
             bliss.core.log.info('Status Report Scheduled Successfully')
         else:
@@ -406,6 +407,7 @@ class RAF(object):
 
     def _status_report_invoc_handler(self, pdu):
         ''''''
+        pdu = pdu['rafStatusReportInvocation']
         report = 'Status Report\n'
         report += 'Number of Error Free Frames: {}\n'.format(pdu['errorFreeFrameNumber'])
         report += 'Number of Delivered Frames: {}\n'.format(pdu['deliveredFrameNumber'])
@@ -429,7 +431,7 @@ class RAF(object):
 
     def _get_param_return_handler(self, pdu):
         ''''''
-        pass
+        pdu = pdu['rafGetParameterReturn']
 
 
 def raf_conn_handler(raf_handler):
