@@ -66,16 +66,16 @@ class RAF(object):
             bliss.core.log.error(msg)
             raise ValueError(msg)
 
-        self._handlers['RafBindReturn'].append(self._bind_return_handlers)
-        self._handlers['RafUnbindReturn'].append(self._unbind_return_handlers)
-        self._handlers['RafStartReturn'].append(self._start_return_handlers)
-        self._handlers['RafStopReturn'].append(self._stop_return_handlers)
-        self._handlers['RafTransferBuffer'].append(self._data_transfer_handlers)
-        self._handlers['RafScheduleStatusReportReturn'].append(self._schedule_status_report_return_handlers)
-        self._handlers['RafStatusReportInvocation'].append(self._status_report_invoc_handlers)
-        self._handlers['RafGetParameterReturn'].append(self._get_param_return_handlers)
-        self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handlers)
-        self._handlers['SyncNotification'].append(self._sync_notify_handlers)
+        self._handlers['RafBindReturn'].append(self._bind_return_handler)
+        self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
+        self._handlers['RafStartReturn'].append(self._start_return_handler)
+        self._handlers['RafStopReturn'].append(self._stop_return_handler)
+        self._handlers['RafTransferBuffer'].append(self._data_transfer_handler)
+        self._handlers['RafScheduleStatusReportReturn'].append(self._schedule_status_report_return_handler)
+        self._handlers['RafStatusReportInvocation'].append(self._status_report_invoc_handler)
+        self._handlers['RafGetParameterReturn'].append(self._get_param_return_handler)
+        self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handler)
+        self._handlers['SyncNotification'].append(self._sync_notify_handler)
 
         self._conn_monitor = gevent.spawn(raf_conn_handler, self)
         self._data_processor = gevent.spawn(raf_data_processor, self)
@@ -290,7 +290,7 @@ class RAF(object):
             )
             bliss.core.log.error(err.format(pdu_key))
 
-    def _bind_return_handlers(self, pdu):
+    def _bind_return_handler(self, pdu):
         ''''''
         result = pdu['rafBindReturn']['result']
         if 'positive' in result:
@@ -300,7 +300,7 @@ class RAF(object):
             bliss.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
             self._state = 'unbound'
 
-    def _unbind_return_handlers(self, pdu):
+    def _unbind_return_handler(self, pdu):
         ''''''
         result = pdu['rafUnbindReturn']['result']
         if 'positive' in result:
@@ -310,7 +310,7 @@ class RAF(object):
             bliss.core.log.error('Unbind failed. Treating connection as unbound')
             self._state = 'unbound'
 
-    def _start_return_handlers(self, pdu):
+    def _start_return_handler(self, pdu):
         ''''''
         result = pdu['rafStartReturn']['result']
         if 'positiveResult' in result:
@@ -325,7 +325,7 @@ class RAF(object):
             bliss.core.log.info('Start unsuccessful: {}'.format(diag))
             self._state = 'ready'
 
-    def _stop_return_handlers(self, pdu):
+    def _stop_return_handler(self, pdu):
         ''''''
         result = pdu['rafStopReturn']['result']
         if 'positiveResult' in result:
@@ -335,11 +335,11 @@ class RAF(object):
             bliss.core.log.info('Stop unsuccessful: {}'.format(result['negativeResult']))
             self._state = 'active'
 
-    def _data_transfer_handlers(self, pdu):
+    def _data_transfer_handler(self, pdu):
         ''''''
         self._handle_pdu(pdu['rafTransferBuffer'][0])
 
-    def _transfer_data_invoc_handlers(self, pdu):
+    def _transfer_data_invoc_handler(self, pdu):
         ''''''
         frame = pdu.getComponent()
         if 'data' in frame and frame['data'].isValue:
@@ -356,7 +356,7 @@ class RAF(object):
         bliss.core.log.info('Sending {} bytes to telemetry port'.format(len(tmf._data[0])))
         self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
 
-    def _sync_notify_handlers(self, pdu):
+    def _sync_notify_handler(self, pdu):
         ''''''
         notification_name = pdu.getComponent()['notification'].getName()
         notification = pdu.getComponent()['notification'].getComponent()
@@ -389,7 +389,7 @@ class RAF(object):
 
         bliss.core.log.info(report)
 
-    def _schedule_status_report_return_handlers(self, pdu):
+    def _schedule_status_report_return_handler(self, pdu):
         ''''''
         if pdu['result'].getName() == 'positiveResult':
             bliss.core.log.info('Status Report Scheduled Successfully')
@@ -404,7 +404,7 @@ class RAF(object):
             reason = diag_options[int(diag.getComponent())]
             bliss.core.log.warning('Status Report Scheduling Failed. Reason: {}'.format(reason))
 
-    def _status_report_invoc_handlers(self, pdu):
+    def _status_report_invoc_handler(self, pdu):
         ''''''
         report = 'Status Report\n'
         report += 'Number of Error Free Frames: {}\n'.format(pdu['errorFreeFrameNumber'])
@@ -427,7 +427,7 @@ class RAF(object):
 
         bliss.core.log.warning(report)
 
-    def _get_param_return_handlers(self, pdu):
+    def _get_param_return_handler(self, pdu):
         ''''''
         pass
 
