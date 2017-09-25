@@ -76,6 +76,7 @@ class RAF(object):
         self._handlers['RafGetParameterReturn'].append(self._get_param_return_handler)
         self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handler)
         self._handlers['SyncNotification'].append(self._sync_notify_handler)
+        self._handler['RafPeerAbortInvocation'].append(self._peer_abort_handler)
 
         self._conn_monitor = gevent.spawn(raf_conn_handler, self)
         self._data_processor = gevent.spawn(raf_data_processor, self)
@@ -270,6 +271,50 @@ class RAF(object):
         )
         self.send(hb)
 
+    def schedule_status_report(self, report_type='immediately', cycle=None):
+        ''''''
+        pdu = RafUsertoProviderPdu()
+
+        if self._credentials:
+            pass
+        else:
+            pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
+
+        pdu['rafScheduleStatusReportInvocation']['invokeId'] = self.invoke_id
+
+        if report_type == 'immediately':
+            pdu['rafScheduleStatusReportInvocation']['reportType'][report_type] = None
+        elif report_type == 'periodically':
+            pdu['rafScheduleStatusReportInvocation']['reportType'][report_type] = cycle
+        elif report_type == 'stop':
+            pdu['rafScheduleStatusReportInvocation']['reportType'][report_type] = None
+        else:
+            raise ValueError('Unknown report type: {}'.format(report_type))
+
+        en = encode(pdu)
+        TML_SLE_MSG = struct.pack(
+                TML_SLE_FORMAT,
+                TML_SLE_TYPE,
+                len(en),
+        ) + en
+        bliss.core.log.info('Scheduling Status Report')
+        self.send(TML_SLE_MSG)
+
+    def peer_abort(self, reason=127):
+        ''''''
+        pdu = RafUsertoProviderPdu()
+        pdu['rafPeerAbortInvocation'] = reason
+
+        en = encode(pdu)
+        TML_SLE_MSG = struct.pack(
+                TML_SLE_FORMAT,
+                TML_SLE_TYPE,
+                len(en),
+        ) + en
+        bliss.core.log.info('Sending Peer Abort')
+        self.send(TML_SLE_MSG)
+        self._state = 'unbound'
+
     @staticmethod
     def decode(message):
         ''''''
@@ -432,6 +477,19 @@ class RAF(object):
     def _get_param_return_handler(self, pdu):
         ''''''
         pdu = pdu['rafGetParameterReturn']
+        #TODO: Implement
+
+    def _peer_abort_handler(self, pdu):
+        ''''''
+        pdu = pdu['rafPeerAbortInvocation']
+        opts = [
+            'accessDenied', 'unexpectedResponderId', 'operationalRequirement',
+            'protocolError', 'communicationsFailure', 'encodingError', 'returnTimeout',
+            'endOfServiceProvisionPeriod', 'unsolicitedInvokeId', 'otherReason'
+        ]
+        bliss.core.log.error('Peer Abort Received. {}'.format(opts[pdu]))
+        self._state = 'unbound'
+        self.disconnect()
 
 
 def raf_conn_handler(raf_handler):

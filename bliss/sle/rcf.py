@@ -76,6 +76,7 @@ class RCF(object):
         self._handlers['RcfGetParameterReturn'].append(self._get_param_return_handler)
         self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handler)
         self._handlers['SyncNotification'].append(self._sync_notify_handler)
+        self._handler['RcfPeerAbortInvocation'].append(self._peer_abort_handler)
 
         self._conn_monitor = gevent.spawn(rcf_conn_handler, self)
         self._data_processor = gevent.spawn(rcf_data_processor, self)
@@ -288,6 +289,50 @@ class RCF(object):
         )
         self.send(hb)
 
+    def schedule_status_report(self, report_type='immediately', cycle=None):
+        ''''''
+        pdu = RcfUsertoProviderPdu()
+
+        if self._credentials:
+            pass
+        else:
+            pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
+
+        pdu['rcfScheduleStatusReportInvocation']['invokeId'] = self.invoke_id
+
+        if report_type == 'immediately':
+            pdu['rcfScheduleStatusReportInvocation']['reportType'][report_type] = None
+        elif report_type == 'periodically':
+            pdu['rcfScheduleStatusReportInvocation']['reportType'][report_type] = cycle
+        elif report_type == 'stop':
+            pdu['rcfScheduleStatusReportInvocation']['reportType'][report_type] = None
+        else:
+            raise ValueError('Unknown report type: {}'.format(report_type))
+
+        en = encode(pdu)
+        TML_SLE_MSG = struct.pack(
+                TML_SLE_FORMAT,
+                TML_SLE_TYPE,
+                len(en),
+        ) + en
+        bliss.core.log.info('Scheduling Status Report')
+        self.send(TML_SLE_MSG)
+
+    def peer_abort(self, reason=127):
+        ''''''
+        pdu = RcfUsertoProviderPdu()
+        pdu['rcfPeerAbortInvocation'] = reason
+
+        en = encode(pdu)
+        TML_SLE_MSG = struct.pack(
+                TML_SLE_FORMAT,
+                TML_SLE_TYPE,
+                len(en),
+        ) + en
+        bliss.core.log.info('Sending Peer Abort')
+        self.send(TML_SLE_MSG)
+        self._state = 'unbound'
+
     @staticmethod
     def decode(message):
         ''''''
@@ -451,6 +496,19 @@ class RCF(object):
     def _get_param_return_handler(self, pdu):
         ''''''
         pdu = pdu['rcfGetParameterReturn']
+        #TODO: Implement
+
+    def _peer_abort_handler(self, pdu):
+        ''''''
+        pdu = pdu['rcfPeerAbortInvocation']
+        opts = [
+            'accessDenied', 'unexpectedResponderId', 'operationalRequirement',
+            'protocolError', 'communicationsFailure', 'encodingError', 'returnTimeout',
+            'endOfServiceProvisionPeriod', 'unsolicitedInvokeId', 'otherReason'
+        ]
+        bliss.core.log.error('Peer Abort Received. {}'.format(opts[pdu]))
+        self._state = 'unbound'
+        self.disconnect()
 
 
 def rcf_conn_handler(rcf_handler):

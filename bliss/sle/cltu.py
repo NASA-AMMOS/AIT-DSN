@@ -44,6 +44,7 @@ class CLTU(object):
     _data_queue = gevent.queue.Queue()
     _invoke_id = 0
     _cltu_id = 0
+    event_invoc_id = 0
 
     def __init__(self, *args, **kwargs):
         self._hostname = bliss.config.get('sle.hostname',
@@ -321,15 +322,34 @@ class CLTU(object):
         #TODO: Implement
         pass
 
-    def throw_event(self):
+    def throw_event(self, event_id, event_qualifier):
         ''''''
-        #TODO: Implement
-        pass
+        pdu = CltuUserToProviderPdu()
 
-    def peer_abort(self):
+        if self._credentials:
+            pass
+        else:
+            pdu['cltuThrowEventInvocation']['invokerCredentials']['unused'] = None
+
+        pdu['cltuThrowEventInvocation']['invokeId'] = self.invoke_id
+        pdu['cltuthroweventinvocation']['eventInvocationIdentification'] = self.event_invoc_id
+        pdu['cltuthroweventinvocation']['eventIdentifier'] = event_id
+        pdu['cltuthroweventinvocation']['eventQualifier'] = event_qualifier
+
+    def peer_abort(self, reason=127):
         ''''''
-        #TODO: Implement
-        pass
+        pdu = CltuUserToProviderPdu()
+        pdu['cltuPeerAbortInvocation'] = reason
+
+        en = encode(pdu)
+        TML_SLE_MSG = struct.pack(
+                TML_SLE_FORMAT,
+                TML_SLE_TYPE,
+                len(en),
+        ) + en
+        bliss.core.log.info('Sending Peer Abort')
+        self.send(TML_SLE_MSG)
+        self._state = 'unbound'
 
     def _need_heartbeat(self, time_delta):
         ''''''
@@ -543,7 +563,8 @@ class CLTU(object):
         eid = pdu['eventInvocationIdentification']
 
         if 'positiveResult' in pdu['result']:
-            msg = 'Event Invocation #{} Successful'.format(eid)
+            msg = 'Event Invocation Successful'
+            self.event_invoc_id = eid
         else:
             diag = pdu['result'].getComponent()
 
