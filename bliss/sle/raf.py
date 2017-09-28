@@ -1,30 +1,11 @@
-import binascii
-from collections import defaultdict
-import datetime as dt
-import errno
-import fcntl
-import socket
 import struct
-import time
 
-import gevent
-import gevent.queue
-import gevent.socket
-import gevent.monkey; gevent.monkey.patch_all()
-
-import pyasn1.error
-from pyasn1.codec.ber.encoder import encode
-from pyasn1.codec.der.encoder import encode as derencode
-from pyasn1.codec.der.decoder import decode
-
-import bliss.core
 import bliss.core.log
 
 import common
 import frames
 from bliss.sle.pdu.raf import *
 from bliss.sle.pdu import raf
-import util
 
 
 class RAF(common.SLE):
