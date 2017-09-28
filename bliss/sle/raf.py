@@ -20,51 +20,22 @@ from pyasn1.codec.der.decoder import decode
 import bliss.core
 import bliss.core.log
 
+import common
 import frames
 from bliss.sle.pdu.raf import *
 from bliss.sle.pdu import raf
 import util
 
-TML_SLE_FORMAT = '!ii'
-TML_SLE_TYPE = 0x01000000
 
-TML_CONTEXT_MSG_FORMAT = '!IIbbbbIHH'
-TML_CONTEXT_MSG_TYPE = 0x02000000
-
-TML_CONTEXT_HB_FORMAT = '!ii'
-TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
-
-CCSDS_EPOCH = dt.datetime(1958, 1, 1)
-
-
-class RAF(object):
+class RAF(common.SLE):
     ''''''
     # TODO: Add error checking for actions based on current state
-    _state = 'unbound'
-    _handlers = defaultdict(list)
-    _data_queue = gevent.queue.Queue()
-    _invoke_id = 0
 
     def __init__(self, *args, **kwargs):
-        self._hostname = bliss.config.get('sle.hostname',
-                                          kwargs.get('hostname', None))
-        self._port = bliss.config.get('sle.port',
-                                      kwargs.get('port', None))
-        self._heartbeat = bliss.config.get('sle.heartbeat',
-                                           kwargs.get('heartbeat', 25))
-        self._deadfactor = bliss.config.get('sle.deadfactor',
-                                            kwargs.get('deadfactor', 5))
-        self._buffer_size = bliss.config.get('sle.buffer_size',
-                                             kwargs.get('buffer_size', 256000))
-        self._credentials = bliss.config.get('sle.credentials', None)
-        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._inst_id = kwargs.get('inst_id', None)
+        super(self.__class__, self).__init__(*args, **kwargs)
 
-        if not self._hostname or not self._port:
-            msg = 'Connection configuration missing hostname ({}) or port ({})'
-            msg = msg.format(self._hostname, self._port)
-            bliss.core.log.error(msg)
-            raise ValueError(msg)
+        self._service_type = 'rtnAllFrames'
+        self._version = kwargs.get('version', 4)
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -78,135 +49,15 @@ class RAF(object):
         self._handlers['SyncNotification'].append(self._sync_notify_handler)
         self._handlers['RafPeerAbortInvocation'].append(self._peer_abort_handler)
 
-        self._conn_monitor = gevent.spawn(raf_conn_handler, self)
-        self._data_processor = gevent.spawn(raf_data_processor, self)
-
-    @property
-    def invoke_id(self):
-        iid = self._invoke_id
-        self._invoke_id += 1
-        return iid
-
-    def add_handlers(self, event, handler):
+    def bind(self, inst_id=None):
         ''''''
-        self._handlers[event].append(handler)
-
-    def send(self, data):
-        ''' Send supplied data to DSN '''
-        try:
-            self._socket.send(data)
-        except socket.error as e:
-            if e.errno == errno.ECONNRESET:
-                bliss.core.log.error('Socket connection lost to DSN')
-                s.close()
-            else:
-                bliss.core.log.error('Unexpected error encountered when sending data. Aborting ...')
-                raise e
-
-    def bind(self, inst_id=None, version=4):
-        ''''''
-        bind_invoc = RafUsertoProviderPdu()
-
-        if self._credentials:
-            pass
-        else:
-            bind_invoc['rafBindInvocation']['invokerCredentials']['unused'] = None
-
-        bind_invoc['rafBindInvocation']['initiatorIdentifier'] = 'LSE'
-        bind_invoc['rafBindInvocation']['responderPortIdentifier'] = 'default'
-        bind_invoc['rafBindInvocation']['serviceType'] = 'rtnAllFrames'
-        bind_invoc['rafBindInvocation']['versionNumber'] = version
-
-        inst_id = inst_id if inst_id else self._inst_id
-        if not inst_id:
-            raise AttributeError('No instance id provided. Unable to bind.')
-
-        inst_ids = [
-            st.split('=')
-            for st in inst_id.split('.')
-        ]
-
-        sii = ServiceInstanceIdentifier()
-        for i, iden in enumerate(inst_ids):
-            identifier = getattr(raf, iden[0].replace('-', '_'))
-            siae = ServiceInstanceAttributeElement()
-            siae['identifier'] = identifier
-            siae['siAttributeValue'] = iden[1]
-            sia = ServiceInstanceAttribute()
-            sia[0] = siae
-            sii[i] = sia
-        bind_invoc['rafBindInvocation']['serviceInstanceIdentifier'] = sii
-
-
-        en = encode(bind_invoc)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
-
-        bliss.core.log.info('Sending Bind request ...')
-        self.send(TML_SLE_MSG)
+        pdu = RafUsertoProviderPdu()['rafBindInvocation']
+        super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
     def unbind(self, reason=0):
         ''''''
-        stop_invoc = RafUsertoProviderPdu()
-
-        if self._credentials:
-            pass
-        else:
-            stop_invoc['rafUnbindInvocation']['invokerCredentials']['unused'] = None
-
-        stop_invoc['rafUnbindInvocation']['unbindReason'] = reason
-        en = encode(stop_invoc)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
-        bliss.core.log.info('Sending Unbind request ...')
-        self.send(TML_SLE_MSG)
-
-    def connect(self):
-        ''' Setup connection with DSN 
-        
-        Initialize TCP connection with DSN and send context message
-        to configure communication.
-        '''
-        self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        try:
-            self._socket.connect((self._hostname, self._port))
-            bliss.core.log.info('Connection to DSN Successful')
-        except socket.error as e:
-            bliss.core.log.error('Connection failure with DSN. Aborting ...')
-            raise e
-
-        context_msg = struct.pack(
-            TML_CONTEXT_MSG_FORMAT,
-            TML_CONTEXT_MSG_TYPE,
-            0x0000000C,
-            ord('I'), ord('S'), ord('P'), ord('1'),
-            0x00000001,
-            self._heartbeat,
-            self._deadfactor
-        )
-
-        bliss.core.log.info('Configuring SLE connection')
-
-        try:
-            self.send(context_msg)
-            bliss.core.log.info('Connection configuration successful')
-        except socket.error as e:
-            bliss.core.log.error('Connection configuration failed. Aborting ...')
-            raise e
-
-    def disconnect(self):
-        ''''''
-        self._conn_monitor.kill()
-        self._data_processor.kill()
-        self._socket.close()
-        self._telem_sock.close()
+        pdu = RafUsertoProviderPdu()['rafUnbindInvocation']
+        super(self.__class__, self).unbind(pdu, reason=reason)
 
     def get_parameter(self):
         ''''''
@@ -222,8 +73,8 @@ class RAF(object):
             start_invoc['rafStartInvocation']['invokerCredentials']['unused'] = None
 
         start_invoc['rafStartInvocation']['invokeId'] = self.invoke_id
-        start_time = struct.pack('!HIH', (start_time - CCSDS_EPOCH).days, 0, 0)
-        stop_time = struct.pack('!HIH', (end_time - CCSDS_EPOCH).days, 0, 0)
+        start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
+        stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
@@ -231,45 +82,12 @@ class RAF(object):
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
-        en = encode(start_invoc)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
         bliss.core.log.info('Sending data start invocation ...')
-        self.send(TML_SLE_MSG)
+        self.send(self.encode_pdu(start_invoc))
 
     def stop(self):
-        stop_invoc = RafUsertoProviderPdu()
-
-        if self._credentials:
-            pass
-        else:
-            stop_invoc['rafStopInvocation']['invokerCredentials']['unused'] = None
-
-        stop_invoc['rafStopInvocation']['invokeId'] = self.invoke_id
-        en = encode(stop_invoc)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
-        bliss.core.log.info('Sending data stop invocation ...')
-        self.send(TML_SLE_MSG)
-
-    def _need_heartbeat(self, time_delta):
-        ''''''
-        return time_delta >= self._heartbeat
-
-    def send_heartbeat(self):
-        ''''''
-        hb = struct.pack(
-                TML_CONTEXT_HB_FORMAT,
-                TML_CONTEXT_HEARTBEAT_TYPE,
-                0
-        )
-        self.send(hb)
+        pdu = RafUsertoProviderPdu()['rafStopInvocation']
+        super(self.__class__, self).stop(pdu)
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
         ''''''
@@ -291,49 +109,21 @@ class RAF(object):
         else:
             raise ValueError('Unknown report type: {}'.format(report_type))
 
-        en = encode(pdu)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
         bliss.core.log.info('Scheduling Status Report')
-        self.send(TML_SLE_MSG)
+        self.send(self.encode_pdu(pdu))
 
     def peer_abort(self, reason=127):
         ''''''
         pdu = RafUsertoProviderPdu()
         pdu['rafPeerAbortInvocation'] = reason
 
-        en = encode(pdu)
-        TML_SLE_MSG = struct.pack(
-                TML_SLE_FORMAT,
-                TML_SLE_TYPE,
-                len(en),
-        ) + en
         bliss.core.log.info('Sending Peer Abort')
-        self.send(TML_SLE_MSG)
+        self.send(self.encode_pdu(pdu))
         self._state = 'unbound'
 
-    @staticmethod
-    def decode(message):
+    def decode(self, message):
         ''''''
-        return decode(message, asn1Spec=RafProvidertoUserPdu())
-
-    def _handle_pdu(self, pdu):
-        ''''''
-        pdu_key = pdu.getName()
-        pdu_key = pdu_key[:1].upper() + pdu_key[1:]
-        if pdu_key in self._handlers:
-            pdu_handlerss = self._handlers[pdu_key]
-            for h in pdu_handlerss:
-                h(pdu)
-        else:
-            err = (
-                'PDU of type {} has no associated handlers. '
-                'Unable to process further and skipping ...'
-            )
-            bliss.core.log.error(err.format(pdu_key))
+        return super(self.__class__, self).decode(message, RafProvidertoUserPdu())
 
     def _bind_return_handler(self, pdu):
         ''''''
@@ -490,68 +280,3 @@ class RAF(object):
         bliss.core.log.error('Peer Abort Received. {}'.format(opts[pdu]))
         self._state = 'unbound'
         self.disconnect()
-
-
-def raf_conn_handler(raf_handler):
-    hb_time = int(time.time())
-    msg = ''
-
-    while True:
-        gevent.sleep(0)
-
-        now = int(time.time())
-        if raf_handler._need_heartbeat(now - hb_time):
-            hb_time = now
-            raf_handler.send_heartbeat()
-
-        try:
-            msg = msg + raf_handler._socket.recv(raf_handler._buffer_size)
-        except:
-            gevent.sleep(1)
-
-        while len(msg) >= 8:
-            hdr, rem = msg[:8], msg[8:]
-
-            # PDU Received
-            if binascii.hexlify(hdr[:4]) == '01000000':
-                # Get length of body and check if the entirety of the
-                # body has been received. If we can, process the message(s)
-                body_len = util.hexint(hdr[4:])
-                if len(rem) < body_len:
-                    break
-                else:
-                    body = rem[:body_len]
-                    raf_handler._data_queue.put(hdr + body)
-                    msg = msg[len(hdr) + len(body):]
-            # Heartbeat Received
-            elif binascii.hexlify(hdr[:8]) == '0300000000000000':
-                msg = rem
-            else:
-                err = (
-                    'Received PDU with unexpected header. '
-                    'Unable to parse data further.\n'
-                )
-                bliss.core.log.error(err)
-                bliss.core.log.error('\n'.join([msg[i:i+16] for i in range(0, len(msg), 16)]))
-                raise ValueError(err)
-
-
-def raf_data_processor(raf_handler):
-    while True:
-        gevent.sleep(0)
-        if raf_handler._data_queue.empty():
-            continue
-
-        msg = raf_handler._data_queue.get()
-        hdr, body = msg[:8], msg[8:]
-
-        try:
-            decoded_pdu, remainder = RAF.decode(body)
-        except pyasn1.error.PyAsn1Error as e:
-            bliss.core.log.error('Unable to decode PDU. Skipping ...')
-            continue
-        except TypeError as e:
-            bliss.core.log.error('Unable to decode PDU due to type error ...')
-            continue
-
-        raf_handler._handle_pdu(decoded_pdu)
