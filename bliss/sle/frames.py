@@ -70,3 +70,10 @@ class AOSTransFrame(object):
     ''''''
     # TODO: Implement
     pass
+
+
+class TCTransFrame(object):
+    ''''''
+    # TODO: Implement
+    # See C Space Data Link Protocol pg. 4-1 for further information
+    pass
