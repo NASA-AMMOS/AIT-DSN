@@ -17,6 +17,8 @@
 #       labelled "TM"
 # 9. Activate the TM simulation data creation by clicking the
 #       green arrow labelled "SIM".
+# 10. Activate the Mission Manager interface by clicking the
+#       green arrow labelled "SVC"
 #
 # Run the script per the usage instructions above. You should see
 # logging informing you of the various steps and data being sent
