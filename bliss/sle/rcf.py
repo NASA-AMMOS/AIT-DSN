@@ -76,7 +76,7 @@ class RCF(object):
         self._handlers['RcfGetParameterReturn'].append(self._get_param_return_handler)
         self._handlers['AnnotatedFrame'].append(self._transfer_data_invoc_handler)
         self._handlers['SyncNotification'].append(self._sync_notify_handler)
-        self._handler['RcfPeerAbortInvocation'].append(self._peer_abort_handler)
+        self._handlers['RcfPeerAbortInvocation'].append(self._peer_abort_handler)
 
         self._conn_monitor = gevent.spawn(rcf_conn_handler, self)
         self._data_processor = gevent.spawn(rcf_data_processor, self)
