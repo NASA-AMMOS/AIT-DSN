@@ -1,3 +1,34 @@
+''' SLE Generic Items
+
+The bliss.sle.common module provides generic SLE classes, methods and
+attributes that are used to implement other SLE interfaces.
+
+Attributes:
+    TML_SLE_FORMAT: The struct format string for pack-ing a SLE PDU
+        packet header.
+
+    TML_SLE_TYPE: The first 4 bytes of an SLE PDU packet header for
+        use when struct.pack-ing.
+
+    TML_CONTEXT_MSG_FORMAT: The struct format string for pack-ing a
+        SLE Context Message PDU.
+
+    TML_CONTEXT_MSG_TYPE: The first 4 bytes of an SLE Context Message
+        PDU header for use when struct.pack-ing.
+
+    TML_CONTEXT_HB_FORMAT: The struct format string for pack-ing a
+        SLE Heartbeat message PDU.
+
+    TML_CONTEXT_HEARTBEAT_TYPE: The first 4 bytes of an SLE Heartbeat
+        message PDU header for use when struct.pack-ing.
+
+    CCSDS_EPOCH: A datetime object pointing to the CCSDS Epoch.
+
+Classes:
+    SLE: An SLE interface "base" class that provides interface-agnostic
+        methods and attributes for interfacing with SLE.
+'''
+
 import binascii
 from collections import defaultdict
 import datetime as dt
@@ -35,15 +66,20 @@ TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
 
 CCSDS_EPOCH = dt.datetime(1958, 1, 1)
 
-
 class SLE(object):
-    ''''''
+    ''' SLE Inteface "base" class
+
+    The SLE class provides SLE interface-agnostic methods and attributes
+    for interfacing with SLE.
+
+    '''
     _state = 'unbound'
     _handlers = defaultdict(list)
     _data_queue = gevent.queue.Queue()
     _invoke_id = 0
 
     def __init__(self, *args, **kwargs):
+        ''''''
         self._hostname = bliss.config.get('sle.hostname',
                                           kwargs.get('hostname', None))
         self._port = bliss.config.get('sle.port',
@@ -73,12 +109,24 @@ class SLE(object):
 
     @property
     def invoke_id(self):
+        ''''''
         iid = self._invoke_id
         self._invoke_id += 1
         return iid
 
     def add_handlers(self, event, handler):
-        ''''''
+        ''' Add a "handler" function for an "event"
+
+        Arguments:
+            event:
+                A string of the PDU name for which the handler function
+                should e called.
+
+            handler:
+                The function that should be called for the specified event.
+                The function will be passed the decoded PyASN1 PDU as its
+                only argument.
+        '''
         self._handlers[event].append(handler)
 
     def send(self, data):
@@ -94,11 +142,36 @@ class SLE(object):
                 raise e
 
     def decode(self, message, asn1Spec):
-        ''''''
+        ''' Decode a chunk of ASN.1 data
+
+        Arguments:
+            message:
+                A bytestring of data that contains an encoded ASN.1 PDU to
+                be decoded.
+
+            asn1Spec:
+                An instance of a PyASN1 class that the data should be
+                decoded against.
+
+        Returns:
+            The decoded PyASN1 object containing the message data.
+
+        Raises:
+            pyasn1.error.PyAsn1Error
+            TypeError
+        '''
         return decode(message, asn1Spec=asn1Spec)
 
     def encode_pdu(self, pdu):
-        ''''''
+        ''' Encode a SLE PDU
+
+        Arguments:
+            pdu: The PyASN1 class instance to encode
+
+        Returns:
+            The ASN.1 encoded PDU struct.pack-ed into the SLE PDU packet
+            structure.
+        '''
         en = encode(pdu)
         return struct.pack(
                 TML_SLE_FORMAT,
@@ -107,14 +180,20 @@ class SLE(object):
         ) + en
 
     def bind(self, pdu, **kwargs):
-        ''''''
+        ''' Bind to an SLE Interface
+
+        Arguments:
+            pdu:
+                The PyASN1 class instance that should be configured with
+                generic SLE attributes, encoded, and sent to SLE.
+        '''
         if self._credentials:
             pass
         else:
             pdu['invokerCredentials']['unused'] = None
 
-        pdu['initiatorIdentifier'] = 'LSE'
-        pdu['responderPortIdentifier'] = 'default'
+        pdu['initiatorIdentifier'] = self._initiator_id
+        pdu['responderPortIdentifier'] = self._responder_port
         pdu['serviceType'] = self._service_type
         pdu['versionNumber'] = self._version
 
@@ -142,7 +221,15 @@ class SLE(object):
         self.send(self.encode_pdu(pdu))
 
     def unbind(self, pdu, reason=0):
-        ''''''
+        ''' Unbind from the SLE Interface
+
+        Arguments:
+            pdu:
+                The PyASN1 class instance that should be configured with
+                generic SLE attributes, encoded, and sent to SLE.
+            reason:
+                The reason code for why the unbind is happening.
+        '''
         if self._credentials:
             pass
         else:
@@ -188,14 +275,24 @@ class SLE(object):
             raise e
 
     def disconnect(self):
-        ''''''
+        ''' Disconnect from SLE
+
+        Disconnect the SLE and telemetry output sockets and kill the
+        greenlets for monitoring and processing data.
+        '''
         self._socket.close()
         self._telem_sock.close()
         self._conn_monitor.kill()
         self._data_processor.kill()
 
     def stop(self, pdu):
-        ''''''
+        ''' Send a SLE Stop PDU.
+
+        Arguments:
+            pdu:
+                The PyASN1 class instance that should be configured with
+                generic SLE attributes, encoded, and sent to SLE.
+        '''
         if self._credentials:
             pass
         else:
