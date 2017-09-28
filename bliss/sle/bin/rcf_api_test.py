@@ -1,4 +1,4 @@
-#!/usr/bin/end python
+#!/usr/bin/env python
 #
 # Usage:
 #   python rcf_api_test.py
