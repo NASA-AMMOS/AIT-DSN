@@ -67,7 +67,7 @@ TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
 CCSDS_EPOCH = dt.datetime(1958, 1, 1)
 
 class SLE(object):
-    ''' SLE Inteface "base" class
+    ''' SLE interface "base" class
 
     The SLE class provides SLE interface-agnostic methods and attributes
     for interfacing with SLE.
@@ -114,7 +114,7 @@ class SLE(object):
         self._invoke_id += 1
         return iid
 
-    def add_handlers(self, event, handler):
+    def add_handler(self, event, handler):
         ''' Add a "handler" function for an "event"
 
         Arguments:
@@ -334,6 +334,7 @@ class SLE(object):
 
 
 def conn_handler(handler):
+    ''' Handler for processing data received from the DSN into PDUs'''
     hb_time = int(time.time())
     msg = ''
 
@@ -378,6 +379,7 @@ def conn_handler(handler):
 
 
 def data_processor(handler):
+    ''' Handler for decoding ASN.1 encoded PDUs '''
     while True:
         gevent.sleep(0)
         if handler._data_queue.empty():

@@ -1,3 +1,12 @@
+''' RAF Interface Objects
+
+The bliss.sle.raf module provides SLE Return All Frames (RAF) class,
+methods, and attributes.
+
+Classes:
+    RAF: An extension of the generic bliss.sle.common.SLE class which
+        implements the RAF standard.
+'''
 import struct
 
 import bliss.core.log
@@ -9,7 +18,64 @@ from bliss.sle.pdu import raf
 
 
 class RAF(common.SLE):
-    ''''''
+    ''' SLE Return All Frames (RAF) interface class
+    
+    The RAF class extends the bliss.sle.common.SLE base insterface class
+    and implements the RAF specification.
+
+    The RAF class can respond to a number of returns from the SLE interface.
+    The following are a list of the events to which handlers can be bound along
+    with an explanation for when they would be encountered. The interface
+    provides default handlers for each of these events which generally log
+    information received via :mod:`bliss.core.log`.
+
+    Handlers will receive an instance of the received and decoded PDU. If you
+    would like to see the specification for each possible you can view the
+    class for each option in :class:`bliss.sle.pdu.raf.RafProvidertoUserPdu`
+
+    RafBindReturn:
+        Response back from the provider after a bind request has been
+        sent to the interface.
+
+    RafUnbindReturn
+        Response back from the provider after a unbind request has been
+        sent to the interface.
+        
+    RafStartReturn
+        Response back from the provider after a start data request has been
+        sent to the interface.
+
+    RafStopReturn
+        Response back from the provider after a stop data request has been
+        sent to the interface.
+
+    RafTransferBuffer
+        Response from the provider container a data transfer or notification.
+
+    AnnotatedFrame
+        A potential component of the PDU received by the RafTransferBuffer
+        handler. If the provider is sending data to the user this is the handler
+        that will fire to process the PDU.
+
+    SyncNotification
+        A potential component of the PDU received by the RafTransferBuffer
+        handler. If the provider is sending a notification to the user this
+        is the handler that will fire to process the PDU.
+
+    RafScheduleStatusReportReturn
+        Response back from the provider after a schedule status report request
+        has been sent to the interface.
+
+    RafStatusReportInvocation
+        Response from the provider containing a status report.
+
+    RafGetParameterReturn
+        Response back from the provider after a Get Parameter request has been
+        sent to the interface.
+
+    RafPeerAbortInvocation
+        Received from the provider to abort the connection.
+    '''
     # TODO: Add error checking for actions based on current state
 
     def __init__(self, *args, **kwargs):
@@ -31,12 +97,24 @@ class RAF(common.SLE):
         self._handlers['RafPeerAbortInvocation'].append(self._peer_abort_handler)
 
     def bind(self, inst_id=None):
-        ''''''
+        ''' Bind to a RAF interface
+
+        Arguments:
+            inst_id:
+                The instance id for the RAF interface to bind.
+        '''
         pdu = RafUsertoProviderPdu()['rafBindInvocation']
         super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
     def unbind(self, reason=0):
-        ''''''
+        ''' Unbind from the RAF interface
+        
+        Arguments:
+            reason:
+                An optional integer indicating the reason for the unbind. The
+                valid integer values are defined in
+                :class:`bliss.sle.pdu.binds.UnbindReason`
+        '''
         pdu = RafUsertoProviderPdu()['rafUnbindInvocation']
         super(self.__class__, self).unbind(pdu, reason=reason)
 
@@ -46,6 +124,23 @@ class RAF(common.SLE):
         pass
 
     def start(self, start_time, end_time, frame_quality=2):
+        ''' Send data start request to the RAF interface
+
+        Arguments:
+            start_time (:class:`datetime.datetime`):
+                The start time (In ERT) for the data to be returned from the
+                interface.
+
+            end_time (:class:`datetime.datetime`):
+                The end time (In ERT) for the data to be returned from the
+                interface.
+
+            frame_quality (optional integer):
+                The quality of data to be returned from the interface. Valid
+                options are defined in
+                :class:`bliss.sle.pdu.raf.RequestedFrameQuality`
+        
+        '''
         start_invoc = RafUsertoProviderPdu()
 
         if self._credentials:
@@ -67,11 +162,24 @@ class RAF(common.SLE):
         self.send(self.encode_pdu(start_invoc))
 
     def stop(self):
+        ''' Send data stop request to the RAF interface '''
         pdu = RafUsertoProviderPdu()['rafStopInvocation']
         super(self.__class__, self).stop(pdu)
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
-        ''''''
+        ''' Send a status report schedule request to the RAF interface
+        
+        Arguments:
+            report_type (string):
+                The type of report type. One of 'immediately', 'periodically',
+                or 'stop'. If the report type requested is 'periodically' a
+                report will be sent every 'cycle' seconds.
+
+            cycle (integer):
+                How often in seconds a report of type 'periodically' should be
+                sent. This value is required if report_type is 'periodically'
+                and ignored otherwise. Valid values are 2 - 600 inclusive.
+        '''
         pdu = RafUsertoProviderPdu()
 
         if self._credentials:
@@ -94,7 +202,14 @@ class RAF(common.SLE):
         self.send(self.encode_pdu(pdu))
 
     def peer_abort(self, reason=127):
-        ''''''
+        ''' Send a peer abort notification to the RAF interface
+
+        Arguments:
+            reason (optional integer):
+                An integer representing the reason for the peer abort. Valid
+                values are defined in
+                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
+        '''
         pdu = RafUsertoProviderPdu()
         pdu['rafPeerAbortInvocation'] = reason
 
@@ -103,7 +218,16 @@ class RAF(common.SLE):
         self._state = 'unbound'
 
     def decode(self, message):
-        ''''''
+        ''' Decode an ASN.1 encoded RAF PDU
+
+        Arguments:
+            message (bytearray):
+                The ASN.1 encoded RAF PDU to decode
+
+        Returns:
+            The decoded RAF PDU as an instance of the
+            :class:`bliss.sle.pdu.raf.RafProvidertoUserPdu` class.
+        '''
         return super(self.__class__, self).decode(message, RafProvidertoUserPdu())
 
     def _bind_return_handler(self, pdu):

@@ -78,17 +78,6 @@ Notification.componentType = namedtype.NamedTypes(
 )
 
 
-class SleScheduleStatusReportInvocation(univ.Sequence):
-    pass
-
-
-SleScheduleStatusReportInvocation.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('invokerCredentials', Credentials()),
-    namedtype.NamedType('invokeId', InvokeId()),
-    namedtype.NamedType('reportRequestType', ReportRequestType())
-)
-
-
 class RafGetParameterInvocation(univ.Sequence):
     pass
 
