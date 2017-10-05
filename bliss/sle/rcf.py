@@ -16,6 +16,8 @@ class RCF(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
         self._service_type = 'rtnChFrames'
         self._version = kwargs.get('version', 5)
+        self._scid = kwargs.get('spacecraft_id', None)
+        self._tfvn = kwargs.get('trans_frame_ver_num', None)
 
         self._handlers['RcfBindReturn'].append(self._bind_return_handler)
         self._handlers['RcfUnbindReturn'].append(self._unbind_return_handler)
@@ -44,12 +46,30 @@ class RCF(common.SLE):
         #TODO: Implement get parameter
         pass
 
-    def start(self, start_time, end_time, spacecraft_id, version, master_channel=False, virtual_channel=None):
-        #TODO: Should likely move some of the attributes to optional config on __init__
+    def start(self, start_time, end_time, spacecraft_id=None,
+              trans_frame_ver_num=None, master_channel=False,
+              virtual_channel=None):
         if not master_channel and not virtual_channel:
             err = (
                 'Transfer start invocation requires a master channel or '
                 'virtual channel from which to receive frames.'
+            )
+            raise AttributeError(err)
+
+        spacecraft_id = spacecraft_id if spacecraft_id else self._scid
+        if not spacecraft_id:
+            err = (
+                'Transfer start invocation requires a spacecraft id '
+                'to specify the VCID from which to receive frames.'
+            )
+            raise AttributeError(err)
+
+        trans_frame_ver_num = trans_frame_ver_num if trans_frame_ver_num else self._tfvn
+        if not trans_frame_ver_num:
+            err = (
+                'Transfer start invocation requires a transfer frame '
+                'version number to specify the VCID from which to '
+                'receive frames.'
             )
             raise AttributeError(err)
 
@@ -71,7 +91,7 @@ class RCF(common.SLE):
 
         req_gvcid = GvcId()
         req_gvcid['spacecraftId'] = spacecraft_id
-        req_gvcid['versionNumber'] = version
+        req_gvcid['versionNumber'] = trans_frame_ver_num
 
         if master_channel:
             req_gvcid['vcId']['masterChannel'] = None
