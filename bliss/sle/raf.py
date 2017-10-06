@@ -1,7 +1,7 @@
-''' RAF Interface Objects
+''' RAF Interface Module
 
-The bliss.sle.raf module provides SLE Return All Frames (RAF) class,
-methods, and attributes.
+The bliss.sle.raf module provides SLE Return All Frames (RAF)
+interface classes, methods, and attributes.
 
 Classes:
     RAF: An extension of the generic bliss.sle.common.SLE class which
@@ -20,7 +20,7 @@ from bliss.sle.pdu import raf
 class RAF(common.SLE):
     ''' SLE Return All Frames (RAF) interface class
     
-    The RAF class extends the bliss.sle.common.SLE base insterface class
+    The RAF class extends the bliss.sle.common.SLE base interface class
     and implements the RAF specification.
 
     The RAF class can respond to a number of returns from the SLE interface.

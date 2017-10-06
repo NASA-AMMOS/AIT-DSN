@@ -1,3 +1,12 @@
+''' CLTU Interface Module
+
+The bliss.sle.cltu module provides SLE Forward Communications Link Transmission
+Unit (CLTU) interface classes, methods, and attributes.
+
+Classes:
+    CLTU: An extension of the generic :class:`bliss.sle.common.SLE` which
+        implements the Forward CLTU standard.
+'''
 import binascii
 import struct
 
@@ -9,7 +18,69 @@ from bliss.sle.pdu.cltu import *
 from bliss.sle.pdu import cltu
 
 class CLTU(common.SLE):
-    ''''''
+    ''' SLE Forward Communications Link Transmission Unit (CLTU) interface class
+
+    The CLTU class extends the bliss.sle.common.SLE base interface class
+    and implements the CLTU specification.
+
+    The CLTU class can respond to a number of returns from the SLE interface.
+    The following are a list of the events to which handlers can be bound along
+    with an explanation for when they would be encountered. The interface
+    provides default handlers for each of these events which generally log
+    information received via :mod:`bliss.core.log`.
+
+    Handlers will receive an instance of the received and decoded PDU. If you
+    would like to see the specification for each possible you can view the
+    class for each option in :class:`bliss.sle.pdu.cltu.CltuProviderToUserPdu`
+
+    CltuBindReturn:
+        Response back from the provider after a bind request has been
+        sent to the interface.
+
+    CltuUnbindReturn
+        Response back from the provider after a unbind request has been
+        sent to the interface.
+        
+    CltuStartReturn
+        Response back from the provider after a start data request has been
+        sent to the interface.
+
+    CltuStopReturn
+        Response back from the provider after a stop data request has been
+        sent to the interface.
+
+    CltuScheduleStatusReportReturn
+        Response back from the provider after a schedule status report request
+        has been sent to the interface.
+
+    CltuStatusReportInvocation
+        Response from the provider containing a status report.
+
+    CltuGetParameterReturn
+        Response back from the provider after a Get Parameter request has been
+        sent to the interface.
+
+    CltuPeerAbortInvocation
+        Received from the provider to abort the connection.
+
+    CltuTransferDataReturn
+        Response from the provider acknowledging a data upload request. This
+        will contain information on the result of the request, the CLTU Id
+        information, and how much buffer space the provider has remaining for
+        additional transfers.
+
+    CltuAsyncNotifyInvocation
+        Received from the provider to inform the user of an event affecting
+        the production of the Forward CLTU service.
+
+    CltuThrowEventReturn
+        Received from the provider after the user invokes a Throw-Event
+        operation. The return will only show whether the invocation itself has
+        been accepted or rejected, but not if the actions associated with the
+        event have been performed successfully. The provider will invoke a
+        CLTU-ASYNC-NOTIFY operation to inform the user on the outcome of the
+        actions triggered by the event. 
+    '''
     # TODO: Add error checking for actions based on current state
     _cltu_id = 0
     event_invoc_id = 0
@@ -33,15 +104,34 @@ class CLTU(common.SLE):
         self._handlers['CltuThrowEventReturn'].append(self._throw_event_handler)
 
     def bind(self, inst_id=None):
+        ''' Bind to a CLTU interface
+
+        Arguments:
+            inst_id:
+                The instance id for the CLTU interface to bind.
+        '''
         pdu = CltuUserToProviderPdu()['cltuBindInvocation']
         super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
     def unbind(self, reason=0):
-        ''''''
+        ''' Unbind from the CLTU interface
+        
+        Arguments:
+            reason:
+                An optional integer indicating the reason for the unbind. The
+                valid integer values are defined in
+                :class:`bliss.sle.pdu.binds.UnbindReason`
+        '''
         pdu = CltuUserToProviderPdu()['cltuUnbindInvocation']
         super(self.__class__, self).unbind(pdu, reason=reason)
 
     def start(self):
+        ''' Send a data receive start request to the CLTU interface
+
+        The user shall invoke the CLTU-START operation to request that
+        the Forward CLTU service provider prepare to receive
+        CLTU-TRANSFER-DATA invocations
+        '''
         start_invoc = CltuUserToProviderPdu()
 
         if self._credentials:
@@ -56,11 +146,33 @@ class CLTU(common.SLE):
         self.send(self.encode_pdu(start_invoc))
 
     def stop(self):
+        ''' Request the provider stop radiation of received CLTUs '''
         pdu = CltuUserToProviderPdu()['cltuStopInvocation']
         super(self.__class__, self).stop(pdu)
 
     def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
-        ''''''
+        ''' Upload a CLTU to the service
+        
+        Arguments:
+            tc_data:
+                The data to transfer in the CLTU.
+
+            earliest_time (optional :class:`datetime.datetime`):
+                Specify the earliest time that the provider shall start
+                processing this CLTU.
+
+            latest_time (optional :class:`datetime.datetime`):
+                 Specify the latest time at which the provider shall start
+                 processing this CLTU.
+
+            delay=0:
+                The minimum radiation delay, in microseconds, between the CLTU
+                transferred in this operation and the next CLTU.
+
+            notify (optional boolean):
+                Specify whether the provider shall invoke the CLTU-ASYNCNOTIFY
+                operation upon completion of the radiation of the CLTU.
+        '''
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
@@ -96,7 +208,19 @@ class CLTU(common.SLE):
         self.send(self.encode_pdu(pdu))
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
-        ''''''
+        ''' Send a status report schedule request to the CLTU interface
+        
+        Arguments:
+            report_type (string):
+                The type of report type. One of 'immediately', 'periodically',
+                or 'stop'. If the report type requested is 'periodically' a
+                report will be sent every 'cycle' seconds.
+
+            cycle (integer):
+                How often in seconds a report of type 'periodically' should be
+                sent. This value is required if report_type is 'periodically'
+                and ignored otherwise. Valid values are 2 - 600 inclusive.
+        '''
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
@@ -124,7 +248,24 @@ class CLTU(common.SLE):
         pass
 
     def throw_event(self, event_id, event_qualifier):
-        ''''''
+        ''' Forward an event to SLE Complex Management
+
+        The user may throw an event to SLE Complement Management that requires
+        management action. An example of this would be requesting a change to
+        the uplink bit rate.
+
+        Arguments:
+            event_id (integer):
+                Specify the event to be forwarded to SLE Complex Management by
+                the service provider.
+
+            event_qualifier (bytearray):
+                May be used to provide additional data constraining the
+                actions to be performed by Complex Management in response to
+                the event specified in event-identifier and shall be forwarded
+                together with the event. Data may be of length 1-1024 bytes.
+
+        '''
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
@@ -141,7 +282,14 @@ class CLTU(common.SLE):
         self.send(self.encode_pdu(pdu))
 
     def peer_abort(self, reason=127):
-        ''''''
+        ''' Send a peer abort notification to the CLTU interface
+
+        Arguments:
+            reason (optional integer):
+                An integer representing the reason for the peer abort. Valid
+                values are defined in
+                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
+        '''
         pdu = CltuUserToProviderPdu()
         pdu['cltuPeerAbortInvocation'] = reason
 
@@ -150,8 +298,16 @@ class CLTU(common.SLE):
         self._state = 'unbound'
 
     def decode(self, message):
-        ''''''
-        # return decode(message, asn1Spec=CltuProviderToUserPdu())
+        ''' Decode an ASN.1 encoded CLTU PDU
+
+        Arguments:
+            message (bytearray):
+                The ASN.1 encoded CLTU PDU to decode
+
+        Returns:
+            The decoded CLTU PDU as an instance of the
+            :class:`bliss.sle.pdu.cltu.CltuProvidertoUserPdu` class.
+        '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
     def _bind_return_handler(self, pdu):

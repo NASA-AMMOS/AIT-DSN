@@ -1,3 +1,12 @@
+''' RCF Interface Module
+
+The bliss.sle.raf module provides SLE Return Channel Frames (RCF) class,
+methods, and attributes.
+
+Classes:
+    RCF: An extension of the generic bliss.sle.common.SLE class which
+        implements the RCF standard.
+'''
 import struct
 
 import bliss.core.log
@@ -9,7 +18,64 @@ from bliss.sle.pdu import rcf
 
 
 class RCF(common.SLE):
-    ''''''
+    ''' SLE Return Channel Frames (RCF) interface class
+    
+    The RCF class extends the bliss.sle.common.SLE base insterface class
+    and implements the RCF specification.
+
+    The RCF class can respond to a number of returns from the SLE interface.
+    The following are a list of the events to which handlers can be bound along
+    with an explanation for when they would be encountered. The interface
+    provides default handlers for each of these events which generally log
+    information received via :mod:`bliss.core.log`.
+
+    Handlers will receive an instance of the received and decoded PDU. If you
+    would like to see the specification for each possible you can view the
+    class for each option in :class:`bliss.sle.pdu.rcf.RcfProvidertoUserPdu`
+
+    RcfBindReturn:
+        Response back from the provider after a bind request has been
+        sent to the interface.
+
+    RcfUnbindReturn
+        Response back from the provider after a unbind request has been
+        sent to the interface.
+        
+    RcfStartReturn
+        Response back from the provider after a start data request has been
+        sent to the interface.
+
+    RcfStopReturn
+        Response back from the provider after a stop data request has been
+        sent to the interface.
+
+    RcfTransferBuffer
+        Response from the provider container a data transfer or notification.
+
+    AnnotatedFrame
+        A potential component of the PDU received by the RcfTransferBuffer
+        handler. If the provider is sending data to the user this is the handler
+        that will fire to process the PDU.
+
+    SyncNotification
+        A potential component of the PDU received by the RcfTransferBuffer
+        handler. If the provider is sending a notification to the user this
+        is the handler that will fire to process the PDU.
+
+    RcfScheduleStatusReportReturn
+        Response back from the provider after a schedule status report request
+        has been sent to the interface.
+
+    RcfStatusReportInvocation
+        Response from the provider containing a status report.
+
+    RcfGetParameterReturn
+        Response back from the provider after a Get Parameter request has been
+        sent to the interface.
+
+    RcfPeerAbortInvocation
+        Received from the provider to abort the connection.
+    '''
     # TODO: Add error checking for actions based on current state
 
     def __init__(self, *args, **kwargs):
@@ -32,12 +98,24 @@ class RCF(common.SLE):
         self._handlers['RcfPeerAbortInvocation'].append(self._peer_abort_handler)
 
     def bind(self, inst_id=None):
-        ''''''
+        ''' Bind to a RCF interface
+
+        Arguments:
+            inst_id:
+                The instance id for the RCF interface to bind.
+        '''
         pdu = RcfUsertoProviderPdu()['rcfBindInvocation']
         super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
     def unbind(self, reason=0):
-        ''''''
+        ''' Unbind from the RCF interface
+        
+        Arguments:
+            reason:
+                An optional integer indicating the reason for the unbind. The
+                valid integer values are defined in
+                :class:`bliss.sle.pdu.binds.UnbindReason`
+        '''
         pdu = RcfUsertoProviderPdu()['rcfUnbindInvocation']
         super(self.__class__, self).unbind(pdu, reason=reason)
 
@@ -49,6 +127,43 @@ class RCF(common.SLE):
     def start(self, start_time, end_time, spacecraft_id=None,
               trans_frame_ver_num=None, master_channel=False,
               virtual_channel=None):
+        ''' Send data start request to the RAF interface
+
+        Arguments:
+            start_time (:class:`datetime.datetime`):
+                The start time (In ERT) for the data to be returned from the
+                interface.
+
+            end_time (:class:`datetime.datetime`):
+                The end time (In ERT) for the data to be returned from the
+                interface.
+
+            spacecraft_id (integer):
+                The spacecraft id to use when constructing the GVCId. This
+                parameter is optional assuming that the parameter was supplied
+                to __init__ on object creation.
+
+            trans_frame_ver_num (integer):
+                The transfer frame version number (TFVN) to use when
+                constructing the GVCId. This parameter is optional assuming
+                that the parameter was supplied to __init__ on object creation.
+                At the time of issuance of the RCF Recommended Standard, the
+                only valid TFVN were ‘0’ (version 1) and ‘1’ (version 2).
+
+            master_channel (boolean):
+                A flag indicating whether the master channel or virtual
+                channel(s) should be used. If master_channel is True then
+                virtual_channel should be None. Otherwise, master_channel
+                should be False and virtual_channel should be not None.
+
+            virtual_channel (integer):
+                An integer representing which virtual_channel will be used
+                with this connection. Value constraints are specified in the
+                implementation class :class:`bliss.sle.pdu.rcf.VcId`. If
+                virtual_channel is not None, then master_channel should be
+                False. Otherwise, master_channel should be True and
+                virtual_channel should be None.
+        '''
         if not master_channel and not virtual_channel:
             err = (
                 'Transfer start invocation requires a master channel or '
@@ -104,11 +219,24 @@ class RCF(common.SLE):
         self.send(self.encode_pdu(start_invoc))
 
     def stop(self):
+        ''' Send data stop request to the RCF interface '''
         pdu = RcfUsertoProviderPdu()['rcfStopInvocation']
         super(self.__class__, self).stop(pdu)
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
-        ''''''
+        ''' Send a status report schedule request to the RCF interface
+        
+        Arguments:
+            report_type (string):
+                The type of report type. One of 'immediately', 'periodically',
+                or 'stop'. If the report type requested is 'periodically' a
+                report will be sent every 'cycle' seconds.
+
+            cycle (integer):
+                How often in seconds a report of type 'periodically' should be
+                sent. This value is required if report_type is 'periodically'
+                and ignored otherwise. Valid values are 2 - 600 inclusive.
+        '''
         pdu = RcfUsertoProviderPdu()
 
         if self._credentials:
@@ -131,7 +259,14 @@ class RCF(common.SLE):
         self.send(self.encode_pdu(pdu))
 
     def peer_abort(self, reason=127):
-        ''''''
+        ''' Send a peer abort notification to the RCF interface
+
+        Arguments:
+            reason (optional integer):
+                An integer representing the reason for the peer abort. Valid
+                values are defined in
+                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
+        '''
         pdu = RcfUsertoProviderPdu()
         pdu['rcfPeerAbortInvocation'] = reason
 
@@ -140,7 +275,16 @@ class RCF(common.SLE):
         self._state = 'unbound'
 
     def decode(self, message):
-        ''''''
+        ''' Decode an ASN.1 encoded RCF PDU
+
+        Arguments:
+            message (bytearray):
+                The ASN.1 encoded RCF PDU to decode
+
+        Returns:
+            The decoded RCF PDU as an instance of the
+            :class:`bliss.sle.pdu.rcf.RcfProvidertoUserPdu` class.
+        '''
         return super(self.__class__, self).decode(message, RcfProvidertoUserPdu())
 
     def _handle_pdu(self, pdu):
