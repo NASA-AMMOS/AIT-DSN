@@ -15,7 +15,7 @@ from pyasn1.codec.native.encoder import encode
 from bliss.core import log
 
 import bliss.sle
-from bliss.sle.pdus.raf import *
+from bliss.sle.pdu.raf import *
 
 def process_pdu():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -48,29 +48,30 @@ def process_pdu():
         sock.sendto(tmf._data[0], ('localhost', 3076))
 
 
-raf_mngr = bliss.sle.RAF(hostname='atb-ocio-sspsim.jpl.nasa.gov', port=5100)
-raf_mngr.connect()
-time.sleep(1)
+if __name__ == '__main__':
+    raf_mngr = bliss.sle.RAF(hostname='atb-ocio-sspsim.jpl.nasa.gov', port=5100)
+    raf_mngr.connect()
+    time.sleep(1)
 
-raf_mngr.bind()
-time.sleep(1)
+    raf_mngr.bind()
+    time.sleep(1)
 
-raf_mngr.send_start_invocation(datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
+    raf_mngr.send_start_invocation(datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
 
-tlm_monitor = gevent.spawn(process_pdu)
-gevent.sleep(0)
-# log.info('Processing telemetry. Press <Ctrl-c> to terminate connection ...')
-try:
-    while True:
-        gevent.sleep(0)
-except:
-    pass
+    tlm_monitor = gevent.spawn(process_pdu)
+    gevent.sleep(0)
+    # log.info('Processing telemetry. Press <Ctrl-c> to terminate connection ...')
+    try:
+        while True:
+            gevent.sleep(0)
+    except:
+        pass
 
-tlm_monitor.kill()
+    tlm_monitor.kill()
 
-raf_mngr.stop()
-time.sleep(1)
+    raf_mngr.stop()
+    time.sleep(1)
 
-raf_mngr.unbind()
-time.sleep(1)
+    raf_mngr.unbind()
+    time.sleep(1)
 
