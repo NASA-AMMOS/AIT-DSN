@@ -5,7 +5,7 @@ git checkout master
 git pull
 sphinx-apidoc --separate --force --no-toc -o doc/source bliss
 cd doc
-python setup.py build_sphinx
+make clean html
 cd ..
 git checkout gh-pages
 \cp doc/build/html/*.html .
