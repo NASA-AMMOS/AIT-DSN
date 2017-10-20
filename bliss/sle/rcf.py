@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ''' RCF Interface Module
 
 The bliss.sle.raf module provides SLE Return Channel Frames (RCF) class,
@@ -19,7 +20,7 @@ from bliss.sle.pdu import rcf
 
 class RCF(common.SLE):
     ''' SLE Return Channel Frames (RCF) interface class
-    
+
     The RCF class extends the bliss.sle.common.SLE base insterface class
     and implements the RCF specification.
 
@@ -40,7 +41,7 @@ class RCF(common.SLE):
     RcfUnbindReturn
         Response back from the provider after a unbind request has been
         sent to the interface.
-        
+
     RcfStartReturn
         Response back from the provider after a start data request has been
         sent to the interface.
@@ -109,7 +110,7 @@ class RCF(common.SLE):
 
     def unbind(self, reason=0):
         ''' Unbind from the RCF interface
-        
+
         Arguments:
             reason:
                 An optional integer indicating the reason for the unbind. The
@@ -225,7 +226,7 @@ class RCF(common.SLE):
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
         ''' Send a status report schedule request to the RCF interface
-        
+
         Arguments:
             report_type (string):
                 The type of report type. One of 'immediately', 'periodically',
