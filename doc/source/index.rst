@@ -6,7 +6,14 @@
 Welcome to BLISS SLE's documentation!
 =====================================
 
-Contents:
+BLISS SLE provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
+Extension interfaces. BLISS SLE supports the following interfaces:
+
+- Return All Frames (RAF) interface
+- Return Channel Frames (RCF) interface
+- Forward Communications Link Transmission Unit (CLTU) interface
+
+Table of Contents:
 
 .. toctree::
    :maxdepth: 2
