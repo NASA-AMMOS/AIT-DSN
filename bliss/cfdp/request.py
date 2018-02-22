@@ -22,10 +22,26 @@ def create_request_from_type(request_type, *args, **kwargs):
         }
         return Request(request_type, info)
     elif request_type == RequestType.REPORT_REQUEST:
-        pass
+        transaction_id = kwargs.get('transaction_id', None)
+        info = {
+            'transaction_id': transaction_id
+        }
+        return Request(request_type, info)
     elif request_type == RequestType.CANCEL_REQUEST:
-        pass
+        transaction_id = kwargs.get('transaction_id', None)
+        info = {
+            'transaction_id': transaction_id
+        }
+        return Request(request_type, info)
     elif request_type == RequestType.SUSPEND_REQUEST:
-        pass
+        transaction_id = kwargs.get('transaction_id', None)
+        info = {
+            'transaction_id': transaction_id
+        }
+        return Request(request_type, info)
     elif request_type == RequestType.RESUME_REQUEST:
-        pass
+        transaction_id = kwargs.get('transaction_id', None)
+        info = {
+            'transaction_id': transaction_id
+        }
+        return Request(request_type, info)

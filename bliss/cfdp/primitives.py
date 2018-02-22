@@ -1,12 +1,15 @@
 from enum import Enum
 
+
 class MachineState(Enum):
     SEND_METADATA = "SEND_METADATA"
     SEND_FILEDATA = "SEND_FILEDATA"
 
+
 class TransmissionMode(Enum):
     ACK = "ACK"
     NO_ACK = "NO_ACK"
+
 
 class RequestType(Enum):
     """
@@ -17,6 +20,7 @@ class RequestType(Enum):
     CANCEL_REQUEST = "CANCEL_REQUEST"
     SUSPEND_REQUEST = "SUSPEND_REQUEST"
     RESUME_REQUEST = "RESUME_REQUEST"
+
 
 class IndicationType(Enum):
     """
@@ -35,12 +39,14 @@ class IndicationType(Enum):
     ABANDONED_INDICATION = "ABANDONED_INDICATION"
     EOF_RECV_INDICATION = "EOF_RECV_INDICATION"
 
+
 class Role(Enum):
     UNDEFINED = "UNDEFINED"
     CLASS_1_RECEIVER = "CLASS_1_RECEIVER"
     CLASS_1_SENDER = "CLASS_1_SENDER"
     CLASS_2_RECEIVER = "CLASS_2_RECEIVER"
     CLASS_2_SENDER = "CLASS_2_SENDER"
+
 
 class FileDirective(Enum):
     EOF = 0x4
@@ -50,6 +56,7 @@ class FileDirective(Enum):
     NAK = 0x8
     PROMPT = 0x9
     KEEP_ALIVE = 0xC
+
 
 class ConditionCode(Enum):
     NO_ERROR = 0
@@ -65,3 +72,18 @@ class ConditionCode(Enum):
     CHECK_LIMIT_REACHED = 10
     SUSPEND_REQUEST_RECEIVED = 14
     CANCEL_REQUEST_RECEIVED = 15
+
+
+class FinalStatus(Enum):
+    FINAL_STATUS_UNKNOWN = "FINAL_STATUS_UNKNOWN"
+    FINAL_STATUS_SUCCESSFUL = "FINAL_STATUS_SUCCESSFUL"
+    FINAL_STATUS_CANCELLED = "FINAL_STATUS_CANCELLED"
+    FINAL_STATUS_ABANDONED = "FINAL_STATUS_ABANDONED"
+    FINAL_STATUS_NO_METADATA = "FINAL_STATUS_NO_METADATA"
+
+
+class TimerType(Enum):
+    NO_TIMER = "NO_TIMER"
+    ACK_TIMER = "ACK_TIMER"
+    NAK_TIMER = "NAK_TIMER"
+    INACTIVITY_TIMER = "INACTIVITY_TIMER"

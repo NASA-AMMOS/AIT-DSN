@@ -1,6 +1,6 @@
-from bliss.cfdp.primitives import Role
-from bliss.cfdp.pdu import Header
-from bliss.cfdp.primitives import MachineState
+from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType
+
+import logging
 
 class ID(object):
     """
@@ -38,10 +38,10 @@ class ID(object):
 
 class Transaction(object):
 
-    def __init__(self, entity_id, sequence_number):
+    def __init__(self, entity_id, transaction_id):
         # Unique identifier for a transaction, the concatentation of entity id and the transaction sequence number
         self.entity_id = entity_id
-        self.sequence_number = sequence_number
+        self.transaction_id = transaction_id
 
         # Other Tx properties
         self.abandoned = False
@@ -51,15 +51,14 @@ class Transaction(object):
         self.filedata_offset = None  # offset for last touched file data (either sent or received)
         self.filedata_length = None  # last length of above
         self.filedata_checksum = None
+        self.final_status = None
         self.finished = False
         self.frozen = False
         self.is_metadata_received = False
         self.metadata = None
         self.other_entity_id = None  # entity ID of other end of Tx
-        self.machine = None  # state machine (role), e.g. S1, S2, R1, R2
         self.start_time = None
-        self.suspended = None
-        self.temp_file = None
+        self.suspended = False
 
 
 class Machine(object):
@@ -69,10 +68,13 @@ class Machine(object):
     S1 = MachineState.SEND_METADATA
     S2 = MachineState.SEND_FILEDATA
 
-    def __init__(self, cfdp, transaction_count):
+    def __init__(self, cfdp, transaction_count, *args, **kwargs):
         self.kernel = cfdp
         self.transaction = Transaction(cfdp.mib.get_local_entity_id(), transaction_count)
         self.state = self.S1
+
+        # Set up fault and indication handlers
+        self.indication_handler = kwargs.get('indication_handler', self._indication_handler)
 
         # file to be sent or received
         self.file = None
@@ -84,7 +86,7 @@ class Machine(object):
         self.metadata = None
 
         # State machine flags
-        self.pdu_was_received = False
+        self.pdu_received = False
         self.put_request_received = False
         self.eof_received = False
         self.eof_sent = False
@@ -92,21 +94,18 @@ class Machine(object):
         self.transaction_cancelled = False
         self.is_ack_outgoing = False
         self.is_oef_outgoing = False
-        self.is_find_outgoing = False
-        self.is_metadata_outgoing = False
+        self.is_fin_outgoing = False
+        self.is_md_outgoing = False
         self.is_nak_outgoing = False
-        self.temp_file_exists = False
-        self.open_file_exists = False
+        # self.temp_file_exists = False
+        # self.open_file_exists = False
+        self.is_shutdown = False
 
-        # start up timers
-        # Timers TODO
-        pass
-
-    def fault_handler(self, condition_code):
+    def _indication_handler(self, indication_type, *args, **kwargs):
         """
-        Fault Handler
+        Default indication handler, which is just to log a message
         """
-        raise NotImplementedError
+        logging.info('INDICATION: ' + str(indication_type))
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -117,3 +116,46 @@ class Machine(object):
         :return:
         """
         raise NotImplementedError
+
+    def cancel(self):
+        self.is_oef_outgoing = False
+        self.is_ack_outgoing = False
+        self.is_fin_outgoing = False
+        self.is_md_outgoing = False
+        self.is_nak_outgoing = False
+
+        self.transaction.cancelled = True
+
+        # TODO cancel timers
+
+    def finish_transaction(self):
+        self.is_oef_outgoing = False
+        self.is_ack_outgoing = False
+        self.is_fin_outgoing = False
+        self.is_md_outgoing = False
+        self.is_nak_outgoing = False
+
+        # TODO cancel timers
+
+        self.transaction.finished = True
+        if self.role == Role.CLASS_1_RECEIVER and not self.transaction.is_metadata_received:
+            self.transaction.final_status = FinalStatus.FINAL_STATUS_NO_METADATA
+        elif self.transaction.cancelled:
+            self.transaction.final_status = FinalStatus.FINAL_STATUS_CANCELLED
+        else:
+            self.transaction.final_status = FinalStatus.FINAL_STATUS_SUCCESSFUL
+
+        self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION,
+                                transaction_id=self.transaction.transaction_id)
+
+    def shutdown(self):
+        if self.file is not None and not self.file.closed:
+            self.file.close()
+            self.file = None
+        # TODO tmp file handling for receiver
+        # If transaction was unsuccesful, delete tmp file
+
+        # TODO issue Tx indication (finished, abandoned, etc)
+
+        self.transaction.finish = True
+        self.is_shutdown = True

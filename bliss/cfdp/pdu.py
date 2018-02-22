@@ -328,12 +328,12 @@ class Header(object):
         :type pdu_data_field_length: int
         :param entity_ids_length:               3 bit; number of octets in entity ID (source or destination entity) - 1. E.g. '0' mean sequence number is 1 octet
         :type entity_ids_length: int
-        :param transaction_seq_num_length:      3 bit; number of octets in sequence number - 1
-        :type transaction_seq_num_length: int
+        :param transaction_id_length:      3 bit; number of octets in sequence number - 1
+        :type transaction_id_length: int
         :param source_entity_id:                variable bit; uniquely identifies the entity that originated transaction. Unsigned binary int. See entity_ids_length for length
         :type source_entity_id: str
-        :param transaction_seq_num:             variable bit; uniquely identifies the entity that originated transaction. Unsigned binary int. See transaction_seq_num_length for length
-        :type transaction_seq_num: str
+        :param transaction_id:             variable bit; uniquely identifies the entity that originated transaction. Unsigned binary int. See transaction_id_length for length
+        :type transaction_id: str
         :param destination_entity_id:              variable bit; uniquely identifies the entity that originated transaction. Unsigned binary int. See entity_ids_length for length
         :type destination_entity_id: str
         """
@@ -349,9 +349,9 @@ class Header(object):
         self.crc_flag = kwargs.get('crc_flag', self.CRC_NOT_PRESENT)
         self.pdu_data_field_length = kwargs.get('pdu_data_field_length', None)
         # self.entity_ids_length = kwargs.get('entity_ids_length', None)
-        # self.transaction_seq_num_length = kwargs.get('transaction_seq_num_length', None)
+        # self.transaction_id_length = kwargs.get('transaction_id_length', None)
         self.source_entity_id = kwargs.get('source_entity_id', None)
-        self.transaction_seq_num = kwargs.get('transaction_seq_num', None)
+        self.transaction_id = kwargs.get('transaction_id', None)
         self.destination_entity_id = kwargs.get('destination_entity_id', None)
 
     @property
@@ -433,7 +433,7 @@ class Header(object):
         entity_id_length -= 1
         # Truncate at 3 bits and convert to 4 bit binary string (first bit should be 0 for  placeholder)
         bin_entity_id_length = format(entity_id_length & 0x7, '04b')
-        bin_trans_seq_num_len = format(string_length_in_bytes(self.transaction_seq_num) & 0x7, '04b')
+        bin_trans_seq_num_len = format(string_length_in_bytes(self.transaction_id) & 0x7, '04b')
         byte_4 = int(bin_entity_id_length + bin_trans_seq_num_len, 2)
         header_bytes.append(byte_4)
 
@@ -445,12 +445,12 @@ class Header(object):
 
         # get bytes for each value
         entity_id_binary = string_to_bytes(self.source_entity_id)
-        transaction_seq_num_binary = string_to_bytes(self.transaction_seq_num)
+        transaction_id_binary = string_to_bytes(self.transaction_id)
         destination_id_binary = string_to_bytes(self.destination_entity_id)
 
         # tack on bytes to whole header bytes
         header_bytes.extend(entity_id_binary)
-        header_bytes.extend(transaction_seq_num_binary)
+        header_bytes.extend(transaction_id_binary)
         header_bytes.extend(destination_id_binary)
 
         return header_bytes
@@ -495,11 +495,11 @@ class Header(object):
         entity_ids_length = (byte_4 & 0x70) >> 4
         # add one because value is "length less 1"
         entity_ids_length += 1
-        transaction_seq_num_length = byte_4 & 0x7
+        transaction_id_length = byte_4 & 0x7
 
         # Remaining bytes, use length values above to figure out
         pdu_hdr_length = len(pdu_hdr)
-        expected_length = 4 + entity_ids_length*2 + transaction_seq_num_length
+        expected_length = 4 + entity_ids_length*2 + transaction_id_length
         if pdu_hdr_length < expected_length:
             raise ValueError('pdu header is not big enough to contain entity ids and trans. seq. number. '
                              'header is only {0} bytes, expected {1} bytes'.format(pdu_hdr_length, expected_length))
@@ -512,8 +512,8 @@ class Header(object):
 
         # tx seq num
         start_index = end_index
-        end_index = start_index + transaction_seq_num_length
-        transaction_seq_num = bytes_to_string(pdu_hdr[start_index:end_index])
+        end_index = start_index + transaction_id_length
+        transaction_id = bytes_to_string(pdu_hdr[start_index:end_index])
 
         # destination id
         start_index = end_index
@@ -528,6 +528,6 @@ class Header(object):
             crc_flag=crc_flag,
             pdu_data_field_length=pdu_data_length,
             source_entity_id=source_entity_id,
-            transaction_seq_num=transaction_seq_num,
+            transaction_id=transaction_id,
             destination_entity_id=destination_entity_id
         )

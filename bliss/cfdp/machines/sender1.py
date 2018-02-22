@@ -1,10 +1,8 @@
-import copy
 from machine import Machine
 from bliss.cfdp.events import Event
-from bliss.cfdp.primitives import Role, ConditionCode
+from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
 from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
-from bliss.cfdp.util import string_length_in_bytes
-from bliss.cfdp.filestore import calc_file_size
+from bliss.cfdp.util import string_length_in_bytes, calc_file_size
 
 import logging
 
@@ -21,7 +19,7 @@ class Sender1(Machine):
         # direction is always towards receiver because we are a sender
         self.header.direction = Header.TOWARDS_RECEIVER
         self.header.source_entity_id = self.transaction.entity_id
-        self.header.transaction_seq_num = self.transaction.sequence_number
+        self.header.transaction_id = self.transaction.transaction_id
         self.header.destination_entity_id = request.info.get('destination_id')
 
     def make_metadata_pdu_from_request(self, request):
@@ -91,98 +89,131 @@ class Sender1(Machine):
     def update_state(self, event=None, pdu=None, request=None):
         """
         Prompt for machine to evaluate a state. Could possibly or possibly not receive an event, pdu, or request to factor into state
-        :param event:
-        :param pdu:
-        :param request:
-        :return:
         """
 
         # Sender is for Put request to start sending
-        # logging.debug('Sender 1 {0} state: {1}'.format(self.transaction.entity_id, self.state))
         if self.state == self.S1:
 
-            # USER-ISSUED REQUESTS (Rx)
-            if event == Event.RECEIVED_CANCEL_REQUEST:
-                # User-issued request to cancel
-                pass
-            elif event == Event.RECEIVED_ABANDONED_REQUEST:
-                # User-issued abandon request
-                pass
-            elif event == Event.RECEIVED_REPORT_REQUEST:
-                # User-issued report request
-                pass
-            elif event == Event.RECEIVED_PUT_REQUEST:
-                logging.debug("Received put request")
+            # Only event in S1 with defined action is receiving a put request
+            if event == Event.RECEIVED_PUT_REQUEST:
+                logging.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
                 # Received Put Request
                 self.put_request_received = True
+                self.transaction.other_entity_id = request.get('destination_id')
                 # Use request to populate reused header. This populates direction, entity ids, and tx number
                 self.make_header_from_request(request)
                 # First we build and send metadata PDU
                 metadata = self.make_metadata_pdu_from_request(request)
                 self.kernel.send(metadata)
-                self.is_metadata_outgoing = True
+                self.is_md_outgoing = True
                 # Save the file buffer
                 self.file = open(metadata.source_path, 'rb')
                 # Then set state to the file transfer state
                 self.state = self.S2
-            elif event == Event.SEND_FILE_DIRECTIVE:
-                pass
-                # if self.is_metadata_outgoing is True:
-                #     eof = self.make_eof_pdu(ConditionCode.NO_ERROR)
-                #     self.kernel.send(eof)
             else:
-                print "Ignoring received event: {}".format(event)
+                logging.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
             # Metadata has already been received
-            # This is the path for ongoing file transfer, awaiting EOF
+            # This is the path for ongoing file transfer
 
-            # USER-ISSUED REQUESTS (Rx)
-            if event == Event.RECEIVED_CANCEL_REQUEST:
-                # User-issued request to cancel
-                pass
-            elif event == Event.RECEIVED_ABANDONED_REQUEST:
-                # User-issued abandon request
-                pass
-            elif event == Event.RECEIVED_REPORT_REQUEST:
-                # User-issued report request
-                pass
+            # USER-ISSUED REQUESTS
+            if event == Event.RECEIVED_REPORT_REQUEST:
+                logging.info("Sender {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
+                # TODO logic to get report
+                self.indication_handler(IndicationType.REPORT_INDICATION,
+                                        status_report=None)
+
             elif event == Event.RECEIVED_FREEZE_REQUEST:
-                # Received Freeze request
-                pass
-            elif event == Event.RECEIVED_RESUME_REQUEST:
-                # Received Resume request
-                pass
+                logging.info("Sender {0}: Received FREEZE REQUEST".format(self.transaction.entity_id))
+                self.transaction.frozen = True
+
+            elif event == Event.RECEIVED_CANCEL_REQUEST:
+                logging.info("Sender {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
+                self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
+                self.update_state(Event.NOTICE_OF_CANCELLATION) # Trigger notice of cancellation
+
             elif event == Event.RECEIVED_SUSPEND_REQUEST:
-                # Received suspend request
-                pass
+                logging.info("Sender {0}: Received SUSPEND REQUEST".format(self.transaction.entity_id))
+                self.update_state(Event.NOTICE_OF_SUSPENSION) # Trigger notice of suspension
+
+            elif event == Event.RECEIVED_RESUME_REQUEST:
+                logging.info("Sender {0}: Received RESUME REQUEST".format(self.transaction.entity_id))
+                if self.transaction.suspended is True:
+                    self.transaction.suspended = False
+                    self.indication_handler(IndicationType.RESUMED_INDICATION) # TODO progress param?
+                    if self.transaction.frozen is False:
+                        # Trigger file data event
+                        self.update_state(Event.SEND_FILE_DATA)
+
             elif event == Event.RECEIVED_THAW_REQUEST:
-                # Received thaw request
-                pass
+                logging.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
+                if self.transaction.frozen is True:
+                    self.transaction.frozen = False
+                    if self.transaction.suspended is False:
+                        # Trigger file data event
+                        self.update_state(Event.SEND_FILE_DATA)
+
+            # OTHER EVENTS
+            elif event == Event.ABANDON_TRANSACTION:
+                logging.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
+                self.transaction.abandoned = True
+                self.transaction.finished = True
+                self.indication_handler(IndicationType.ABANDONED_INDICATION)
+                self.shutdown()
+
+            elif event == Event.NOTICE_OF_CANCELLATION:
+                logging.info("Sender {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
+                # Set eof to outgoing to send a Cancel EOF
+                self.is_oef_outgoing = True
+                self.transaction.cancelled = True
+                self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION,
+                                        transaction_id=self.transaction.transaction_id)
+                # Shutdown
+                self.shutdown()
+
+            elif event == Event.NOTICE_OF_SUSPENSION:
+                logging.info("Sender {0}: Received NOTICE OF SUSPENSION".format(self.transaction.entity_id))
+                if self.transaction.suspended is False:
+                    self.transaction.suspended = True
+                    self.indication_handler(IndicationType.SUSPENDED_INDICATION,
+                                            transaction_id=self.transaction.transaction_id,
+                                            condition_code=ConditionCode.SUSPEND_REQUEST_RECEIVED)
+
             elif event == Event.SEND_FILE_DIRECTIVE:
+                logging.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
                 if self.is_oef_outgoing is True:
-                    eof = self.make_eof_pdu(ConditionCode.NO_ERROR)
+                    eof = self.make_eof_pdu(self.transaction.condition_code)
                     logging.debug("EOF TYPE: " + str(eof.header.pdu_type))
                     self.kernel.send(eof)
                     self.is_oef_outgoing = False
+                    self.eof_sent = True
+                    self.transaction_done = True
                     self.state = self.S1
+
+                    self.indication_handler(IndicationType.EOF_SENT_INDICATION,
+                                            transaction_id=self.transaction.transaction_id)
+                    self.finish_transaction()
+
             elif event == Event.SEND_FILE_DATA:
                 # Check if entire file is done being sent. If yes, queue up EOF
-                logging.debug("Sending file data...")
+                logging.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
                 if self.file is None or self.file.closed:
                     logging.debug('No file data to send')
                 elif self.file is not None and not self.file.closed and self.file.tell() == self.file_size:
                     logging.debug('File is finished. is_eof_outgoing = True. Closing file...')
                     self.is_oef_outgoing = True
-                    self.file.close()
-                    self.file = None
+                    self.transaction.condition_code = ConditionCode.NO_ERROR
+                    # Shutdown
+                    self.shutdown()
                 else:
                     # Send file data
                     fd = self.make_fd_pdu()
                     # TODO want to add this to a queue to be sent instead of calling directly
                     # so that directives can get priority...
                     self.kernel.send(fd)
+
             else:
-                print "Ignoring received event: {}".format(event)
+                logging.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass

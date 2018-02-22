@@ -1,4 +1,5 @@
 import binascii
+import os
 
 def string_length_in_bytes(s):
     if not isinstance(s, str):
@@ -30,3 +31,8 @@ def write_pdu_to_file(out_path, contents, offset=None):
         if offset is not None and offset > 0:
             f.seek(offset)
         f.write(contents)
+
+
+def calc_file_size(filepath):
+    statinfo = os.stat(filepath)
+    return statinfo.st_size

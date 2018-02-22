@@ -7,7 +7,7 @@ import gevent.queue
 from bliss.cfdp.mib import MIB
 from bliss.cfdp.machines.sender1 import Sender1
 from bliss.cfdp.machines.receiver1 import Receiver1
-from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role
+from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, IndicationType
 from bliss.cfdp.events import Event
 from bliss.cfdp.request import create_request_from_type
 from bliss.cfdp.pdu import make_pdu_from_bytes, Header
@@ -29,7 +29,7 @@ class CFDP(object):
     outgoing_pdu_queue = gevent.queue.Queue()
     incoming_pdu_queue = gevent.queue.Queue()
 
-    def __init__(self, entity_id):
+    def __init__(self, entity_id, *args, **kwargs):
         # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
@@ -37,7 +37,7 @@ class CFDP(object):
         # Spawn handlers for incoming and outgoing data
         self._receiving_handler = gevent.spawn(receiving_handler, self)
         self._sending_handler = gevent.spawn(sending_handler, self)
-
+        # cycle through transactions to progress state machines
         self._transaction_handler = gevent.spawn(transaction_handler, self)
 
         # set entity id in MIB
@@ -45,7 +45,6 @@ class CFDP(object):
 
         # temporary list for holding PDUs that have been read from file
         self.received_pdu_files = []
-
 
     def connect(self):
         """Connect with TC here"""
@@ -91,22 +90,47 @@ class CFDP(object):
         machine.update_state(event=Event.RECEIVED_PUT_REQUEST, request=request)
         # Add transaction to list
         self._machines[transaction_num] = machine
+        machine.indication_handler(IndicationType.TRANSACTION_INDICATION, transaction_id=transaction_num)
 
     def report(self, transaction_id):
         """Report.request -- user request for status report of transaction"""
         request = create_request_from_type(RequestType.REPORT_REQUEST, transaction_id=transaction_id)
+        machine = self._machines.get(transaction_id, None)
+        if machine is None:
+            # TODO error
+            pass
+        else:
+            machine.update_state(event=Event.RECEIVED_REPORT_REQUEST, request=request)
 
     def cancel(self, transaction_id):
         """Cancel.request -- user request to cancel transaction"""
         request = create_request_from_type(RequestType.CANCEL_REQUEST, transaction_id=transaction_id)
+        machine = self._machines.get(transaction_id, None)
+        if machine is None:
+            # TODO error
+            pass
+        else:
+            machine.update_state(event=Event.RECEIVED_CANCEL_REQUEST, request=request)
 
     def suspend(self, transaction_id):
         """Suspend.request -- user request to suspend transaction"""
         request = create_request_from_type(RequestType.SUSPEND_REQUEST, transaction_id=transaction_id)
+        machine = self._machines.get(transaction_id, None)
+        if machine is None:
+            # TODO error
+            pass
+        else:
+            machine.update_state(event=Event.RECEIVED_SUSPEND_REQUEST, request=request)
 
     def resume(self, transaction_id):
         """Resume.request -- user request to resume transaction"""
         request = create_request_from_type(RequestType.RESUME_REQUEST, transaction_id=transaction_id)
+        machine = self._machines.get(transaction_id, None)
+        if machine is None:
+            # TODO error
+            pass
+        else:
+            machine.update_state(event=Event.RECEIVED_RESUME_REQUEST, request=request)
 
 PDU_TMP_PATH = '/tmp/cfdp/pdu/'
 
@@ -154,7 +178,7 @@ def receiving_handler(instance):
             logging.debug('Incoming PDU Type: ' + str(pdu.header.pdu_type))
 
             machine = None
-            transaction_num = pdu.header.transaction_seq_num
+            transaction_num = pdu.header.transaction_id
             if transaction_num in instance._machines:
                 machine = instance._machines[transaction_num]
 
@@ -165,6 +189,9 @@ def receiving_handler(instance):
                     logging.debug(
                         'Ignoring File Data for transaction that doesn\'t exist: {}'.format(transaction_num))
                 else:
+                    # TODO mib time value
+                    # Restart time here when PDU is being given to a machine
+                    machine.inactivity_timer.start(30)
                     machine.update_state(Event.RECEIVED_FILEDATA_PDU, pdu=pdu)
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
                 logging.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
@@ -192,7 +219,6 @@ def read_incoming_pdu(pdu):
     # Transform into bytearray because that is how we wrote it out
     # Will make it an array of integer bytes
     pdu_bytes = [b for b in bytearray(pdu)]
-    logging.debug('PDU Bytes: ' + str(pdu_bytes))
     return make_pdu_from_bytes(pdu_bytes)
 
 
@@ -242,11 +268,15 @@ def transaction_handler(instance):
     while True:
         gevent.sleep(0)
         try:
-            # TODO add more events here e.g. timer checks, etc
-
             # Loop through once to prioritize sending file directives
+            # Check is inactivity timer expired. Later add ack/nak timers
             for trans_num, machine in instance._machines.items():
-                machine.update_state(Event.SEND_FILE_DIRECTIVE)
+                if hasattr(machine, 'inactivity_timer') and machine.inactivity_timer.expired():
+                    machine.inactivity_timer.cancel()
+                    machine.update_state(Event.INACTIVITY_TIMER_EXPIRED)
+                elif machine.role != Role.CLASS_1_RECEIVER:
+                    # Let 1 file directive go per machine. R1 doesn't output PDUs
+                    machine.update_state(Event.SEND_FILE_DIRECTIVE)
 
             # Loop again to send file data
             for trans_num, machine in instance._machines.items():

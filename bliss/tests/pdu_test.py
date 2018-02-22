@@ -36,7 +36,7 @@ class HeaderTest(unittest.TestCase):
         self.assertEqual(self.fixture.crc_flag, pdu_object.crc_flag)
         self.assertEqual(self.fixture.pdu_data_field_length, pdu_object.pdu_data_field_length)
         self.assertEqual(self.fixture.source_entity_id, pdu_object.source_entity_id)
-        self.assertEqual(self.fixture.transaction_seq_num, pdu_object.transaction_seq_num)
+        self.assertEqual(self.fixture.transaction_id, pdu_object.transaction_id)
         self.assertEqual(self.fixture.destination_entity_id, pdu_object.destination_entity_id)
 
     def test_header_read_write(self):
@@ -61,7 +61,7 @@ class HeaderTest(unittest.TestCase):
         self.assertEqual(self.fixture.crc_flag, pdu_object.crc_flag)
         self.assertEqual(self.fixture.pdu_data_field_length, pdu_object.pdu_data_field_length)
         self.assertEqual(self.fixture.source_entity_id, pdu_object.source_entity_id)
-        self.assertEqual(self.fixture.transaction_seq_num, pdu_object.transaction_seq_num)
+        self.assertEqual(self.fixture.transaction_id, pdu_object.transaction_id)
         self.assertEqual(self.fixture.destination_entity_id, pdu_object.destination_entity_id)
 
 
@@ -76,7 +76,7 @@ class MetadataTest(unittest.TestCase):
             'crc_flag': 0,
             'pdu_data_field_length': 25,
             'source_entity_id': '123',
-            'transaction_seq_num': '1',
+            'transaction_id': '1',
             'destination_entity_id': '124'
         }
         md = {
@@ -135,7 +135,7 @@ class EOFTest(unittest.TestCase):
             'crc_flag': 0,
             'pdu_data_field_length': 25,
             'source_entity_id': '123',
-            'transaction_seq_num': '1',
+            'transaction_id': '1',
             'destination_entity_id': '124'
         }
         eof = {
