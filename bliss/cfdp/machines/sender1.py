@@ -99,7 +99,7 @@ class Sender1(Machine):
                 logging.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
                 # Received Put Request
                 self.put_request_received = True
-                self.transaction.other_entity_id = request.get('destination_id')
+                self.transaction.other_entity_id = request.info.get('destination_id')
                 # Use request to populate reused header. This populates direction, entity ids, and tx number
                 self.make_header_from_request(request)
                 # First we build and send metadata PDU
