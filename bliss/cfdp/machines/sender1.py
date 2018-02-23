@@ -192,8 +192,9 @@ class Sender1(Machine):
                     self.transaction_done = True
                     self.state = self.S1
 
-                    self.indication_handler(IndicationType.EOF_SENT_INDICATION,
-                                            transaction_id=self.transaction.transaction_id)
+                    if self.kernel.mib.issue_eof_sent:
+                        self.indication_handler(IndicationType.EOF_SENT_INDICATION,
+                                                transaction_id=self.transaction.transaction_id)
                     self.finish_transaction()
 
             elif event == Event.SEND_FILE_DATA:

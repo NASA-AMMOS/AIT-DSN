@@ -3,7 +3,7 @@ import unittest
 from bliss.cfdp.pdu import Header, Metadata, EOF
 from bliss.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
 
-TEST_DIRECTORY = '/tmp/cfdp/test'
+TEST_DIRECTORY = 'tmp/cfdp/test'
 
 class HeaderTest(unittest.TestCase):
 

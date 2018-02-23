@@ -2,19 +2,7 @@
 
 import bliss.cfdp
 import gevent
-import os
 import traceback
-
-import logging
-from bliss.cfdp.primitives import TransmissionMode
-
-# Default paths for now
-FILE_ROOT = '/tmp/cfdp/'
-# /tmp/cfdp/outgoing for outgoing files
-OUTGOING_PATH = os.path.join(FILE_ROOT, 'outgoing')
-# /tmp/cfdp/incoming for incoming files
-INCOMING_PATH = os.path.join(FILE_ROOT, 'incoming')
-
 
 if __name__ == '__main__':
 

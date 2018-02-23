@@ -4,6 +4,7 @@ import time
 import gevent
 import gevent.socket
 import gevent.queue
+from bliss.cfdp import settings
 from bliss.cfdp.mib import MIB
 from bliss.cfdp.machines.sender1 import Sender1
 from bliss.cfdp.machines.receiver1 import Receiver1
@@ -41,7 +42,7 @@ class CFDP(object):
         self._transaction_handler = gevent.spawn(transaction_handler, self)
 
         # set entity id in MIB
-        self.mib.set_local_entity_id(entity_id)
+        self.mib.local_entity_id = entity_id
 
         # temporary list for holding PDUs that have been read from file
         self.received_pdu_files = []
@@ -76,9 +77,20 @@ class CFDP(object):
         # TODO other parameters for a put request
         # Put request creates a new state machine/transaction
         transaction_num = self._increment_tx_counter()
+
+        if source_path.startswith('/'):
+            logging.error('Source path should be a relative path.')
+            return
+        if destination_path.startswith('/'):
+            logging.error('Destination path should be a relative path.')
+            return
+
+        # Files should be from path specified in settings
+        full_source_path = os.path.join(settings.OUTGOING_PATH, source_path)
+
         request = create_request_from_type(RequestType.PUT_REQUEST,
                           destination_id=destination_id,
-                          source_path=source_path,
+                          source_path=full_source_path,
                           destination_path=destination_path,
                           transmission_mode=transmission_mode)
         # if transmission_mode == TransmissionMode.ACK:
@@ -132,20 +144,18 @@ class CFDP(object):
         else:
             machine.update_state(event=Event.RECEIVED_RESUME_REQUEST, request=request)
 
-PDU_TMP_PATH = '/tmp/cfdp/pdu/'
-
 def read_pdus(instance):
     while True:
         gevent.sleep(0)
         try:
             # logging.debug('Looking for PDUs to read with entity id ' + str(instance.mib.get_local_entity_id()))
-            for pdu_filename in os.listdir(PDU_TMP_PATH):
-                if pdu_filename.startswith(instance.mib.get_local_entity_id() + '_'):
+            for pdu_filename in os.listdir(settings.PDU_PATH):
+                if pdu_filename.startswith(instance.mib.local_entity_id + '_'):
                     if pdu_filename not in instance.received_pdu_files:
                         # cache file so that we know we read it
                         instance.received_pdu_files.append(pdu_filename)
                         # add to incoming so that receiving handler can deal with it
-                        pdu_full_path = os.path.join(PDU_TMP_PATH, pdu_filename)
+                        pdu_full_path = os.path.join(settings.PDU_PATH, pdu_filename)
                         logging.debug('Possible file ' + pdu_filename)
                         with open(pdu_full_path, 'rb') as pdu_file:
                             # add raw file contents to incoming queue
@@ -222,7 +232,7 @@ def read_incoming_pdu(pdu):
     return make_pdu_from_bytes(pdu_bytes)
 
 
-def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=PDU_TMP_PATH):
+def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=settings.PDU_PATH):
     """
     Temporary fcn to write pdu to file, in lieu of sending over some TC
     :param pdu:

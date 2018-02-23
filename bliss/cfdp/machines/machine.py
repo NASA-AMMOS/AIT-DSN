@@ -70,7 +70,7 @@ class Machine(object):
 
     def __init__(self, cfdp, transaction_count, *args, **kwargs):
         self.kernel = cfdp
-        self.transaction = Transaction(cfdp.mib.get_local_entity_id(), transaction_count)
+        self.transaction = Transaction(cfdp.mib.local_entity_id, transaction_count)
         self.state = self.S1
 
         # Set up fault and indication handlers
@@ -97,8 +97,6 @@ class Machine(object):
         self.is_fin_outgoing = False
         self.is_md_outgoing = False
         self.is_nak_outgoing = False
-        # self.temp_file_exists = False
-        # self.open_file_exists = False
         self.is_shutdown = False
 
     def _indication_handler(self, indication_type, *args, **kwargs):

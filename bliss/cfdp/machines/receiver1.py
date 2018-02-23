@@ -4,6 +4,7 @@ from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import ConditionCode, IndicationType
 from bliss.cfdp.util import write_pdu_to_file
 from bliss.cfdp.timer import Timer
+from bliss.cfdp import settings
 
 
 import logging
@@ -80,12 +81,12 @@ class Receiver1(Machine):
                 self.transaction.transaction_id = pdu.header.transaction_id
 
                 # For now, write to file
-                dest_directory = os.path.join('/tmp/cfdp/incoming', os.path.dirname(pdu.destination_path))
+                dest_directory = os.path.join(settings.INCOMING_PATH, os.path.dirname(pdu.destination_path))
                 logging.debug('File Directory: ' + dest_directory)
                 # TODO ensure path is relative
 
                 # this is the file path of destination path
-                self.file_path = os.path.join(os.path.join('/tmp/cfdp/incoming', pdu.destination_path))
+                self.file_path = os.path.join(os.path.join(settings.INCOMING_PATH, pdu.destination_path))
 
                 # Create destination directions -- this is where we will write from now on
                 if not os.path.exists(dest_directory):
@@ -157,10 +158,11 @@ class Receiver1(Machine):
                 # Write file data to file
                 logging.debug('Writing file data to file {0} with offset {1}'.format(self.file_path, pdu.segment_offset))
                 self.save_file_data(pdu.data, offset=pdu.segment_offset)
-                self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
-                                        transaction_id=self.transaction.transaction_id,
-                                        offset=pdu.segment_offset,
-                                        length=len(pdu.data))
+                if self.kernel.mib.issue_file_segment_recv:
+                    self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
+                                            transaction_id=self.transaction.transaction_id,
+                                            offset=pdu.segment_offset,
+                                            length=len(pdu.data))
 
             elif event == Event.RECEIVED_EOF_NO_ERROR_PDU:
                 logging.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
@@ -173,8 +175,9 @@ class Receiver1(Machine):
                 logging.debug('Writing EOF to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
                 # TODO other checks, see cfs
-                self.indication_handler(IndicationType.EOF_RECV_INDICATION,
-                                        transaction_id=self.transaction.transaction_id)
+                if self.kernel.mib.issue_eof_recv:
+                    self.indication_handler(IndicationType.EOF_RECV_INDICATION,
+                                            transaction_id=self.transaction.transaction_id)
                 self.finish_transaction()
 
             elif event == Event.RECEIVED_EOF_CANCEL_PDU:

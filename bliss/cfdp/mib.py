@@ -1,7 +1,10 @@
+import os
 import copy
+import yaml
 from collections import defaultdict
-# Default MIB values
 
+
+# Default MIB values
 local_mib_fields = {
     # local entity id
     'entity_id': 1,
@@ -34,12 +37,87 @@ class MIB(object):
     def __init__(self):
         """Initialize MIB for a local entity"""
         # TODO allow persistence in a file
-        self.local = copy.deepcopy(local_mib_fields)
+        self._local = copy.deepcopy(local_mib_fields)
         # use default values for remote entities unless specifically set
-        self.remote = defaultdict(lambda : copy.deepcopy(remote_mib_fields))
+        self._remote = defaultdict(lambda : copy.deepcopy(remote_mib_fields))
 
-    def get_local_entity_id(self):
-        return self.local['entity_id']
+    # Local getters as properties
+    @property
+    def local_entity_id(self):
+        return self._local.get('entity_id')
 
-    def set_local_entity_id(self, entity_id):
-        self.local['entity_id'] = entity_id
+    @local_entity_id.setter
+    def local_entity_id(self, value):
+        self._local['entity_id'] = value
+
+    @property
+    def issue_eof_sent(self):
+        return self._local.get('issue_eof_sent')
+
+    @property
+    def issue_eof_recv(self):
+        return self._local.get('issue_eof_recv')
+
+    @property
+    def issue_file_segment_recv(self):
+        return self._local.get('issue_file_segment_recv')
+
+    @property
+    def issue_transaction_finished(self):
+        return self._local.get('issue_transaction_finished')
+
+    @property
+    def issue_suspended(self):
+        return self._local.get('issue_suspended')
+
+    @property
+    def issue_resumed(self):
+        return self._local.get('issue_resumed')
+
+    # Remote Getters
+    def ut_address(self, entity_id):
+        return self._remote[entity_id].get('ut_address')
+
+    def ack_limit(self, entity_id):
+        return self._remote[entity_id].get('ack_limit')
+
+    def ack_timeout(self, entity_id):
+        return self._remote[entity_id].get('ack_timeout')
+
+    def inactivity_timeout(self, entity_id):
+        return self._remote[entity_id].get('inactivity_timeout')
+
+    def nak_timeout(self, entity_id):
+        return self._remote[entity_id].get('nak_timeout')
+
+    def nak_limit(self, entity_id):
+        return self._remote[entity_id].get('nak_limit')
+
+    def maximum_file_segment_length(self, entity_id):
+        return self._remote[entity_id].get('maximum_file_segment_length')
+
+    def set_local(self, parameter, value):
+        # TODO verification/validation
+        if parameter in self._local:
+            self._local[parameter] = value
+
+    def dump(self, path):
+        """Write MIB to yaml"""
+        local_file_path = os.path.join(path, 'local.yaml')
+        with open(local_file_path, 'w') as mib_file:
+            yaml.dump(self._local, mib_file, default_flow_style=False)
+
+        remote_file_path = os.path.join(path, 'remote.yaml')
+        with open(remote_file_path, 'w') as mib_file:
+            yaml.dump(self._local, mib_file, default_flow_style=False)
+
+    def load(self, path):
+        """Write MIB to yaml"""
+        local_file_path = os.path.join(path, 'local.yaml')
+        with open(local_file_path, 'r') as mib_file:
+            self._local = yaml.load(mib_file)
+
+        # TODO load to defaultdict
+        # remote_file_path = os.path.join(path, 'remote.yaml')
+        # with open(remote_file_path, 'w') as mib_file:
+        #     self._remote = yaml.load(mib_file)
