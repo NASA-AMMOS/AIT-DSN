@@ -281,7 +281,8 @@ def transaction_handler(instance):
             # Loop through once to prioritize sending file directives
             # Check is inactivity timer expired. Later add ack/nak timers
             for trans_num, machine in instance._machines.items():
-                if hasattr(machine, 'inactivity_timer') and machine.inactivity_timer.expired():
+                if hasattr(machine, 'inactivity_timer') and machine.inactivity_timer is not None \
+                        and machine.inactivity_timer.expired():
                     machine.inactivity_timer.cancel()
                     machine.update_state(Event.INACTIVITY_TIMER_EXPIRED)
                 elif machine.role != Role.CLASS_1_RECEIVER:

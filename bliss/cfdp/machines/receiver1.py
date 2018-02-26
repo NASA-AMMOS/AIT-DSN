@@ -1,7 +1,9 @@
 import os
+import shutil
 from machine import Machine
+import bliss.cfdp.pdu
 from bliss.cfdp.events import Event
-from bliss.cfdp.primitives import ConditionCode, IndicationType
+from bliss.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
 from bliss.cfdp.util import write_pdu_to_file
 from bliss.cfdp.timer import Timer
 from bliss.cfdp import settings
@@ -19,21 +21,11 @@ class Receiver1(Machine):
     # State 2, has received MD, waiting for EOF
     S2 = "WAIT_FOR_EOF"
 
-    def __init__(self, cfdp, transaction_count, *args, **kwargs):
-        super(Receiver1, self).__init__(cfdp, transaction_count, *args, **kwargs)
+    def __init__(self, cfdp, transaction_id, *args, **kwargs):
+        super(Receiver1, self).__init__(cfdp, transaction_id, *args, **kwargs)
         # start up timers
         self.inactivity_timer = Timer()
-        # TODO add MIB timer value
-        self.inactivity_timer.start(30)
-
-    def save_file_data(self, contents, offset=None):
-        # Writes file data to the open destination file
-        if self.file is None or self.file.closed:
-            # TODO raise fault
-            return
-        if offset is not None and offset >= 0:
-            self.file.seek(offset)
-        self.file.write(contents)
+        self.inactivity_timer.start(self.kernel.mib.inactivity_timeout(0))
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -47,10 +39,8 @@ class Receiver1(Machine):
             if event == Event.RECEIVED_CANCEL_REQUEST:
                 logging.info("Receiver {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 # User-issued request to cancel
-                # TODO trigger NOTICE OF CANCELLATION
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-                self.cancel()
-                self.finish_transaction()
+                self.update_state(Event.NOTICE_OF_CANCELLATION)
 
             elif event == Event.RECEIVED_REPORT_REQUEST:
                 logging.info("Receiver {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
@@ -66,46 +56,58 @@ class Receiver1(Machine):
 
             elif event == Event.NOTICE_OF_CANCELLATION:
                 logging.info("Receiver {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
-                # Set eof to outgoing to send a Cancel EOF
-                self.transaction.cancelled = True
-                self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION)
-                # Shutdown
+                self.cancel()
+                self.finish_transaction()
                 self.shutdown()
 
             elif event == Event.RECEIVED_METADATA_PDU:
                 logging.info("Receiver {0}: Received METADATA PDU event".format(self.transaction.entity_id))
-                # We got a Metadata PDU, and so transaction starts
                 assert(pdu)
+                assert(type(pdu) == bliss.cfdp.pdu.Metadata)
 
+                # Set id of the sender
                 self.transaction.other_entity_id = pdu.header.source_entity_id
-                self.transaction.transaction_id = pdu.header.transaction_id
+                # Save transaction metadata
+                self.metadata = pdu
 
-                # For now, write to file
-                dest_directory = os.path.join(settings.INCOMING_PATH, os.path.dirname(pdu.destination_path))
-                logging.debug('File Directory: ' + dest_directory)
-                # TODO ensure path is relative
-
-                # this is the file path of destination path
-                self.file_path = os.path.join(os.path.join(settings.INCOMING_PATH, pdu.destination_path))
-
-                # Create destination directions -- this is where we will write from now on
-                if not os.path.exists(dest_directory):
-                    os.makedirs(dest_directory)
-
-                # Open a file to write to
-                self.file = open(self.file_path, 'wb')
-                # Write out metadata to incoming
-                incoming_pdu_path = os.path.join(dest_directory, 'md_' + pdu.header.destination_entity_id + '.pdu')
-                # Store path for future use
+                # Write out the MD pdu to the PDU directory for now
+                incoming_pdu_path = os.path.join(settings.TEMP_PATH, 'md_' + pdu.header.destination_entity_id + '.pdu')
                 logging.debug('Writing MD to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
+                if self.metadata.file_transfer:
+                    # File transfer -- we will eventually received file data,
+                    # so we arrange for the eventual arrival of the file.
+                    # Get the file path of the final destination file
+                    # Get the absolute directory path so we can check if it exists,
+                    # and store the full file path for later use
+                    self.file_path = os.path.join(os.path.join(settings.INCOMING_PATH, pdu.destination_path))
+                    logging.debug('File Destination Path: ' + self.file_path)
+
+                    # Open a temp file for incoming file data to go to
+                    # File name will be entity id and transaction id
+                    # Once the file transfer is done, this file will be removed
+                    temp_file_path = os.path.join(
+                        settings.TEMP_PATH,
+                        'tmp_transfer_{0}_{1}'.format(self.transaction.entity_id, self.transaction.transaction_id)
+                    )
+                    self.temp_path = temp_file_path
+                    try:
+                        self.temp_file = open(temp_file_path, 'wb')
+                    except IOError:
+                        logging.error('Receiver {0} -- could not open file: {1}'
+                                      .format(self.transaction.entity_id, temp_file_path))
+                        self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+                # Send MD Received Indication
                 self.indication_handler(IndicationType.METADATA_RECV_INDICATION,
                                         transaction_id=self.transaction.transaction_id,
                                         source_entity_id=self.transaction.other_entity_id,
                                         source_path=pdu.source_path,
                                         destination_path=pdu.destination_path,
                                         messages_to_user=None)
+
+                # TODO Process TLVs, not yet implemented
 
                 # Set state to be awaiting EOF
                 self.state = self.S2
@@ -117,12 +119,14 @@ class Receiver1(Machine):
 
             elif event == Event.RECEIVED_EOF_CANCEL_PDU:
                 logging.info("Receiver {0}: Received EOF CANCEL PDU event".format(self.transaction.entity_id))
-                # Cancel PDU from other entity
+                # This is a cancel PDU event from the other entity, so we just closed out the transaction
                 self.finish_transaction()
 
             elif event == Event.INACTIVITY_TIMER_EXPIRED:
                 logging.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event".format(self.transaction.entity_id))
-                pass
+                # Raise inactivity fault
+                self.inactivity_timer.restart()
+                self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
                 logging.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
@@ -136,9 +140,9 @@ class Receiver1(Machine):
             if event == Event.RECEIVED_CANCEL_REQUEST:
                 logging.info("Receiver {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 # User-issued request to cancel
+                # Set the condition code of the transaction and close it out
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-                self.cancel()
-                self.finish_transaction()
+                self.update_state(Event.NOTICE_OF_CANCELLATION)
 
             elif event == Event.RECEIVED_REPORT_REQUEST:
                 logging.info("Receiver {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
@@ -151,30 +155,88 @@ class Receiver1(Machine):
                 logging.info("Receiver {0}: Received ABANDON event".format(self.transaction.entity_id))
                 self.shutdown()
 
+            elif event == Event.NOTICE_OF_CANCELLATION:
+                logging.info("Receiver {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
+                self.cancel()
+                self.finish_transaction()
+                self.shutdown()
+
             elif event == Event.RECEIVED_FILEDATA_PDU:
                 logging.info("Receiver {0}: Received FILE DATA PDU event".format(self.transaction.entity_id))
                 # File data received before Metadata has been received
                 assert(pdu)
-                # Write file data to file
-                logging.debug('Writing file data to file {0} with offset {1}'.format(self.file_path, pdu.segment_offset))
-                self.save_file_data(pdu.data, offset=pdu.segment_offset)
-                if self.kernel.mib.issue_file_segment_recv:
-                    self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
-                                            transaction_id=self.transaction.transaction_id,
-                                            offset=pdu.segment_offset,
+                assert(type(pdu) == bliss.cfdp.pdu.FileData)
+
+                if self.metadata.file_transfer:
+                    # Store file data to temp file
+                    # Check that temp file is still open
+                    if self.temp_file is None or self.temp_file.closed:
+                        try:
+                            self.temp_file = open(self.temp_path, 'wb')
+                        except IOError:
+                            logging.error('Receiver {0} -- could not open file: {1}'
+                                          .format(self.transaction.entity_id, self.temp_path))
+                            return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+                    logging.debug(
+                        'Writing file data to file {0} with offset {1}'.format(self.file_path, pdu.segment_offset))
+                    # Seek offset to write in file if provided
+                    if pdu.segment_offset is not None and pdu.segment_offset >= 0:
+                        self.temp_file.seek(pdu.segment_offset)
+                    self.temp_file.write(pdu.data)
+                    # Update file size
+                    self.transaction.recv_file_size += len(pdu.data)
+                    # Issue file segment received
+                    if self.kernel.mib.issue_file_segment_recv:
+                        self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
+                                                transaction_id=self.transaction.transaction_id,
+                                                offset=pdu.segment_offset,
                                             length=len(pdu.data))
 
             elif event == Event.RECEIVED_EOF_NO_ERROR_PDU:
                 logging.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
-                # Nominal case
-                # Make the destination directory for the file
-                dest_directory = os.path.dirname(self.file_path)
-                logging.debug('File Directory: ' + dest_directory)
-                # Write out metadata to incoming
-                incoming_pdu_path = os.path.join(dest_directory, 'eof_' + pdu.header.destination_entity_id + '.pdu')
+                assert(pdu)
+                assert(type(pdu) == bliss.cfdp.pdu.EOF)
+
+                # Write EOF to PDU path
+                incoming_pdu_path = os.path.join(settings.TEMP_PATH,
+                                                 'eof_' + pdu.header.destination_entity_id + '.pdu')
                 logging.debug('Writing EOF to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
-                # TODO other checks, see cfs
+
+                if self.metadata.file_transfer:
+                    # Close temp file
+                    if self.temp_file is not None and not self.temp_file.closed:
+                        self.temp_file.close()
+
+                    # Check received vs. reported file size
+                    if self.transaction.recv_file_size != pdu.file_size:
+                        logging.error('Receiver {0} -- file size fault. Received: {1}; Expected: {2}'
+                                      .format(self.transaction.entity_id, self.transaction.recv_file_size, pdu.file_size))
+                        return self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
+
+                    # Check checksum
+                    # TODO calculate received checksum
+                    # if self.transaction.file_checksum != pdu.file_checksum:
+                    #     logging.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
+                    #                   .format(self.transaction.entity_id, self.transaction.file_checksum,
+                    #                           pdu.file_checksum))
+                    #     return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
+
+                self.transaction.delivery_code = DeliveryCode.DATA_COMPLETE
+
+                # Copy temp file to destination path
+                destination_directory_path = os.path.dirname(self.file_path)
+                if not os.path.exists(destination_directory_path):
+                    os.makedirs(destination_directory_path)
+                try:
+                    shutil.copy(self.temp_path ,self.file_path)
+                except IOError:
+                    return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+                # TODO Filestore requests, not yet implemented
+
+                # Issue EOF received indication
                 if self.kernel.mib.issue_eof_recv:
                     self.indication_handler(IndicationType.EOF_RECV_INDICATION,
                                             transaction_id=self.transaction.transaction_id)
@@ -187,7 +249,8 @@ class Receiver1(Machine):
 
             elif event == Event.INACTIVITY_TIMER_EXPIRED:
                 logging.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event".format(self.transaction.entity_id))
-                pass
+                self.inactivity_timer.restart()
+                self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
                 logging.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))

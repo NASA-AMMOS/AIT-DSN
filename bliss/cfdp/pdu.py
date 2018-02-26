@@ -1,3 +1,4 @@
+import copy
 from bliss.cfdp.util import string_length_in_bytes, string_to_bytes, bytes_to_string
 from bliss.cfdp.primitives import FileDirective, ConditionCode
 
@@ -80,6 +81,7 @@ class Metadata(PDU):
     def __init__(self, *args, **kwargs):
         super(Metadata, self).__init__()
         self.header = kwargs.get('header', None)
+        self.file_transfer = kwargs.get('file_transfer', True) # TODO need to implement PDU TLV to get this
         self.segmentation_control = kwargs.get('segmentation_control', self.SEGMENTATION_CONTROL_BOUNDARIES_RESPECTED)
         self.file_size = kwargs.get('file_size', 0)
         self.source_path = kwargs.get('source_path', None)
@@ -353,6 +355,11 @@ class Header(object):
         self.source_entity_id = kwargs.get('source_entity_id', None)
         self.transaction_id = kwargs.get('transaction_id', None)
         self.destination_entity_id = kwargs.get('destination_entity_id', None)
+
+    def __copy__(self):
+        newone = type(self)()
+        newone.__dict__.update(self.__dict__)
+        return newone
 
     @property
     def length(self):

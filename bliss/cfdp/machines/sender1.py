@@ -1,8 +1,9 @@
+import copy
 from machine import Machine
 from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
 from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
-from bliss.cfdp.util import string_length_in_bytes, calc_file_size
+from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure
 
 import logging
 
@@ -21,13 +22,11 @@ class Sender1(Machine):
         self.header.source_entity_id = self.transaction.entity_id
         self.header.transaction_id = self.transaction.transaction_id
         self.header.destination_entity_id = request.info.get('destination_id')
+        return self.header
 
     def make_metadata_pdu_from_request(self, request):
         # At this point, most if not all fields of the header should be populated. Just change the fields that need to be
-        # Update header pdu_type. Metadata is always file directive
-        header = self.header
-        header.pdu_type = Header.FILE_DIRECTIVE_PDU
-        logging.debug('Making METADATA; PDU TYPE: ' + str(header.pdu_type))
+
         # Calculate pdu data field length for header
         # TODO double check this...
         # here the data field is size of metadata
@@ -40,46 +39,43 @@ class Sender1(Machine):
         # Each of these is +1 for 8 bit length field
         data_field_length_octets += (string_length_in_bytes(request.info.get('source_path')) + 1)
         data_field_length_octets += (string_length_in_bytes(request.info.get('destination_path')) + 1)
-        header.pdu_data_field_length = data_field_length_octets
+        self.header.pdu_data_field_length = data_field_length_octets
 
-        self.file_size = calc_file_size(request.info.get('source_path'))
-        metadata = Metadata(
+        file_size = calc_file_size(request.info.get('source_path'))
+
+        # Copy header
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DIRECTIVE_PDU
+        self.metadata = Metadata(
             header=header,
             source_path=request.info.get('source_path'),
             destination_path=request.info.get('destination_path'),
-            file_size=self.file_size)
-        return metadata
+            file_size=file_size)
+        return self.metadata
 
     def make_eof_pdu(self, condition_code):
-        header = self.header
+        header = copy.copy(self.header)
         header.pdu_type = Header.FILE_DIRECTIVE_PDU
-        logging.debug('Making EOF; PDU TYPE: ' + str(header.pdu_type))
-        eof = EOF(
+        self.eof = EOF(
             header=header,
             condition_code=condition_code,
             file_checksum=0, # TODO checksum?
-            file_size=self.file_size
+            file_size=self.metadata.file_size
         )
-        return eof
+        return self.eof
 
     def make_fd_pdu(self):
-        # Set type to file data
-        header = self.header
-        header.pdu_type = Header.FILE_DATA_PDU
-        logging.debug('Making FD; PDU TYPE: ' + str(header.pdu_type))
-
-        # Bytes to read TODO move to MIB
-        TMP_FILE_CHUNK_SIZE = 128
-        # This means a file buffer is open (ideally)
+        file_chunk_size = self.kernel.mib.maximum_file_segment_length(self.transaction.entity_id)
         offset = 0
         data_chunk = None
         if self.file is not None:
             offset = self.file.tell()
-            data_chunk = self.file.read(TMP_FILE_CHUNK_SIZE)
+            data_chunk = self.file.read(file_chunk_size)
         if not data_chunk:
-            # TODO error handling
-            logging.debug('No data read from file')
-            raise Exception('No data read from file')
+            # FIXME to be more accurate of an error
+            return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DATA_PDU
         fd = FileData(
             header=header,
             segment_offset=offset,
@@ -90,26 +86,68 @@ class Sender1(Machine):
         """
         Prompt for machine to evaluate a state. Could possibly or possibly not receive an event, pdu, or request to factor into state
         """
+        # TODO make DRYER -- there are some cases (sending file data/dir) that are state-independent
 
-        # Sender is for Put request to start sending
         if self.state == self.S1:
 
             # Only event in S1 with defined action is receiving a put request
             if event == Event.RECEIVED_PUT_REQUEST:
                 logging.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
-                # Received Put Request
                 self.put_request_received = True
                 self.transaction.other_entity_id = request.info.get('destination_id')
+
                 # Use request to populate reused header. This populates direction, entity ids, and tx number
                 self.make_header_from_request(request)
-                # First we build and send metadata PDU
-                metadata = self.make_metadata_pdu_from_request(request)
-                self.kernel.send(metadata)
+
+                # Queue up metadata to go out
+                self.make_metadata_pdu_from_request(request)
                 self.is_md_outgoing = True
-                # Save the file buffer
-                self.file = open(metadata.source_path, 'rb')
                 # Then set state to the file transfer state
                 self.state = self.S2
+
+                if self.metadata.file_transfer:
+                    # Try to open the source file
+                    logging.info("Sender {0}: Attempting to open file {1}"
+                                 .format(self.transaction.entity_id, self.metadata.source_path))
+                    try:
+                        self.file = open(self.metadata.source_path, 'rb')
+                    except IOError:
+                        logging.error('Sender {0} -- could not open file: {1}'
+                                      .format(self.transaction.entity_id, self.metadata.source_path))
+                        return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+                    # Check file structure
+                    logging.info("Sender {0}: Checking file structure".format(self.transaction.entity_id))
+                    if not check_file_structure(self.file, self.metadata.segmentation_control):
+                        return self.fault_handler(ConditionCode.INVALID_FILE_STRUCTURE)
+                else:
+                    self.is_oef_outgoing = True
+                    self.transaction.condition_code = ConditionCode.NO_ERROR
+                    self.make_eof_pdu(self.transaction.condition_code)
+
+            elif event == Event.SEND_FILE_DIRECTIVE:
+                logging.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+                if self.transaction.frozen or self.transaction.suspended:
+                    return
+
+                # TODO add checks to see if file directive is actually ready
+                if self.is_md_outgoing is True:
+                    self.kernel.send(self.metadata)
+                    self.is_md_outgoing = False
+
+                elif self.is_oef_outgoing is True:
+                    logging.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    self.kernel.send(self.eof)
+                    self.is_oef_outgoing = False
+                    self.eof_sent = True
+                    self.transaction_done = True
+
+                    if self.kernel.mib.issue_eof_sent:
+                        self.indication_handler(IndicationType.EOF_SENT_INDICATION,
+                                                transaction_id=self.transaction.transaction_id)
+                    self.finish_transaction()
+                    self.shutdown()
+
             else:
                 logging.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
@@ -143,17 +181,11 @@ class Sender1(Machine):
                 if self.transaction.suspended is True:
                     self.transaction.suspended = False
                     self.indication_handler(IndicationType.RESUMED_INDICATION) # TODO progress param?
-                    if self.transaction.frozen is False:
-                        # Trigger file data event
-                        self.update_state(Event.SEND_FILE_DATA)
 
             elif event == Event.RECEIVED_THAW_REQUEST:
                 logging.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
                 if self.transaction.frozen is True:
                     self.transaction.frozen = False
-                    if self.transaction.suspended is False:
-                        # Trigger file data event
-                        self.update_state(Event.SEND_FILE_DATA)
 
             # OTHER EVENTS
             elif event == Event.ABANDON_TRANSACTION:
@@ -182,11 +214,18 @@ class Sender1(Machine):
                                             condition_code=ConditionCode.SUSPEND_REQUEST_RECEIVED)
 
             elif event == Event.SEND_FILE_DIRECTIVE:
+                if self.transaction.frozen or self.transaction.suspended:
+                    return
+
                 logging.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
-                if self.is_oef_outgoing is True:
-                    eof = self.make_eof_pdu(self.transaction.condition_code)
-                    logging.debug("EOF TYPE: " + str(eof.header.pdu_type))
-                    self.kernel.send(eof)
+
+                if self.is_md_outgoing is True:
+                    self.kernel.send(self.metadata)
+                    self.is_md_outgoing = False
+                elif self.is_oef_outgoing is True:
+                    self.make_eof_pdu(self.transaction.condition_code)
+                    logging.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
                     self.transaction_done = True
@@ -196,23 +235,23 @@ class Sender1(Machine):
                         self.indication_handler(IndicationType.EOF_SENT_INDICATION,
                                                 transaction_id=self.transaction.transaction_id)
                     self.finish_transaction()
+                    self.shutdown()
 
             elif event == Event.SEND_FILE_DATA:
-                # Check if entire file is done being sent. If yes, queue up EOF
+                if self.transaction.frozen or self.transaction.suspended:
+                    return
+
                 logging.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
-                if self.file is None or self.file.closed:
-                    logging.debug('No file data to send')
-                elif self.file is not None and not self.file.closed and self.file.tell() == self.file_size:
-                    logging.debug('File is finished. is_eof_outgoing = True. Closing file...')
+
+                if self.file is None or (not self.file.closed and self.file.tell() == self.metadata.file_size):
+                    # Check if entire file is done being sent. If yes, queue up EOF
                     self.is_oef_outgoing = True
                     self.transaction.condition_code = ConditionCode.NO_ERROR
-                    # Shutdown
-                    self.shutdown()
+                    self.make_eof_pdu(self.transaction.condition_code)
+
                 else:
                     # Send file data
                     fd = self.make_fd_pdu()
-                    # TODO want to add this to a queue to be sent instead of calling directly
-                    # so that directives can get priority...
                     self.kernel.send(fd)
 
             else:

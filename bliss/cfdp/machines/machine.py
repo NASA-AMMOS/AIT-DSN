@@ -60,6 +60,9 @@ class Transaction(object):
         self.start_time = None
         self.suspended = False
 
+        self.recv_file_size = 0
+        self.file_checksum = None
+
 
 class Machine(object):
 
@@ -68,22 +71,28 @@ class Machine(object):
     S1 = MachineState.SEND_METADATA
     S2 = MachineState.SEND_FILEDATA
 
-    def __init__(self, cfdp, transaction_count, *args, **kwargs):
+    def __init__(self, cfdp, transaction_id, *args, **kwargs):
         self.kernel = cfdp
-        self.transaction = Transaction(cfdp.mib.local_entity_id, transaction_count)
+        self.transaction = Transaction(cfdp.mib.local_entity_id, transaction_id)
         self.state = self.S1
 
         # Set up fault and indication handlers
         self.indication_handler = kwargs.get('indication_handler', self._indication_handler)
+        self.fault_handler = kwargs.get('fault_handler', self._fault_handler)
 
-        # file to be sent or received
+        # Open file being sent or received (final file, not temp)
         self.file = None
-        self.file_size = None
-        self.file_checksum = None
+        # Path of source or destination file (depending on role)
+        self.file_path = None
+
+        # Open temp file for receiving file data
+        self.temp_file = None
+        self.temp_path = None
 
         # header is re-used to make each PDU because values will mostly be the same
         self.header = None
         self.metadata = None
+        self.eof = None
 
         # State machine flags
         self.pdu_received = False
@@ -99,11 +108,23 @@ class Machine(object):
         self.is_nak_outgoing = False
         self.is_shutdown = False
 
+        self.inactivity_timer = None
+        self.ack_timer = None
+        self.nak_timer = None
+
     def _indication_handler(self, indication_type, *args, **kwargs):
         """
         Default indication handler, which is just to log a message
+        Indication type is primitive type `IndicationType`
         """
         logging.info('INDICATION: ' + str(indication_type))
+
+    def _fault_handler(self, fault_type, *args, **kwargs):
+        """
+        Default fault handler, which is just to log a message
+        Fault type is primitive type `ConditionCode`
+        """
+        logging.info('FAULT: ' + str(fault_type))
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -124,16 +145,28 @@ class Machine(object):
 
         self.transaction.cancelled = True
 
-        # TODO cancel timers
+        if self.inactivity_timer:
+            self.inactivity_timer.cancel()
+        if self.ack_timer:
+            self.ack_timer.cancel()
+        if self.nak_timer:
+            self.nak_timer.cancel()
 
     def finish_transaction(self):
+        """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""
+        logging.debug("Machine {} finishing transaction...".format(self.transaction.transaction_id))
         self.is_oef_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
         self.is_md_outgoing = False
         self.is_nak_outgoing = False
 
-        # TODO cancel timers
+        if self.inactivity_timer:
+            self.inactivity_timer.cancel()
+        if self.ack_timer:
+            self.ack_timer.cancel()
+        if self.nak_timer:
+            self.nak_timer.cancel()
 
         self.transaction.finished = True
         if self.role == Role.CLASS_1_RECEIVER and not self.transaction.is_metadata_received:
@@ -147,10 +180,14 @@ class Machine(object):
                                 transaction_id=self.transaction.transaction_id)
 
     def shutdown(self):
+        logging.debug("Machine {} shutting down...".format(self.transaction.transaction_id))
         if self.file is not None and not self.file.closed:
             self.file.close()
             self.file = None
-        # TODO tmp file handling for receiver
+
+        if self.temp_file is not None and not self.temp_file.closed:
+            self.temp_file.close()
+            self.temp_file = None
         # If transaction was unsuccesful, delete tmp file
 
         # TODO issue Tx indication (finished, abandoned, etc)

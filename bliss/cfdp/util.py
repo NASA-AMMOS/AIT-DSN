@@ -36,3 +36,8 @@ def write_pdu_to_file(out_path, contents, offset=None):
 def calc_file_size(filepath):
     statinfo = os.stat(filepath)
     return statinfo.st_size
+
+
+def check_file_structure(target_file, segmentation_control):
+    # TODO implement segmentation control check
+    return True
