@@ -26,7 +26,8 @@ setup(
 
     install_requires = [
         'bliss-core==0.23.0',
-        'pyasn1'
+        'pyasn1',
+        'enum34==1.1.6'
     ],
     dependency_links = [
        'https://bliss.jpl.nasa.gov/pypi/simple/bliss-core/'
