@@ -12,24 +12,26 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+import logging
 import os
 import socket
 import time
+import traceback
+
 import gevent
-import gevent.socket
 import gevent.queue
+import gevent.socket
+
 from bliss.cfdp import settings
-from bliss.cfdp.mib import MIB
-from bliss.cfdp.machines.sender1 import Sender1
-from bliss.cfdp.machines.receiver1 import Receiver1
-from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, IndicationType
 from bliss.cfdp.events import Event
-from bliss.cfdp.request import create_request_from_type
+from bliss.cfdp.machines.receiver1 import Receiver1
+from bliss.cfdp.machines.sender1 import Sender1
+from bliss.cfdp.mib import MIB
 from bliss.cfdp.pdu import make_pdu_from_bytes, Header
+from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, IndicationType
+from bliss.cfdp.request import create_request_from_type
 from bliss.cfdp.util import write_pdu_to_file
 
-import traceback
-import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(asctime)s] %(levelname)-10s %(message)-100s %(filename)s:%(lineno)s',
                     datefmt='%m-%d %H:%M')
@@ -201,10 +203,8 @@ def receiving_handler(instance):
             pdu = read_incoming_pdu(pdu_bytes)
             logging.debug('Incoming PDU Type: ' + str(pdu.header.pdu_type))
 
-            machine = None
             transaction_num = pdu.header.transaction_id
-            if transaction_num in instance._machines:
-                machine = instance._machines[transaction_num]
+            machine = instance._machines[transaction_num] if transaction_num in instance._machines else None
 
             if pdu.header.pdu_type == Header.FILE_DATA_PDU:
                 # If its file data we'll concat to file
@@ -213,9 +213,8 @@ def receiving_handler(instance):
                     logging.debug(
                         'Ignoring File Data for transaction that doesn\'t exist: {}'.format(transaction_num))
                 else:
-                    # TODO mib time value
-                    # Restart time here when PDU is being given to a machine
-                    machine.inactivity_timer.start(30)
+                    # Restart inactivity timer here when PDU is being given to a machine
+                    machine.inactivity_timer.restart()
                     machine.update_state(Event.RECEIVED_FILEDATA_PDU, pdu=pdu)
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
                 logging.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))

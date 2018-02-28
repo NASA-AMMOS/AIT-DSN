@@ -12,18 +12,18 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+import logging
 import os
 import shutil
-from machine import Machine
+
 import bliss.cfdp.pdu
+from bliss.cfdp import settings
 from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
-from bliss.cfdp.util import write_pdu_to_file
 from bliss.cfdp.timer import Timer
-from bliss.cfdp import settings
+from bliss.cfdp.util import write_pdu_to_file
+from machine import Machine
 
-
-import logging
 
 class Receiver1(Machine):
     """

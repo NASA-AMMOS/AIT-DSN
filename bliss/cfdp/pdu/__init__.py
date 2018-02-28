@@ -12,14 +12,9 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-import os
 
-PROJECT_PATH = '/Users/lsposto/PycharmProjects/bliss-sle'
-
-MIB_PATH = os.path.join(PROJECT_PATH, "tmp/mib/")
-
-BASE_PATH = os.path.join(PROJECT_PATH, "tmp/cfdp/")
-OUTGOING_PATH = os.path.join(BASE_PATH, "outgoing")
-INCOMING_PATH = os.path.join(BASE_PATH, "incoming")
-TEMP_PATH = os.path.join(BASE_PATH, "tmp")
-PDU_PATH = os.path.join(BASE_PATH, "pdu")
+from md import Metadata
+from eof import EOF
+from filedata import FileData
+from header import Header
+from util import make_pdu_from_bytes

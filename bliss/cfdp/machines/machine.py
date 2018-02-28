@@ -12,7 +12,7 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType
+from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType, HandlerCode, ConditionCode
 
 import logging
 
@@ -113,8 +113,8 @@ class Machine(object):
         self.put_request_received = False
         self.eof_received = False
         self.eof_sent = False
-        self.transaction_done = False
-        self.transaction_cancelled = False
+        self.machine_finished = False
+        self.initiated_cancel = False
         self.is_ack_outgoing = False
         self.is_oef_outgoing = False
         self.is_fin_outgoing = False
@@ -133,12 +133,32 @@ class Machine(object):
         """
         logging.info('INDICATION: ' + str(indication_type))
 
-    def _fault_handler(self, fault_type, *args, **kwargs):
+    def _fault_handler(self, condition_code, *args, **kwargs):
         """
         Default fault handler, which is just to log a message
         Fault type is primitive type `ConditionCode`
         """
-        logging.info('FAULT: ' + str(fault_type))
+        logging.info('FAULT: ' + str(condition_code))
+
+        handler = self.kernel.mib.fault_handler(condition_code)
+
+        if handler == HandlerCode.IGNORE:
+            return True
+        elif handler == HandlerCode.CANCEL:
+            self.initiated_cancel = True
+            self.cancel()
+            if self.role == Role.CLASS_1_SENDER:
+                # TODO send cancel EOF
+                pass
+            elif self.role == Role.CLASS_1_RECEIVER:
+                self.finish_transaction()
+        elif handler == HandlerCode.ABANDON:
+            # TODO process abandon
+            pass
+        elif handler == HandlerCode.SUSPEND:
+            # TODO process suspended notice
+            pass
+
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -150,7 +170,30 @@ class Machine(object):
         """
         raise NotImplementedError
 
+    def abandon(self):
+        self.transaction.abandoned = True
+        self.transaction.finished = True
+        self.transaction.final_status = FinalStatus.FINAL_STATUS_ABANDONED
+        self.indication_handler(IndicationType.ABANDONED_INDICATION)
+        self.shutdown()
+
+    def suspend(self):
+        if not self.transaction.suspended:
+            self.transaction.suspended = True
+
+            if self.inactivity_timer:
+                self.inactivity_timer.pause()
+            if self.ack_timer:
+                self.ack_timer.pause()
+            if self.nak_timer:
+                self.nak_timer.pause()
+
+            self.indication_handler(IndicationType.SUSPENDED_INDICATION,
+                                    transaction_id=self.transaction.transaction_id,
+                                    condition_code=ConditionCode.SUSPEND_REQUEST_RECEIVED)
+
     def cancel(self):
+        """Cancel self"""
         self.is_oef_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
@@ -165,6 +208,15 @@ class Machine(object):
             self.ack_timer.cancel()
         if self.nak_timer:
             self.nak_timer.cancel()
+
+    def notify_partner_of_cancel(self):
+        """Ask partner to cancel and then shutdown"""
+        self.is_oef_outgoing = True
+        self.transaction.cancelled = True
+        self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION,
+                                transaction_id=self.transaction.transaction_id)
+        # Shutdown
+        self.shutdown()
 
     def finish_transaction(self):
         """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""

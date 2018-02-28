@@ -16,6 +16,7 @@ import os
 import copy
 import yaml
 from collections import defaultdict
+from primitives import HandlerCode
 
 
 # Default MIB values
@@ -30,7 +31,7 @@ local_mib_fields = {
     'issue_suspended': True,
     'issue_resumed': True,
     # Default handlers
-    'handlers': []
+    'fault_handlers': defaultdict(lambda : HandlerCode.IGNORE)
 }
 
 # Remote entity id stored by id
@@ -87,6 +88,9 @@ class MIB(object):
     @property
     def issue_resumed(self):
         return self._local.get('issue_resumed')
+
+    def fault_handler(self, condition_code):
+        return self._local.get('fault_handlers').get(condition_code)
 
     # Remote Getters
     def ut_address(self, entity_id):

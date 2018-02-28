@@ -88,6 +88,14 @@ class ConditionCode(Enum):
     CANCEL_REQUEST_RECEIVED = 15
 
 
+class HandlerCode(Enum):
+    """0, 5 - 15 are reserved"""
+    CANCEL = 1
+    SUSPEND = 2
+    IGNORE = 3
+    ABANDON = 4
+
+
 class DeliveryCode(Enum):
     DATA_COMPLETE = "DATA_COMPLETE"
     DATA_INCOMPLETE = "DATA_INCOMPLETE"

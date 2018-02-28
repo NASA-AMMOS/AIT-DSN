@@ -12,14 +12,31 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-import os
 
-PROJECT_PATH = '/Users/lsposto/PycharmProjects/bliss-sle'
+class PDU(object):
 
-MIB_PATH = os.path.join(PROJECT_PATH, "tmp/mib/")
+    def __init__(self):
+        # self.header = Header()
+        self._valid = False
+        self._errors = None
 
-BASE_PATH = os.path.join(PROJECT_PATH, "tmp/cfdp/")
-OUTGOING_PATH = os.path.join(BASE_PATH, "outgoing")
-INCOMING_PATH = os.path.join(BASE_PATH, "incoming")
-TEMP_PATH = os.path.join(BASE_PATH, "tmp")
-PDU_PATH = os.path.join(BASE_PATH, "pdu")
+    @property
+    def length(self):
+        """Byte length of Header"""
+        return len(self.to_bytes())
+
+    def is_valid(self):
+        """Check if all header fields are valid length"""
+        # TODO put in checks
+        self._valid = True
+        self._errors = None
+        return self._valid
+
+    def to_bytes(self):
+        """Return array of bytes binary converted to int"""
+        raise NotImplementedError
+
+    @staticmethod
+    def to_object(bytes):
+        """Return PDU subclass object created from given bytes of data"""
+        raise NotImplementedError

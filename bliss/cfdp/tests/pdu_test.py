@@ -14,8 +14,9 @@
 
 import os
 import unittest
-from bliss.cfdp.pdu import Header, Metadata, EOF
+
 from bliss.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
+from bliss.cfdp.pdu import Header, Metadata, EOF
 
 TEST_DIRECTORY = 'tmp/cfdp/test'
 

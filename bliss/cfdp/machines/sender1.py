@@ -13,13 +13,14 @@
 # information to foreign countries or providing access to foreign persons.
 
 import copy
-from machine import Machine
-from bliss.cfdp.events import Event
-from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
-from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
-from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure
-
 import logging
+
+from bliss.cfdp.events import Event
+from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
+from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
+from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure
+from machine import Machine
+
 
 class Sender1(Machine):
     """
@@ -154,7 +155,7 @@ class Sender1(Machine):
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
-                    self.transaction_done = True
+                    self.machine_finished = True
 
                     if self.kernel.mib.issue_eof_sent:
                         self.indication_handler(IndicationType.EOF_SENT_INDICATION,
@@ -198,34 +199,21 @@ class Sender1(Machine):
 
             elif event == Event.RECEIVED_THAW_REQUEST:
                 logging.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
-                if self.transaction.frozen is True:
-                    self.transaction.frozen = False
+                self.transaction.frozen = False
 
             # OTHER EVENTS
             elif event == Event.ABANDON_TRANSACTION:
                 logging.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
-                self.transaction.abandoned = True
-                self.transaction.finished = True
-                self.indication_handler(IndicationType.ABANDONED_INDICATION)
-                self.shutdown()
+                self.abandon()
 
             elif event == Event.NOTICE_OF_CANCELLATION:
                 logging.info("Sender {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
                 # Set eof to outgoing to send a Cancel EOF
-                self.is_oef_outgoing = True
-                self.transaction.cancelled = True
-                self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION,
-                                        transaction_id=self.transaction.transaction_id)
-                # Shutdown
-                self.shutdown()
+                self.notify_partner_of_cancel()
 
             elif event == Event.NOTICE_OF_SUSPENSION:
                 logging.info("Sender {0}: Received NOTICE OF SUSPENSION".format(self.transaction.entity_id))
-                if self.transaction.suspended is False:
-                    self.transaction.suspended = True
-                    self.indication_handler(IndicationType.SUSPENDED_INDICATION,
-                                            transaction_id=self.transaction.transaction_id,
-                                            condition_code=ConditionCode.SUSPEND_REQUEST_RECEIVED)
+                self.suspend()
 
             elif event == Event.SEND_FILE_DIRECTIVE:
                 if self.transaction.frozen or self.transaction.suspended:
@@ -242,7 +230,7 @@ class Sender1(Machine):
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
-                    self.transaction_done = True
+                    self.machine_finished = True
                     self.state = self.S1
 
                     if self.kernel.mib.issue_eof_sent:
