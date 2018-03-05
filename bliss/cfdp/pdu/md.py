@@ -28,7 +28,7 @@ class Metadata(PDU):
         super(Metadata, self).__init__()
         self.header = kwargs.get('header', None)
         self.file_transfer = kwargs.get('file_transfer', True) # TODO need to implement PDU TLV to get this
-        self.segmentation_control = kwargs.get('segmentation_control', self.SEGMENTATION_CONTROL_BOUNDARIES_RESPECTED)
+        self.segmentation_control = kwargs.get('segmentation_control', self.SEGMENTATION_CONTROL_BOUNDARIES_NOT_RESPECTED)
         self.file_size = kwargs.get('file_size', 0)
         self.source_path = kwargs.get('source_path', None)
         self.destination_path = kwargs.get('destination_path', None)

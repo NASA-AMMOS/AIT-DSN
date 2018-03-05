@@ -16,7 +16,7 @@ import os
 import copy
 import yaml
 from collections import defaultdict
-from primitives import HandlerCode
+from primitives import HandlerCode, TransmissionMode
 
 
 # Default MIB values
@@ -44,6 +44,8 @@ remote_mib_fields = {
     'nak_timeout': 10,                      # time interval for NAK
     'nak_limit': 3,                        # limit on number of NAK expirations
     'maximum_file_segment_length': 128,      # in octets
+    'transmission_mode': TransmissionMode.NO_ACK,
+    'crc_required_on_transmission': False,
 }
 
 class MIB(object):
@@ -113,6 +115,9 @@ class MIB(object):
 
     def maximum_file_segment_length(self, entity_id):
         return self._remote[entity_id].get('maximum_file_segment_length')
+
+    def transmission_mode(self, entity_id):
+        return self._remote[entity_id].get('transmission_mode')
 
     def set_local(self, parameter, value):
         # TODO verification/validation

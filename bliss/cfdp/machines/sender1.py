@@ -18,7 +18,7 @@ import logging
 from bliss.cfdp.events import Event
 from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
 from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
-from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure
+from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
 from machine import Machine
 
 
@@ -37,6 +37,7 @@ class Sender1(Machine):
         self.header.source_entity_id = self.transaction.entity_id
         self.header.transaction_id = self.transaction.transaction_id
         self.header.destination_entity_id = request.info.get('destination_id')
+        self.header.transmission_mode = request.info.get('transmission_mode')
         return self.header
 
     def make_metadata_pdu_from_request(self, request):
@@ -74,7 +75,7 @@ class Sender1(Machine):
         self.eof = EOF(
             header=header,
             condition_code=condition_code,
-            file_checksum=0, # TODO checksum?
+            file_checksum=self.transaction.filedata_checksum,
             file_size=self.metadata.file_size
         )
         return self.eof
@@ -111,17 +112,24 @@ class Sender1(Machine):
                 self.put_request_received = True
                 self.transaction.other_entity_id = request.info.get('destination_id')
 
-                # Use request to populate reused header. This populates direction, entity ids, and tx number
-                self.make_header_from_request(request)
+                # (A) Transaction Start Indication Procedure
+                # Issue Transaction Indication
+                self.indication_handler(IndicationType.TRANSACTION_INDICATION, transaction_id=self.transaction.transaction_id)
 
-                # Queue up metadata to go out
+                # Seed PDU header. `self.header` is to be reused in subsequent PDUs for this transaction
+                self.make_header_from_request(request)
+                # Make MD PDU from request and queue it up for sending
                 self.make_metadata_pdu_from_request(request)
                 self.is_md_outgoing = True
-                # Then set state to the file transfer state
+
+                # Now that the MD PDU has been queued, state is S2
+                # We are going to be sending file data PDUs from now on
                 self.state = self.S2
 
+                # Copy File Procedures if the Put.request is a file transfer
+                # For now it always is because Messages to User/TLV have not been implemented
                 if self.metadata.file_transfer:
-                    # Try to open the source file
+                    # Retrieve the source file for Copy File procedures
                     logging.info("Sender {0}: Attempting to open file {1}"
                                  .format(self.transaction.entity_id, self.metadata.source_path))
                     try:
@@ -135,6 +143,12 @@ class Sender1(Machine):
                     logging.info("Sender {0}: Checking file structure".format(self.transaction.entity_id))
                     if not check_file_structure(self.file, self.metadata.segmentation_control):
                         return self.fault_handler(ConditionCode.INVALID_FILE_STRUCTURE)
+
+                    # Compute and save checksum of outgoing file to send with EOF at the end
+                    self.transaction.filedata_checksum = calc_checksum(self.metadata.source_path)
+                    logging.info('Sender {0}: Checksum of file {1}: {2}'.format(self.transaction.entity_id,
+                                                                                self.metadata.source_path,
+                                                                                self.transaction.filedata_checksum))
                 else:
                     self.is_oef_outgoing = True
                     self.transaction.condition_code = ConditionCode.NO_ERROR
@@ -224,6 +238,7 @@ class Sender1(Machine):
                 if self.is_md_outgoing is True:
                     self.kernel.send(self.metadata)
                     self.is_md_outgoing = False
+
                 elif self.is_oef_outgoing is True:
                     self.make_eof_pdu(self.transaction.condition_code)
                     logging.debug("EOF TYPE: " + str(self.eof.header.pdu_type))

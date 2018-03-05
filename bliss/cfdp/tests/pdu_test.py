@@ -14,24 +14,26 @@
 
 import os
 import unittest
+from bliss.cfdp import settings
 
 from bliss.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
 from bliss.cfdp.pdu import Header, Metadata, EOF
+from bliss.cfdp.primitives import ConditionCode
 
-TEST_DIRECTORY = 'tmp/cfdp/test'
+TEST_DIRECTORY = settings.TEST_PATH
 
 class HeaderTest(unittest.TestCase):
 
     def setUp(self):
         hdr = {
             'version': 1,
-            'pdu_type': 1,
+            'pdu_type': 0,
             'direction': 0,
             'transmission_mode': 1,
             'crc_flag': 0,
             'pdu_data_field_length': 25,
             'source_entity_id': '123',
-            'transaction_seq_num': '1',
+            'transaction_id': '1',
             'destination_entity_id': '124'
         }
         self.fixture = Header(**hdr)
@@ -67,7 +69,8 @@ class HeaderTest(unittest.TestCase):
         pdu_object = None
         with open(full_file_path, 'rb') as pdu_file:
             bytes = pdu_file.read()
-            pdu_object = read_incoming_pdu(bytes)
+            pdu_bytes = [b for b in bytearray(bytes)]
+            pdu_object = Header.to_object(pdu_bytes)
 
         self.assertNotEqual(pdu_object, None)
         self.assertEqual(self.fixture.version, pdu_object.version)
@@ -154,8 +157,8 @@ class EOFTest(unittest.TestCase):
             'destination_entity_id': '124'
         }
         eof = {
-            'condition_code': 6,
-            'file_checksum': 198034273,
+            'condition_code': ConditionCode.NO_ERROR,
+            'file_checksum': 12018735385,
             'file_size': 2342
         }
         self.fixture = EOF(**eof)
@@ -170,8 +173,9 @@ class EOFTest(unittest.TestCase):
         eof_bytes = self.fixture.to_bytes()[self.fixture.header.length:]
         pdu_object = EOF.to_object(eof_bytes)
 
+        limit_checksum = int(format(self.fixture.file_checksum, '>032b')[-32:], 2)
         self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
-        self.assertEqual(self.fixture.file_checksum, pdu_object.file_checksum)
+        self.assertEqual(limit_checksum, pdu_object.file_checksum)
         self.assertEqual(self.fixture.file_size, pdu_object.file_size)
 
     def test_md_read_write(self):
@@ -189,7 +193,8 @@ class EOFTest(unittest.TestCase):
             bytes = pdu_file.read()
             pdu_object = read_incoming_pdu(bytes)
 
+        limit_checksum = int(format(self.fixture.file_checksum, '>032b')[-32:], 2)
         self.assertNotEqual(pdu_object, None)
         self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
-        self.assertEqual(self.fixture.file_checksum, pdu_object.file_checksum)
+        self.assertEqual(limit_checksum, pdu_object.file_checksum)
         self.assertEqual(self.fixture.file_size, pdu_object.file_size)

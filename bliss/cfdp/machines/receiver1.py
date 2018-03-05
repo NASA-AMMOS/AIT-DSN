@@ -21,7 +21,7 @@ from bliss.cfdp import settings
 from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
 from bliss.cfdp.timer import Timer
-from bliss.cfdp.util import write_pdu_to_file
+from bliss.cfdp.util import write_pdu_to_file, calc_checksum
 from machine import Machine
 
 
@@ -82,9 +82,15 @@ class Receiver1(Machine):
                 # Set id of the sender
                 self.transaction.other_entity_id = pdu.header.source_entity_id
                 # Save transaction metadata
+                # Per blue book, receiving entity shall store
+                #   - fault handler overrides
+                #   - file size
+                #   - flow label
+                #   - file name information
+                # all from the MD pdu. So we just store the MD pdu
                 self.metadata = pdu
 
-                # Write out the MD pdu to the PDU directory for now
+                # Write out the MD pdu to the temp directory for now
                 incoming_pdu_path = os.path.join(settings.TEMP_PATH, 'md_' + pdu.header.destination_entity_id + '.pdu')
                 logging.debug('Writing MD to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
@@ -122,6 +128,7 @@ class Receiver1(Machine):
                                         messages_to_user=None)
 
                 # TODO Process TLVs, not yet implemented
+                # Messages to user, filestore requests, ...
 
                 # Set state to be awaiting EOF
                 self.state = self.S2
@@ -212,7 +219,7 @@ class Receiver1(Machine):
                 assert(pdu)
                 assert(type(pdu) == bliss.cfdp.pdu.EOF)
 
-                # Write EOF to PDU path
+                # Write EOF to temp path
                 incoming_pdu_path = os.path.join(settings.TEMP_PATH,
                                                  'eof_' + pdu.header.destination_entity_id + '.pdu')
                 logging.debug('Writing EOF to path: ' + incoming_pdu_path)
@@ -229,13 +236,13 @@ class Receiver1(Machine):
                                       .format(self.transaction.entity_id, self.transaction.recv_file_size, pdu.file_size))
                         return self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
 
-                    # Check checksum
-                    # TODO calculate received checksum
-                    # if self.transaction.file_checksum != pdu.file_checksum:
-                    #     logging.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
-                    #                   .format(self.transaction.entity_id, self.transaction.file_checksum,
-                    #                           pdu.file_checksum))
-                    #     return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
+                    # Check checksum on the temp file before we save it to the actual destination
+                    temp_file_checksum = calc_checksum(self.temp_path)
+                    if temp_file_checksum != pdu.file_checksum:
+                        logging.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
+                                      .format(self.transaction.entity_id, temp_file_checksum,
+                                              pdu.file_checksum))
+                        return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
 
                 self.transaction.delivery_code = DeliveryCode.DATA_COMPLETE
 
@@ -249,6 +256,7 @@ class Receiver1(Machine):
                     return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
                 # TODO Filestore requests, not yet implemented
+                # TODO 4.1.6.3.2 Unacknowledged Mode Procedures at the Receiving Entity check timer?
 
                 # Issue EOF received indication
                 if self.kernel.mib.issue_eof_recv:

@@ -88,37 +88,55 @@ class CFDP(object):
         logging.debug('Adding pdu ' + str(pdu) + ' to queue')
         self.outgoing_pdu_queue.put(pdu)
 
-    def put(self, destination_id, source_path, destination_path, transmission_mode=TransmissionMode.NO_ACK):
-        """Put request initiated. This means we are creating a Sender. For now Class 1 Sender"""
-        # TODO other parameters for a put request
-        # Put request creates a new state machine/transaction
-        transaction_num = self._increment_tx_counter()
-
+    def put(self, destination_id, source_path, destination_path, transmission_mode=None):
+        """
+        Initiates a Put request by invoking Transaction Start procedures and Copy File procedures
+        Other parameters not yet implemented:
+            - segmentation control
+            - fault handler overrides
+            - flow label
+            - messages to user
+            - filestore requests
+        """
+        # Do some file checks before starting anything
         if source_path.startswith('/'):
             logging.error('Source path should be a relative path.')
             return
         if destination_path.startswith('/'):
             logging.error('Destination path should be a relative path.')
             return
-
-        # Files should be from path specified in settings
+        # Files should be located in path specified in settings
         full_source_path = os.path.join(settings.OUTGOING_PATH, source_path)
+        if not os.path.isfile(full_source_path):
+            logging.error('Source file does not exist: {}'.format(full_source_path))
+            return
 
+        # (A) Transaction Start Notification Procedure
+        #  1. Issue Tx ID sequentially
+        transaction_num = self._increment_tx_counter()
+
+        # (B) Copy File Procedure
+        # Determine transmission mode so we know what kind of machine to make
+        # Use destination id to get the default MIB setting for that entity id
+        if transmission_mode is None:
+            transmission_mode = self.mib.transmission_mode(destination_id)
+
+        # Create a `Request` which contains all the parameters for a Put.request
+        # This is passed to the machine to progress the state
         request = create_request_from_type(RequestType.PUT_REQUEST,
                           destination_id=destination_id,
                           source_path=full_source_path,
                           destination_path=destination_path,
                           transmission_mode=transmission_mode)
         # if transmission_mode == TransmissionMode.ACK:
-        #     # TODO sender 2
-        #     machine = Sender1(self, transaction_num, request=request)
+        #     machine = Sender2(self, transaction_num, request=request)
         # else:
         machine = Sender1(self, transaction_num)
-        # Update state table to begin stuff
+        # Send the Put.request `Request` to the newly created machine
+        # This is where the rest of the Put request procedures are done
         machine.update_state(event=Event.RECEIVED_PUT_REQUEST, request=request)
-        # Add transaction to list
+        # Add transaction to list, indexed by Tx #
         self._machines[transaction_num] = machine
-        machine.indication_handler(IndicationType.TRANSACTION_INDICATION, transaction_id=transaction_num)
 
     def report(self, transaction_id):
         """Report.request -- user request for status report of transaction"""
@@ -220,7 +238,9 @@ def receiving_handler(instance):
                 logging.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
                 if pdu.file_directive_code  == FileDirective.METADATA:
                     # If machine doesn't exist, create a machine for this transaction
+                    transmission_mode = pdu.header.transmission_mode
                     if machine is None:
+                        # if transmission_mode == TransmissionMode.NO_ACK:
                         machine = Receiver1(instance, transaction_num)
                         instance._machines[transaction_num] = machine
 
@@ -229,6 +249,7 @@ def receiving_handler(instance):
                     if machine is None:
                         logging.debug('Ignoring EOF for transaction that doesn\'t exist: {}'.format(transaction_num))
                     else:
+                        logging.debug('Received EOF with checksum: {}'.format(pdu.file_checksum))
                         machine.update_state(Event.RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
         except gevent.queue.Empty:
             pass

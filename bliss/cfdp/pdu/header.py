@@ -1,4 +1,5 @@
 from bliss.cfdp.util import string_length_in_bytes, string_to_bytes, bytes_to_string
+from bliss.cfdp.primitives import TransmissionMode
 
 class Header(object):
     # Header Flag Values
@@ -48,7 +49,7 @@ class Header(object):
         self.version = kwargs.get('version', 0)
         self.pdu_type = kwargs.get('pdu_type', self.FILE_DIRECTIVE_PDU)
         self.direction = kwargs.get('direction', self.TOWARDS_RECEIVER)
-        self.transmission_mode = kwargs.get('transmission_mode', self.UNACK_MODE)
+        self.transmission_mode = kwargs.get('transmission_mode', TransmissionMode.NO_ACK)
         self.crc_flag = kwargs.get('crc_flag', self.CRC_NOT_PRESENT)
         self.pdu_data_field_length = kwargs.get('pdu_data_field_length', None)
         # self.entity_ids_length = kwargs.get('entity_ids_length', None)

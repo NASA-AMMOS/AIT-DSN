@@ -40,7 +40,9 @@ class EOF(PDU):
         bytes.append(byte_2)
 
         # 32 bit checksum
-        checksum_binary = format(self.file_checksum, '>032b')
+        # if the checksum is longer than 32 bits, discard high-order bits
+        checksum_binary = format(self.file_checksum, '>032b')[-32:]
+        print checksum_binary, len(checksum_binary)
         bytes.append(int(checksum_binary[0:8], 2))
         bytes.append(int(checksum_binary[8:16], 2))
         bytes.append(int(checksum_binary[16:24], 2))
@@ -79,6 +81,7 @@ class EOF(PDU):
                            + format(pdu_bytes[3], '>08b') \
                            + format(pdu_bytes[4], '>08b') \
                            + format(pdu_bytes[5], '>08b')
+        print file_checksum_binary
         file_checksum = int(file_checksum_binary, 2)
 
         # 32 bit file size in octets

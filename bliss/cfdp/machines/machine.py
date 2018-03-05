@@ -64,7 +64,7 @@ class Transaction(object):
         self.delivery_code = None  # can be Data Complete or Data Incomplete
         self.filedata_offset = None  # offset for last touched file data (either sent or received)
         self.filedata_length = None  # last length of above
-        self.filedata_checksum = None
+        self.filedata_checksum = 0
         self.final_status = None
         self.finished = False
         self.frozen = False
@@ -158,7 +158,6 @@ class Machine(object):
         elif handler == HandlerCode.SUSPEND:
             # TODO process suspended notice
             pass
-
 
     def update_state(self, event=None, pdu=None, request=None):
         """

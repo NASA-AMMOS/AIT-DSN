@@ -51,7 +51,7 @@ class FileData(PDU):
             raise ValueError('fd body should be a list of bytes represented as integers')
 
         if len(pdu_bytes) < 4:
-            raise ValueError('eofbody should be at least 4 bytes long')
+            raise ValueError('fd should be at least 4 bytes long')
 
         # Extract 32 bit offset
         # convert all to 8-bit strings and append to make a full 32 bit string
