@@ -1,5 +1,3 @@
-# information to foreign countries or providing access to foreign persons.
-
 # Advanced Multi-Mission Operations System (AMMOS) Instrument Toolkit (AIT)
 # Bespoke Link to Instruments and Small Satellites (BLISS)
 #
@@ -12,3 +10,4 @@
 # this software, the user agrees to comply with all applicable U.S. export
 # laws and regulations. User has the responsibility to obtain export licenses,
 # or other export authority as may be required before exporting such
+# information to foreign countries or providing access to foreign persons.
