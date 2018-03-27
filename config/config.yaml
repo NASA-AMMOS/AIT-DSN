@@ -22,6 +22,21 @@ default:
     bsc:
         filename: bsc.yaml
 
+    dsn:
+        cfdp:
+            mib:
+                path: ../tmp/mib
+            outgoing:
+                path: ../tmp/outgoing
+            incoming:
+                path: ../tmp/incoming
+            temp:
+                path: ../tmp/temp
+            pdu:
+                path: ../tmp/pdu
+            test:
+                path: ../tmp/test
+
     logging:
         name: bliss
         hostname: bliss.jpl.nasa.gov

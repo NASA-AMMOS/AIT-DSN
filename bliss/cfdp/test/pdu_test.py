@@ -14,13 +14,24 @@
 
 import os
 import unittest
-from bliss.cfdp import settings
+import yaml
 
+import bliss.core
 from bliss.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
 from bliss.cfdp.pdu import Header, Metadata, EOF
 from bliss.cfdp.primitives import ConditionCode
 
-TEST_DIRECTORY = settings.TEST_PATH
+
+config_file = bliss.config.dsn.filename
+if not os.path.isfile(config_file):
+    print "Unable to locate config. Starting up default values ..."
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    TEST_DIRECTORY = os.path.join(root_path, "test")
+else:
+    with open(config_file) as dsn_conf:
+        conf = yaml.load(dsn_conf)
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    TEST_DIRECTORY = os.path.join(root_path, "test")
 
 class HeaderTest(unittest.TestCase):
 

@@ -166,7 +166,7 @@ class Sender1(Machine):
                     self.is_md_outgoing = False
 
                 elif self.is_oef_outgoing is True:
-                    bliss.core.log.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    bliss.core.log.info("EOF TYPE: " + str(self.eof.header.pdu_type))
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
@@ -179,7 +179,7 @@ class Sender1(Machine):
                     self.shutdown()
 
             else:
-                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.info("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
@@ -242,7 +242,7 @@ class Sender1(Machine):
 
                 elif self.is_oef_outgoing is True:
                     self.make_eof_pdu(self.transaction.condition_code)
-                    bliss.core.log.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    bliss.core.log.info("EOF TYPE: " + str(self.eof.header.pdu_type))
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
@@ -273,5 +273,5 @@ class Sender1(Machine):
                     self.kernel.send(fd)
 
             else:
-                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.info("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass

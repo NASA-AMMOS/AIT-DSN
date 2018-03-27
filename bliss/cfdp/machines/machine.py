@@ -219,7 +219,7 @@ class Machine(object):
 
     def finish_transaction(self):
         """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""
-        bliss.core.log.debug("Machine {} finishing transaction...".format(self.transaction.transaction_id))
+        bliss.core.log.info("Machine {} finishing transaction...".format(self.transaction.transaction_id))
         self.is_oef_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
@@ -245,7 +245,7 @@ class Machine(object):
                                 transaction_id=self.transaction.transaction_id)
 
     def shutdown(self):
-        bliss.core.log.debug("Machine {} shutting down...".format(self.transaction.transaction_id))
+        bliss.core.log.info("Machine {} shutting down...".format(self.transaction.transaction_id))
         if self.file is not None and not self.file.closed:
             self.file.close()
             self.file = None
@@ -253,7 +253,7 @@ class Machine(object):
         if self.temp_file is not None and not self.temp_file.closed:
             self.temp_file.close()
             self.temp_file = None
-        # If transaction was unsuccesful, delete tmp file
+        # If transaction was unsuccesful, delete temp file
 
         # TODO issue Tx indication (finished, abandoned, etc)
 

@@ -29,7 +29,7 @@ if __name__ == '__main__':
         # # Set the address of the counterpart
         # cfdp.mib.set_remote('1', 'ut_address', ('127.0.0.1', 8001))
         while True:
-            # bliss.core.log.debug('Sleeping...')
+            # bliss.core.log.info('Sleeping...')
             gevent.sleep(1)
     except KeyboardInterrupt:
         print "Disconnecting..."

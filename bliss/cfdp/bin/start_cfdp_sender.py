@@ -15,15 +15,17 @@
 # information to foreign countries or providing access to foreign persons.
 
 import bliss.cfdp
+import os
 import gevent
 import traceback
+import yaml
 
 from bliss.cfdp.primitives import TransmissionMode
 import bliss.core.log
+from bliss.core.cfg import loadYAML
 
 
 if __name__ == '__main__':
-
     cfdp = bliss.cfdp.CFDP('1')
     try:
         # cfdp.connect(('127.0.0.1', 9001))
@@ -35,7 +37,7 @@ if __name__ == '__main__':
         destination_file = 'my/test/blah.txt'
         cfdp.put(destination_id, source_file, destination_file, transmission_mode=TransmissionMode.NO_ACK)
         while True:
-            # bliss.core.log.debug('Sleeping...')
+            # bliss.core.log.info('Sleeping...')
             gevent.sleep(1)
     except KeyboardInterrupt:
         print "Disconnecting..."

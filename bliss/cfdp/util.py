@@ -93,7 +93,9 @@ def calc_checksum(filename):
             byte_list = string_to_bytes(open_file.read(4))
             checksum += checksum_of_word(byte_list)
         open_file.close()
-        return checksum
+
+        # Must truncate it to 32 bits
+        return checksum & 0xFFFFFFFF
     except IOError:
         return None
 

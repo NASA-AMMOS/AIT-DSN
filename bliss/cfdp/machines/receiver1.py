@@ -16,13 +16,13 @@ import os
 import shutil
 
 import bliss.cfdp.pdu
-from bliss.cfdp import settings
 from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
 from bliss.cfdp.timer import Timer
 from bliss.cfdp.util import write_pdu_to_file, calc_checksum
 from machine import Machine
 
+import bliss.core
 import bliss.core.log
 
 
@@ -92,8 +92,8 @@ class Receiver1(Machine):
                 self.metadata = pdu
 
                 # Write out the MD pdu to the temp directory for now
-                incoming_pdu_path = os.path.join(settings.TEMP_PATH, 'md_' + pdu.header.destination_entity_id + '.pdu')
-                bliss.core.log.debug('Writing MD to path: ' + incoming_pdu_path)
+                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'), 'md_' + pdu.header.destination_entity_id + '.pdu')
+                bliss.core.log.info('Writing MD to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
@@ -102,14 +102,14 @@ class Receiver1(Machine):
                     # Get the file path of the final destination file
                     # Get the absolute directory path so we can check if it exists,
                     # and store the full file path for later use
-                    self.file_path = os.path.join(os.path.join(settings.INCOMING_PATH, pdu.destination_path))
-                    bliss.core.log.debug('File Destination Path: ' + self.file_path)
+                    self.file_path = os.path.join(os.path.join(bliss.config.get('dsn.cfdp.incoming.path'), pdu.destination_path))
+                    bliss.core.log.info('File Destination Path: ' + self.file_path)
 
                     # Open a temp file for incoming file data to go to
                     # File name will be entity id and transaction id
                     # Once the file transfer is done, this file will be removed
                     temp_file_path = os.path.join(
-                        settings.TEMP_PATH,
+                        bliss.config.get('dsn.cfdp.temp.path'),
                         'tmp_transfer_{0}_{1}'.format(self.transaction.entity_id, self.transaction.transaction_id)
                     )
                     self.temp_path = temp_file_path
@@ -151,7 +151,7 @@ class Receiver1(Machine):
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
-                bliss.core.log.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.info("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
@@ -200,7 +200,7 @@ class Receiver1(Machine):
                                           .format(self.transaction.entity_id, self.temp_path))
                             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
-                    bliss.core.log.debug(
+                    bliss.core.log.info(
                         'Writing file data to file {0} with offset {1}'.format(self.file_path, pdu.segment_offset))
                     # Seek offset to write in file if provided
                     if pdu.segment_offset is not None and pdu.segment_offset >= 0:
@@ -221,9 +221,9 @@ class Receiver1(Machine):
                 assert(type(pdu) == bliss.cfdp.pdu.EOF)
 
                 # Write EOF to temp path
-                incoming_pdu_path = os.path.join(settings.TEMP_PATH,
+                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'),
                                                  'eof_' + pdu.header.destination_entity_id + '.pdu')
-                bliss.core.log.debug('Writing EOF to path: ' + incoming_pdu_path)
+                bliss.core.log.info('Writing EOF to path: ' + incoming_pdu_path)
                 write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
@@ -276,5 +276,5 @@ class Receiver1(Machine):
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
-                bliss.core.log.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.info("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
