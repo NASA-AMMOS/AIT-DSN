@@ -13,13 +13,14 @@
 # information to foreign countries or providing access to foreign persons.
 
 import copy
-import logging
 
 from bliss.cfdp.events import Event
 from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
 from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
 from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
 from machine import Machine
+
+import bliss.core.log
 
 
 class Sender1(Machine):
@@ -108,7 +109,7 @@ class Sender1(Machine):
 
             # Only event in S1 with defined action is receiving a put request
             if event == Event.RECEIVED_PUT_REQUEST:
-                logging.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
                 self.put_request_received = True
                 self.transaction.other_entity_id = request.info.get('destination_id')
 
@@ -130,23 +131,23 @@ class Sender1(Machine):
                 # For now it always is because Messages to User/TLV have not been implemented
                 if self.metadata.file_transfer:
                     # Retrieve the source file for Copy File procedures
-                    logging.info("Sender {0}: Attempting to open file {1}"
+                    bliss.core.log.info("Sender {0}: Attempting to open file {1}"
                                  .format(self.transaction.entity_id, self.metadata.source_path))
                     try:
                         self.file = open(self.metadata.source_path, 'rb')
                     except IOError:
-                        logging.error('Sender {0} -- could not open file: {1}'
+                        bliss.core.log.error('Sender {0} -- could not open file: {1}'
                                       .format(self.transaction.entity_id, self.metadata.source_path))
                         return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
                     # Check file structure
-                    logging.info("Sender {0}: Checking file structure".format(self.transaction.entity_id))
+                    bliss.core.log.info("Sender {0}: Checking file structure".format(self.transaction.entity_id))
                     if not check_file_structure(self.file, self.metadata.segmentation_control):
                         return self.fault_handler(ConditionCode.INVALID_FILE_STRUCTURE)
 
                     # Compute and save checksum of outgoing file to send with EOF at the end
                     self.transaction.filedata_checksum = calc_checksum(self.metadata.source_path)
-                    logging.info('Sender {0}: Checksum of file {1}: {2}'.format(self.transaction.entity_id,
+                    bliss.core.log.info('Sender {0}: Checksum of file {1}: {2}'.format(self.transaction.entity_id,
                                                                                 self.metadata.source_path,
                                                                                 self.transaction.filedata_checksum))
                 else:
@@ -155,7 +156,7 @@ class Sender1(Machine):
                     self.make_eof_pdu(self.transaction.condition_code)
 
             elif event == Event.SEND_FILE_DIRECTIVE:
-                logging.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
@@ -165,7 +166,7 @@ class Sender1(Machine):
                     self.is_md_outgoing = False
 
                 elif self.is_oef_outgoing is True:
-                    logging.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    bliss.core.log.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
@@ -178,7 +179,7 @@ class Sender1(Machine):
                     self.shutdown()
 
             else:
-                logging.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
@@ -187,53 +188,53 @@ class Sender1(Machine):
 
             # USER-ISSUED REQUESTS
             if event == Event.RECEIVED_REPORT_REQUEST:
-                logging.info("Sender {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
                 # TODO logic to get report
                 self.indication_handler(IndicationType.REPORT_INDICATION,
                                         status_report=None)
 
             elif event == Event.RECEIVED_FREEZE_REQUEST:
-                logging.info("Sender {0}: Received FREEZE REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received FREEZE REQUEST".format(self.transaction.entity_id))
                 self.transaction.frozen = True
 
             elif event == Event.RECEIVED_CANCEL_REQUEST:
-                logging.info("Sender {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
                 self.update_state(Event.NOTICE_OF_CANCELLATION) # Trigger notice of cancellation
 
             elif event == Event.RECEIVED_SUSPEND_REQUEST:
-                logging.info("Sender {0}: Received SUSPEND REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received SUSPEND REQUEST".format(self.transaction.entity_id))
                 self.update_state(Event.NOTICE_OF_SUSPENSION) # Trigger notice of suspension
 
             elif event == Event.RECEIVED_RESUME_REQUEST:
-                logging.info("Sender {0}: Received RESUME REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received RESUME REQUEST".format(self.transaction.entity_id))
                 if self.transaction.suspended is True:
                     self.transaction.suspended = False
                     self.indication_handler(IndicationType.RESUMED_INDICATION) # TODO progress param?
 
             elif event == Event.RECEIVED_THAW_REQUEST:
-                logging.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
                 self.transaction.frozen = False
 
             # OTHER EVENTS
             elif event == Event.ABANDON_TRANSACTION:
-                logging.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
                 self.abandon()
 
             elif event == Event.NOTICE_OF_CANCELLATION:
-                logging.info("Sender {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
                 # Set eof to outgoing to send a Cancel EOF
                 self.notify_partner_of_cancel()
 
             elif event == Event.NOTICE_OF_SUSPENSION:
-                logging.info("Sender {0}: Received NOTICE OF SUSPENSION".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received NOTICE OF SUSPENSION".format(self.transaction.entity_id))
                 self.suspend()
 
             elif event == Event.SEND_FILE_DIRECTIVE:
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                logging.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
 
                 if self.is_md_outgoing is True:
                     self.kernel.send(self.metadata)
@@ -241,7 +242,7 @@ class Sender1(Machine):
 
                 elif self.is_oef_outgoing is True:
                     self.make_eof_pdu(self.transaction.condition_code)
-                    logging.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
+                    bliss.core.log.debug("EOF TYPE: " + str(self.eof.header.pdu_type))
                     self.kernel.send(self.eof)
                     self.is_oef_outgoing = False
                     self.eof_sent = True
@@ -258,7 +259,7 @@ class Sender1(Machine):
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                logging.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
+                bliss.core.log.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
 
                 if self.file is None or (not self.file.closed and self.file.tell() == self.metadata.file_size):
                     # Check if entire file is done being sent. If yes, queue up EOF
@@ -272,5 +273,5 @@ class Sender1(Machine):
                     self.kernel.send(fd)
 
             else:
-                logging.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass

@@ -14,7 +14,7 @@
 
 from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType, HandlerCode, ConditionCode
 
-import logging
+import bliss.core.log
 
 class ID(object):
     """
@@ -131,14 +131,14 @@ class Machine(object):
         Default indication handler, which is just to log a message
         Indication type is primitive type `IndicationType`
         """
-        logging.info('INDICATION: ' + str(indication_type))
+        bliss.core.log.info('INDICATION: ' + str(indication_type))
 
     def _fault_handler(self, condition_code, *args, **kwargs):
         """
         Default fault handler, which is just to log a message
         Fault type is primitive type `ConditionCode`
         """
-        logging.info('FAULT: ' + str(condition_code))
+        bliss.core.log.info('FAULT: ' + str(condition_code))
 
         handler = self.kernel.mib.fault_handler(condition_code)
 
@@ -219,7 +219,7 @@ class Machine(object):
 
     def finish_transaction(self):
         """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""
-        logging.debug("Machine {} finishing transaction...".format(self.transaction.transaction_id))
+        bliss.core.log.debug("Machine {} finishing transaction...".format(self.transaction.transaction_id))
         self.is_oef_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
@@ -245,7 +245,7 @@ class Machine(object):
                                 transaction_id=self.transaction.transaction_id)
 
     def shutdown(self):
-        logging.debug("Machine {} shutting down...".format(self.transaction.transaction_id))
+        bliss.core.log.debug("Machine {} shutting down...".format(self.transaction.transaction_id))
         if self.file is not None and not self.file.closed:
             self.file.close()
             self.file = None
