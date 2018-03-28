@@ -15,25 +15,31 @@
 # information to foreign countries or providing access to foreign persons.
 
 import bliss.cfdp
+import os
 import gevent
 import traceback
 
-import logging
 from bliss.cfdp.primitives import TransmissionMode
-from bliss.cfdp import settings
+import bliss.core.log
+
 
 if __name__ == '__main__':
-
     cfdp = bliss.cfdp.CFDP('1')
     try:
+        # cfdp.connect(('127.0.0.1', 9001))
+        # # Set address of counterpart
+        # cfdp.mib.set_remote('2', 'ut_address', ('127.0.0.1', 9002))
+
         destination_id = '2'
         source_file = 'test.txt'
         destination_file = 'my/test/blah.txt'
         cfdp.put(destination_id, source_file, destination_file, transmission_mode=TransmissionMode.NO_ACK)
         while True:
-            # logging.debug('Sleeping...')
+            # bliss.core.log.info('Sleeping...')
             gevent.sleep(1)
     except KeyboardInterrupt:
         print "Disconnecting..."
     except Exception as e:
         print traceback.print_exc()
+    finally:
+        cfdp.disconnect()

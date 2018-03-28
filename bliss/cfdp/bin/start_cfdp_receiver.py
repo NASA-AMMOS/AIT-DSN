@@ -18,14 +18,22 @@ import bliss.cfdp
 import gevent
 import traceback
 
+import bliss.core.log
+
+
 if __name__ == '__main__':
 
     cfdp = bliss.cfdp.CFDP('2')
     try:
+        # cfdp.connect(('127.0.0.1', 8002))
+        # # Set the address of the counterpart
+        # cfdp.mib.set_remote('1', 'ut_address', ('127.0.0.1', 8001))
         while True:
-            # logging.debug('Sleeping...')
+            # bliss.core.log.info('Sleeping...')
             gevent.sleep(1)
     except KeyboardInterrupt:
         print "Disconnecting..."
     except Exception as e:
         print traceback.print_exc()
+    finally:
+        cfdp.disconnect()

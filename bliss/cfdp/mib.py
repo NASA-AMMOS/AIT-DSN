@@ -18,6 +18,11 @@ import yaml
 from collections import defaultdict
 from primitives import HandlerCode, TransmissionMode
 
+import bliss.core
+import bliss.core.log
+
+from yaml.representer import Representer
+yaml.add_representer(defaultdict, Representer.represent_dict)
 
 # Default MIB values
 local_mib_fields = {
@@ -31,7 +36,7 @@ local_mib_fields = {
     'issue_suspended': True,
     'issue_resumed': True,
     # Default handlers
-    'fault_handlers': defaultdict(lambda : HandlerCode.IGNORE)
+    'fault_handlers': defaultdict(lambda: HandlerCode.IGNORE)
 }
 
 # Remote entity id stored by id
@@ -48,15 +53,18 @@ remote_mib_fields = {
     'crc_required_on_transmission': False,
 }
 
+
 class MIB(object):
     """Management Information Base"""
 
-    def __init__(self):
-        """Initialize MIB for a local entity"""
-        # TODO allow persistence in a file
+    def __init__(self, path):
+        """Initialize MIB for a local entity
+        path: path to directory where files are loaded/dumped
+        """
+        self._path = path
         self._local = copy.deepcopy(local_mib_fields)
         # use default values for remote entities unless specifically set
-        self._remote = defaultdict(lambda : copy.deepcopy(remote_mib_fields))
+        self._remote = defaultdict(lambda: copy.deepcopy(remote_mib_fields))
 
     # Local getters as properties
     @property
@@ -124,23 +132,33 @@ class MIB(object):
         if parameter in self._local:
             self._local[parameter] = value
 
-    def dump(self, path):
+    def dump(self, path=None):
         """Write MIB to yaml"""
-        local_file_path = os.path.join(path, 'local.yaml')
+        if path is None:
+            path = self._path
+
+        local_file_path = os.path.join(path, 'local_{}.yaml'.format(self.local_entity_id))
         with open(local_file_path, 'w') as mib_file:
             yaml.dump(self._local, mib_file, default_flow_style=False)
 
-        remote_file_path = os.path.join(path, 'remote.yaml')
+        remote_file_path = os.path.join(path, 'remote_{}.yaml'.format(self.local_entity_id))
         with open(remote_file_path, 'w') as mib_file:
             yaml.dump(self._local, mib_file, default_flow_style=False)
 
-    def load(self, path):
+    def load(self, path=None):
         """Write MIB to yaml"""
-        local_file_path = os.path.join(path, 'local.yaml')
+        if path is None:
+            path = self._path
+
+        local_file_path = os.path.join(path, 'local_{}.yaml'.format(self.local_entity_id))
+        if not os.path.isfile(local_file_path):
+            bliss.core.log.info('No MIB file to load.')
+            return
+
         with open(local_file_path, 'r') as mib_file:
             self._local = yaml.load(mib_file)
 
         # TODO load to defaultdict
-        # remote_file_path = os.path.join(path, 'remote.yaml')
+        # remote_file_path = os.path.join(path, 'remote_{}.yaml'.format(self.local_entity_id))
         # with open(remote_file_path, 'w') as mib_file:
         #     self._remote = yaml.load(mib_file)

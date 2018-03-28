@@ -14,7 +14,8 @@
 
 from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType, HandlerCode, ConditionCode
 
-import logging
+import bliss.core.log
+
 
 class ID(object):
     """
@@ -35,7 +36,8 @@ class ID(object):
 
     @length.setter
     def length(self, l):
-        if not l: raise ValueError('length cannot be empty')
+        if not l:
+            raise ValueError('length cannot be empty')
         if l > 8:
             raise ValueError('id length cannot exceed 8 bytes')
         self._length = l
@@ -46,7 +48,8 @@ class ID(object):
 
     @value.setter
     def value(self, v):
-        if not v: raise ValueError('value cannot be empty')
+        if not v:
+            raise ValueError('value cannot be empty')
         self._value = v
 
 
@@ -131,14 +134,14 @@ class Machine(object):
         Default indication handler, which is just to log a message
         Indication type is primitive type `IndicationType`
         """
-        logging.info('INDICATION: ' + str(indication_type))
+        bliss.core.log.info('INDICATION: ' + str(indication_type))
 
     def _fault_handler(self, condition_code, *args, **kwargs):
         """
         Default fault handler, which is just to log a message
         Fault type is primitive type `ConditionCode`
         """
-        logging.info('FAULT: ' + str(condition_code))
+        bliss.core.log.info('FAULT: ' + str(condition_code))
 
         handler = self.kernel.mib.fault_handler(condition_code)
 
@@ -219,7 +222,7 @@ class Machine(object):
 
     def finish_transaction(self):
         """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""
-        logging.debug("Machine {} finishing transaction...".format(self.transaction.transaction_id))
+        bliss.core.log.info("Machine {} finishing transaction...".format(self.transaction.transaction_id))
         self.is_oef_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
@@ -245,7 +248,7 @@ class Machine(object):
                                 transaction_id=self.transaction.transaction_id)
 
     def shutdown(self):
-        logging.debug("Machine {} shutting down...".format(self.transaction.transaction_id))
+        bliss.core.log.info("Machine {} shutting down...".format(self.transaction.transaction_id))
         if self.file is not None and not self.file.closed:
             self.file.close()
             self.file = None
@@ -253,7 +256,7 @@ class Machine(object):
         if self.temp_file is not None and not self.temp_file.closed:
             self.temp_file.close()
             self.temp_file = None
-        # If transaction was unsuccesful, delete tmp file
+        # If transaction was unsuccesful, delete temp file
 
         # TODO issue Tx indication (finished, abandoned, etc)
 
