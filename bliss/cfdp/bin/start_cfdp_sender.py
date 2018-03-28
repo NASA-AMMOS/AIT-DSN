@@ -18,11 +18,9 @@ import bliss.cfdp
 import os
 import gevent
 import traceback
-import yaml
 
 from bliss.cfdp.primitives import TransmissionMode
 import bliss.core.log
-from bliss.core.cfg import loadYAML
 
 
 if __name__ == '__main__':

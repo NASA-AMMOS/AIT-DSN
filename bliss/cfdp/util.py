@@ -15,32 +15,54 @@
 import binascii
 import os
 
+
 def string_length_in_bytes(s):
+    """Returns length of a UTF-8 string in bytes
+
+    Arguments:
+        s:
+            The value whose length is calculated as string
+    """
     if not isinstance(s, str):
         s = str(s)
     return len(s.encode('utf-8'))
 
+
 def string_to_bytes(value):
-    """
-    Converts string value to binary of num_bytes length
-    :param value:       value to convert
-    :type value: str
-    :param num_bytes:   byte length of value
-    :type num_bytes: int
-    :return: list of byte-chunks of binary string value
+    """Converts string value to array of bytes
+
+    Arguments:
+        value:
+            string value to be converted to list of bytes
     """
     value = str(value)
     bytes_list = [int(binascii.hexlify(c), 16) for c in value]
     return bytes_list
 
+
 def bytes_to_string(data_bytes):
-    # convert int to hex
+    """Converts list of bytes to a string
+
+    Arguments:
+        data_bytes:
+            list of bytes to be converted to a string
+    """
     hex_values = [format(b, '>02x') for b in data_bytes]
     str_values = [binascii.unhexlify(b) for b in hex_values]
     return ''.join(str_values)
 
 
-def write_pdu_to_file(out_path, contents, offset=None):
+def write_to_file(out_path, contents, offset=None):
+    """Writes binary contents to file, at the optional offset
+
+    Arguments:
+        out_path:
+            Full path of the file to write to
+        contents:
+            Contents to write to file as binary
+        offset:
+            Optional offset to denote where in the file the contents should be written
+    """
     with open(out_path, 'wb') as f:
         if offset is not None and offset > 0:
             f.seek(offset)
@@ -48,6 +70,12 @@ def write_pdu_to_file(out_path, contents, offset=None):
 
 
 def calc_file_size(filepath):
+    """Calculate size of a file
+
+    Arguments:
+        filepath:
+            Full path of the file
+    """
     statinfo = os.stat(filepath)
     return statinfo.st_size
 
@@ -58,10 +86,11 @@ def check_file_structure(target_file, segmentation_control):
 
 
 def checksum_of_word(word_list):
-    """
-    Returns of the value of a 4-byte word to be added to the running checksum.
-    `word_list` should be an array of integers with max length 4 (more will be ignored),
-    each integer representing a byte
+    """Returns of the value of a 4-byte word to be added to the running checksum.
+
+    Arguments:
+        word_list:
+            list of integers with max length 4 (more will be ignored), each integer representing a byte
     """
     if len(word_list) < 4:
         word_list.append(0)
@@ -71,7 +100,14 @@ def checksum_of_word(word_list):
     word += word_list[3]
     return word
 
+
 def calc_checksum(filename):
+    """Calculates the checksum of a file according to the CFDP Blue Book.
+
+    Arguments:
+        filename:
+            Full path of the file
+    """
     try:
         checksum = 0
         open_file = open(filename, 'rb')
@@ -98,4 +134,3 @@ def calc_checksum(filename):
         return checksum & 0xFFFFFFFF
     except IOError:
         return None
-

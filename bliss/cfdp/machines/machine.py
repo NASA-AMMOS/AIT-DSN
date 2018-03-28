@@ -16,6 +16,7 @@ from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationTyp
 
 import bliss.core.log
 
+
 class ID(object):
     """
     CFDP entity ID. Unsigned binary integer
@@ -35,7 +36,8 @@ class ID(object):
 
     @length.setter
     def length(self, l):
-        if not l: raise ValueError('length cannot be empty')
+        if not l:
+            raise ValueError('length cannot be empty')
         if l > 8:
             raise ValueError('id length cannot exceed 8 bytes')
         self._length = l
@@ -46,7 +48,8 @@ class ID(object):
 
     @value.setter
     def value(self, v):
-        if not v: raise ValueError('value cannot be empty')
+        if not v:
+            raise ValueError('value cannot be empty')
         self._value = v
 
 

@@ -36,7 +36,7 @@ local_mib_fields = {
     'issue_suspended': True,
     'issue_resumed': True,
     # Default handlers
-    'fault_handlers': defaultdict(lambda : HandlerCode.IGNORE)
+    'fault_handlers': defaultdict(lambda: HandlerCode.IGNORE)
 }
 
 # Remote entity id stored by id
@@ -53,6 +53,7 @@ remote_mib_fields = {
     'crc_required_on_transmission': False,
 }
 
+
 class MIB(object):
     """Management Information Base"""
 
@@ -60,11 +61,10 @@ class MIB(object):
         """Initialize MIB for a local entity
         path: path to directory where files are loaded/dumped
         """
-        # TODO allow persistence in a file
         self._path = path
         self._local = copy.deepcopy(local_mib_fields)
         # use default values for remote entities unless specifically set
-        self._remote = defaultdict(lambda : copy.deepcopy(remote_mib_fields))
+        self._remote = defaultdict(lambda: copy.deepcopy(remote_mib_fields))
 
     # Local getters as properties
     @property

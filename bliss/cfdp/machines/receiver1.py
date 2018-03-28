@@ -19,7 +19,7 @@ import bliss.cfdp.pdu
 from bliss.cfdp.events import Event
 from bliss.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
 from bliss.cfdp.timer import Timer
-from bliss.cfdp.util import write_pdu_to_file, calc_checksum
+from bliss.cfdp.util import write_to_file, calc_checksum
 from machine import Machine
 
 import bliss.core
@@ -63,7 +63,6 @@ class Receiver1(Machine):
                 self.indication_handler(IndicationType.REPORT_INDICATION)
                 pass
 
-
             # NON-USER ISSUED
             elif event == Event.ABANDON_TRANSACTION:
                 bliss.core.log.info("Receiver {0}: Received ABANDON event".format(self.transaction.entity_id))
@@ -94,7 +93,7 @@ class Receiver1(Machine):
                 # Write out the MD pdu to the temp directory for now
                 incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'), 'md_' + pdu.header.destination_entity_id + '.pdu')
                 bliss.core.log.info('Writing MD to path: ' + incoming_pdu_path)
-                write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
+                write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
                     # File transfer -- we will eventually received file data,
@@ -213,7 +212,7 @@ class Receiver1(Machine):
                         self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
                                                 transaction_id=self.transaction.transaction_id,
                                                 offset=pdu.segment_offset,
-                                            length=len(pdu.data))
+                                                length=len(pdu.data))
 
             elif event == Event.RECEIVED_EOF_NO_ERROR_PDU:
                 bliss.core.log.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
@@ -224,7 +223,7 @@ class Receiver1(Machine):
                 incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'),
                                                  'eof_' + pdu.header.destination_entity_id + '.pdu')
                 bliss.core.log.info('Writing EOF to path: ' + incoming_pdu_path)
-                write_pdu_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
+                write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
                     # Close temp file
@@ -241,8 +240,8 @@ class Receiver1(Machine):
                     temp_file_checksum = calc_checksum(self.temp_path)
                     if temp_file_checksum != pdu.file_checksum:
                         bliss.core.log.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
-                                      .format(self.transaction.entity_id, temp_file_checksum,
-                                              pdu.file_checksum))
+                                             .format(self.transaction.entity_id, temp_file_checksum,
+                                                     pdu.file_checksum))
                         return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
 
                 self.transaction.delivery_code = DeliveryCode.DATA_COMPLETE
@@ -252,7 +251,7 @@ class Receiver1(Machine):
                 if not os.path.exists(destination_directory_path):
                     os.makedirs(destination_directory_path)
                 try:
-                    shutil.copy(self.temp_path ,self.file_path)
+                    shutil.copy(self.temp_path, self.file_path)
                 except IOError:
                     return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
@@ -271,7 +270,8 @@ class Receiver1(Machine):
                 self.finish_transaction()
 
             elif event == Event.INACTIVITY_TIMER_EXPIRED:
-                bliss.core.log.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event".format(self.transaction.entity_id))
+                bliss.core.log.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event"
+                                    .format(self.transaction.entity_id))
                 self.inactivity_timer.restart()
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 

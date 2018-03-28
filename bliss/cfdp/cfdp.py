@@ -26,16 +26,16 @@ from bliss.cfdp.machines.receiver1 import Receiver1
 from bliss.cfdp.machines.sender1 import Sender1
 from bliss.cfdp.mib import MIB
 from bliss.cfdp.pdu import make_pdu_from_bytes, Header
-from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, IndicationType
+from bliss.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role
 from bliss.cfdp.request import create_request_from_type
-from bliss.cfdp.util import write_pdu_to_file
+from bliss.cfdp.util import write_to_file
 
 import bliss.core
 import bliss.core.log
 
+
 class CFDP(object):
-    """
-    CFDP class to manage connection handler, routing handler, Txs
+    """CFDP processor class. Handles sending and receiving of PDUs and management of transactions.
     """
 
     mib = MIB(bliss.config.get('dsn.cfdp.mib.path', '/tmp/cfdp/mib'))
@@ -48,7 +48,6 @@ class CFDP(object):
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
         self._read_pdu_handler = gevent.spawn(read_pdus, self)
-        # self._read_pdu_handler = gevent.spawn(receive_pdus, self)
         # Spawn handlers for incoming and outgoing data
         self._receiving_handler = gevent.spawn(receiving_handler, self)
         self._sending_handler = gevent.spawn(sending_handler, self)
@@ -88,12 +87,18 @@ class CFDP(object):
         return self.transaction_counter
 
     def send(self, pdu):
+        """Send a PDU. Adds the PDU to the outbound queue.
+
+        Arguments:
+            pdu:
+                An instance of a PDU subclass (EOF, MD, etc)
+        """
         bliss.core.log.info('Adding pdu ' + str(pdu) + ' to queue')
         self.outgoing_pdu_queue.put(pdu)
 
     def put(self, destination_id, source_path, destination_path, transmission_mode=None):
-        """
-        Initiates a Put request by invoking Transaction Start procedures and Copy File procedures
+        """Initiates a Put request by invoking Transaction Start procedures and Copy File procedures
+
         Other parameters not yet implemented:
             - segmentation control
             - fault handler overrides
@@ -108,7 +113,7 @@ class CFDP(object):
         if destination_path.startswith('/'):
             bliss.core.log.error('Destination path should be a relative path.')
             return
-        # Files should be located in path specified in bliss.confid
+        # Files should be located in path specified in bliss.config
         full_source_path = os.path.join(bliss.config.get('dsn.cfdp.outgoing.path'), source_path)
         if not os.path.isfile(full_source_path):
             bliss.core.log.error('Source file does not exist: {}'.format(full_source_path))
@@ -125,16 +130,16 @@ class CFDP(object):
             transmission_mode = self.mib.transmission_mode(destination_id)
 
         if transmission_mode == TransmissionMode.ACK:
-            # TODO raise invalid transmission mode
+            # TODO raise invalid transmission mode since we don't support ACK right now
             pass
 
         # Create a `Request` which contains all the parameters for a Put.request
         # This is passed to the machine to progress the state
         request = create_request_from_type(RequestType.PUT_REQUEST,
-                          destination_id=destination_id,
-                          source_path=full_source_path,
-                          destination_path=destination_path,
-                          transmission_mode=transmission_mode)
+                                           destination_id=destination_id,
+                                           source_path=full_source_path,
+                                           destination_path=destination_path,
+                                           transmission_mode=transmission_mode)
         # if transmission_mode == TransmissionMode.ACK:
         #     machine = Sender2(self, transaction_num, request=request)
         # else:
@@ -185,9 +190,9 @@ class CFDP(object):
         else:
             machine.update_state(event=Event.RECEIVED_RESUME_REQUEST, request=request)
 
+
 def read_pdus(instance):
-    """
-    Instead of receiving on a socket, just read PDUs that have been written to file
+    """Read PDUs that have been written to file (in place of receiving over socket)
     """
     while True:
         gevent.sleep(0)
@@ -213,24 +218,8 @@ def read_pdus(instance):
         gevent.sleep(2)
 
 
-# def receive_pdus(instance):
-#     while True:
-#         gevent.sleep(0)
-#         try:
-#             pdu_data = instance._socket.recv(4096)
-#             if pdu_data:
-#                 bliss.core.log.info("Received data from socket: " + str(pdu_data))
-#             # cache PDU so that we know we read it
-#             # instance.received_pdu_files.append(pdu_data)
-#             # add to incoming queue so that receiving handler can deal with it
-#             # instance.incoming_pdu_queue.put(pdu_data)
-#         except Exception:
-#             pass
-#         gevent.sleep(1)
-
 def receiving_handler(instance):
-    """
-    Receives incoming PDUs on `incoming_pdu_queue` and routes them to the intended state machine instance
+    """Receives incoming PDUs on `incoming_pdu_queue` and routes them to the intended state machine instance
     """
 
     while True:
@@ -264,9 +253,10 @@ def receiving_handler(instance):
                         instance._machines[transaction_num] = machine
 
                     machine.update_state(Event.RECEIVED_METADATA_PDU, pdu=pdu)
-                elif pdu.file_directive_code  == FileDirective.EOF:
+                elif pdu.file_directive_code == FileDirective.EOF:
                     if machine is None:
-                        bliss.core.log.info('Ignoring EOF for transaction that doesn\'t exist: {}'.format(transaction_num))
+                        bliss.core.log.info('Ignoring EOF for transaction that doesn\'t exist: {}'
+                                            .format(transaction_num))
                     else:
                         bliss.core.log.info('Received EOF with checksum: {}'.format(pdu.file_checksum))
                         machine.update_state(Event.RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
@@ -279,41 +269,44 @@ def receiving_handler(instance):
 
 
 def read_incoming_pdu(pdu):
+    """Converts PDU binary to the correct type of PDU object
+
+    Arguments:
+        pdu:
+            An encoded binary string representing a CFDP PDU
+    """
     # Transform into bytearray because that is how we wrote it out
     # Will make it an array of integer bytes
     pdu_bytes = [b for b in bytearray(pdu)]
     return make_pdu_from_bytes(pdu_bytes)
 
 
-def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=bliss.config.get('dsn.cfdp.pdu.path')):
+def write_outgoing_pdu(pdu, pdu_filename=None):
+    """Helper function to write pdu to file, in lieu of sending over some other transport layer
+
+    Arguments:
+        pdu:
+            An instance of a PDU subclass (EOF, MD, etc)
+        pdu_filename:
+            Filename to which the PDU will be written. If not specified, defaults to `<dest_entity_id>_<current_time>.pdu`
     """
-    Temporary fcn to write pdu to file, in lieu of sending over some TC
-    :param pdu:
-    :param destination_id:
-    :return:
-    """
-    # encode pdu to bits or something and deliver
-    # in actuality, for now we will just write to file
+    # convert pdu to bytes to "deliver", i.e. write to file
     pdu_bytes = pdu.to_bytes()
 
-    # make a filename of destination id + time
+    output_directory = bliss.config.get('dsn.cfdp.pdu.path')
     if pdu_filename is None:
+        # make a filename of destination id + time
         pdu_filename = pdu.header.destination_entity_id + '_' + str(int(time.time())) + '.pdu'
     pdu_file_path = os.path.join(output_directory, pdu_filename)
     bliss.core.log.info('PDU file path ' + str(pdu_file_path))
     # https://stackoverflow.com/questions/17349918/python-write-string-of-bytes-to-file
     # pdu_bytes is an array of integers that need to be converted to hex
-    write_pdu_to_file(pdu_file_path, bytearray(pdu_bytes))
-    # return pdu_bytes
+    write_to_file(pdu_file_path, bytearray(pdu_bytes))
 
 
 def sending_handler(instance):
+    """Handler to take PDUs from the outgoing queue and send. Currently writes PDUs to file.
     """
-    GREENLET: Handles sending PDUs over UT layer
-    :param instance: CFDP instance
-    :return:
-    """
-    # For now, write PDUs to ROOT directory
     while True:
         gevent.sleep(0)
         try:
@@ -321,9 +314,6 @@ def sending_handler(instance):
             bliss.core.log.info('Got PDU from outgoing queue: ' + str(pdu))
             write_outgoing_pdu(pdu)
             bliss.core.log.info('PDU transmitted: ' + str(pdu))
-            # pdu_bytes = write_outgoing_pdu(pdu)
-            # bliss.core.log.info('PDU transmitted: ' + str(pdu_bytes))
-            # instance._socket.send(pdu_bytes)
         except gevent.queue.Empty:
             pass
         except Exception as e:
@@ -333,6 +323,8 @@ def sending_handler(instance):
 
 
 def transaction_handler(instance):
+    """Handler to cycle through existing transactions and check timers or prompt sending of PDUs
+    """
     while True:
         gevent.sleep(0)
         try:
@@ -355,4 +347,3 @@ def transaction_handler(instance):
             pass
         # Evaluate every 3 sec
         gevent.sleep(3)
-
