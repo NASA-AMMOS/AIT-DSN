@@ -16,6 +16,7 @@
 from pdu import PDU
 from bliss.cfdp.util import string_to_bytes, bytes_to_string
 
+
 class FileData(PDU):
 
     def __init__(self, *args, **kwargs):

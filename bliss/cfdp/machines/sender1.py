@@ -13,13 +13,14 @@
 # information to foreign countries or providing access to foreign persons.
 
 import copy
-
+import os
 from bliss.cfdp.events import Event
 from bliss.cfdp.pdu import Metadata, Header, FileData, EOF
 from bliss.cfdp.primitives import Role, ConditionCode, IndicationType
 from bliss.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
 from machine import Machine
 
+import bliss.core
 import bliss.core.log
 
 
@@ -35,6 +36,8 @@ class Sender1(Machine):
         self.header = Header()
         # direction is always towards receiver because we are a sender
         self.header.direction = Header.TOWARDS_RECEIVER
+        self.header.entity_ids_length = bliss.config.get('dsn.cfdp.max_entity_id_length', 8) # get default entity id length, 8 bytes
+        self.header.transaction_id_length = bliss.config.get('dsn.cfdp.max_transaction_id_length', 8) # get default entity id length, 8 bytes
         self.header.source_entity_id = self.transaction.entity_id
         self.header.transaction_id = self.transaction.transaction_id
         self.header.destination_entity_id = request.info.get('destination_id')
@@ -47,18 +50,19 @@ class Sender1(Machine):
         # Calculate pdu data field length for header
         # TODO double check this...
         # here the data field is size of metadata
-        #   a. segmentation control (1 bit)
-        #   b. reserved for future use (0000000) 7 zeros
-        #   c. file size (32 bit)
-        #   d. LVs for destination and source file
-        # Start as 5 for a + b + c
-        data_field_length_octets = 5
+        #   a. directive code 8 bit
+        #   b. segmentation control (1 bit)
+        #   c. reserved for future use (0000000) 7 zeros
+        #   d. file size (32 bit)
+        #   e. LVs for destination and source file
+        # Start as 6 for a + b + c + d
+        data_field_length_octets = 6
         # Each of these is +1 for 8 bit length field
         data_field_length_octets += (string_length_in_bytes(request.info.get('source_path')) + 1)
         data_field_length_octets += (string_length_in_bytes(request.info.get('destination_path')) + 1)
         self.header.pdu_data_field_length = data_field_length_octets
 
-        file_size = calc_file_size(request.info.get('source_path'))
+        file_size = calc_file_size(self.transaction.full_file_path)
 
         # Copy header
         header = copy.copy(self.header)
@@ -73,6 +77,18 @@ class Sender1(Machine):
     def make_eof_pdu(self, condition_code):
         header = copy.copy(self.header)
         header.pdu_type = Header.FILE_DIRECTIVE_PDU
+
+        # Calculate pdu data field length for EOF header
+        # here the data field is size of EOF
+        #   a. directive code 8 bit
+        #   b. condition code 4 bits
+        #   c. spare 4 bits
+        #   d. file chksum 32 bits
+        #   e. file size in octets 32 bits
+        # Sum is 10
+        data_field_length_octets = 10
+        header.pdu_data_field_length = data_field_length_octets
+
         self.eof = EOF(
             header=header,
             condition_code=condition_code,
@@ -93,6 +109,16 @@ class Sender1(Machine):
             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
         header = copy.copy(self.header)
         header.pdu_type = Header.FILE_DATA_PDU
+
+        # Calculate pdu data field length for header
+        # here the data field is size of FD
+        #   a. segment offset (32 bits)
+        #   b. File data (variable)
+        data_field_length_octets = 4
+        # Get file data size
+        data_field_length_octets += len(data_chunk)
+        header.pdu_data_field_length = data_field_length_octets
+
         fd = FileData(
             header=header,
             segment_offset=offset,
@@ -112,6 +138,12 @@ class Sender1(Machine):
                 bliss.core.log.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
                 self.put_request_received = True
                 self.transaction.other_entity_id = request.info.get('destination_id')
+
+                # Store the actual file path
+                # Files should be located in path specified in bliss.config
+                outgoing_directory = bliss.config.get('dsn.cfdp.outgoing.path')
+                full_source_path = os.path.join(outgoing_directory, request.info.get('source_path'))
+                self.transaction.full_file_path = full_source_path
 
                 # (A) Transaction Start Indication Procedure
                 # Issue Transaction Indication
@@ -134,10 +166,10 @@ class Sender1(Machine):
                     bliss.core.log.info("Sender {0}: Attempting to open file {1}"
                                  .format(self.transaction.entity_id, self.metadata.source_path))
                     try:
-                        self.file = open(self.metadata.source_path, 'rb')
+                        self.file = open(self.transaction.full_file_path, 'rb')
                     except IOError:
-                        bliss.core.log.error('Sender {0} -- could not open file: {1}'
-                                      .format(self.transaction.entity_id, self.metadata.source_path))
+                        bliss.core.log.error('Sender {0} -- could not open file {1} from outgoing path {2}'
+                                      .format(self.transaction.entity_id, self.metadata.source_path, outgoing_directory))
                         return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
                     # Check file structure
@@ -146,7 +178,7 @@ class Sender1(Machine):
                         return self.fault_handler(ConditionCode.INVALID_FILE_STRUCTURE)
 
                     # Compute and save checksum of outgoing file to send with EOF at the end
-                    self.transaction.filedata_checksum = calc_checksum(self.metadata.source_path)
+                    self.transaction.filedata_checksum = calc_checksum(self.transaction.full_file_path)
                     bliss.core.log.info('Sender {0}: Checksum of file {1}: {2}'.format(self.transaction.entity_id,
                                                                                 self.metadata.source_path,
                                                                                 self.transaction.filedata_checksum))
@@ -156,7 +188,7 @@ class Sender1(Machine):
                     self.make_eof_pdu(self.transaction.condition_code)
 
             elif event == Event.SEND_FILE_DIRECTIVE:
-                bliss.core.log.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+                bliss.core.log.debug("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
@@ -179,7 +211,7 @@ class Sender1(Machine):
                     self.shutdown()
 
             else:
-                bliss.core.log.info("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
@@ -234,7 +266,7 @@ class Sender1(Machine):
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                bliss.core.log.info("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+                bliss.core.log.debug("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
 
                 if self.is_md_outgoing is True:
                     self.kernel.send(self.metadata)
@@ -259,7 +291,7 @@ class Sender1(Machine):
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                bliss.core.log.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
+                bliss.core.log.debug("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
 
                 if self.file is None or (not self.file.closed and self.file.tell() == self.metadata.file_size):
                     # Check if entire file is done being sent. If yes, queue up EOF
@@ -273,5 +305,5 @@ class Sender1(Machine):
                     self.kernel.send(fd)
 
             else:
-                bliss.core.log.info("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass

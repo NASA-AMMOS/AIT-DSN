@@ -14,24 +14,14 @@
 
 import os
 import unittest
-import yaml
 
 import bliss.core
 from bliss.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
-from bliss.cfdp.pdu import Header, Metadata, EOF
+from bliss.cfdp.pdu import Header, Metadata, EOF, FileData
 from bliss.cfdp.primitives import ConditionCode
 
 
-config_file = bliss.config.dsn.filename
-if not os.path.isfile(config_file):
-    print "Unable to locate config. Starting up default values ..."
-    root_path = os.path.dirname(os.path.abspath(__file__))
-    TEST_DIRECTORY = os.path.join(root_path, "test")
-else:
-    with open(config_file) as dsn_conf:
-        conf = yaml.load(dsn_conf)
-    root_path = os.path.dirname(os.path.abspath(__file__))
-    TEST_DIRECTORY = os.path.join(root_path, "test")
+TEST_DIRECTORY = bliss.config.get('dsn.cfdp.test.path')
 
 class HeaderTest(unittest.TestCase):
 
@@ -43,9 +33,9 @@ class HeaderTest(unittest.TestCase):
             'transmission_mode': 1,
             'crc_flag': 0,
             'pdu_data_field_length': 25,
-            'source_entity_id': '123',
-            'transaction_id': '1',
-            'destination_entity_id': '124'
+            'source_entity_id': 123,
+            'transaction_id': 1,
+            'destination_entity_id': 124
         }
         self.fixture = Header(**hdr)
 
@@ -104,9 +94,9 @@ class MetadataTest(unittest.TestCase):
             'transmission_mode': 1,
             'crc_flag': 0,
             'pdu_data_field_length': 25,
-            'source_entity_id': '123',
-            'transaction_id': '1',
-            'destination_entity_id': '124'
+            'source_entity_id': 123,
+            'transaction_id': 1,
+            'destination_entity_id': 124
         }
         md = {
             'segmentation_control': Metadata.SEGMENTATION_CONTROL_BOUNDARIES_NOT_RESPECTED,
@@ -163,9 +153,9 @@ class EOFTest(unittest.TestCase):
             'transmission_mode': 1,
             'crc_flag': 0,
             'pdu_data_field_length': 25,
-            'source_entity_id': '123',
-            'transaction_id': '1',
-            'destination_entity_id': '124'
+            'source_entity_id': 123,
+            'transaction_id': 1,
+            'destination_entity_id': 124
         }
         eof = {
             'condition_code': ConditionCode.NO_ERROR,
@@ -178,7 +168,7 @@ class EOFTest(unittest.TestCase):
     def tearDown(self):
         self.fixture = None
 
-    def test_md_encoding_decoding(self):
+    def test_eof_encoding_decoding(self):
         """Convert EOF to bytes and then back into an object"""
         self.fixture.is_valid()
         eof_bytes = self.fixture.to_bytes()[self.fixture.header.length:]
@@ -189,7 +179,7 @@ class EOFTest(unittest.TestCase):
         self.assertEqual(limit_checksum, pdu_object.file_checksum)
         self.assertEqual(self.fixture.file_size, pdu_object.file_size)
 
-    def test_md_read_write(self):
+    def test_eof_read_write(self):
         """Write EOF to file, then read back to header"""
         self.fixture.is_valid()
         test_file = 'test_eof.pdu'
@@ -209,3 +199,54 @@ class EOFTest(unittest.TestCase):
         self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
         self.assertEqual(limit_checksum, pdu_object.file_checksum)
         self.assertEqual(self.fixture.file_size, pdu_object.file_size)
+
+
+class FileDataTest(unittest.TestCase):
+
+    def setUp(self):
+        hdr = {
+            'version': 1,
+            'pdu_type': 1,
+            'direction': 0,
+            'transmission_mode': 1,
+            'crc_flag': 0,
+            'pdu_data_field_length': 25,
+            'source_entity_id': 123,
+            'transaction_id': 1,
+            'destination_entity_id': 124
+        }
+        fd = {
+            'segment_offset': 0,
+            'data': "Hello world this is file data."
+        }
+        self.fixture = FileData(**fd)
+        self.fixture.header = Header(**hdr)
+
+    def tearDown(self):
+        self.fixture = None
+
+    def test_fd_encoding_decoding(self):
+        """Convert EOF to bytes and then back into an object"""
+        self.fixture.is_valid()
+        fd_bytes = self.fixture.to_bytes()[self.fixture.header.length:]
+        pdu_object = FileData.to_object(fd_bytes)
+
+        self.assertEqual(self.fixture.data, pdu_object.data)
+
+    def test_fd_read_write(self):
+        """Write EOF to file, then read back to header"""
+        self.fixture.is_valid()
+        test_file = 'test_fd.pdu'
+        full_file_path = os.path.join(TEST_DIRECTORY, test_file)
+
+        # write header to file
+        write_outgoing_pdu(self.fixture, pdu_filename=test_file, output_directory=TEST_DIRECTORY)
+
+        # read header from file
+        pdu_object = None
+        with open(full_file_path, 'rb') as pdu_file:
+            bytes = pdu_file.read()
+            pdu_object = read_incoming_pdu(bytes)
+
+        self.assertNotEqual(pdu_object, None)
+        self.assertEqual(self.fixture.data, pdu_object.data)

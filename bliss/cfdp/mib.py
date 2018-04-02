@@ -35,7 +35,7 @@ local_mib_fields = {
     'issue_transaction_finished': False,
     'issue_suspended': True,
     'issue_resumed': True,
-    # Default handlers
+    # Default handlers. Overrides come from the MD pdu of a transaction
     'fault_handlers': defaultdict(lambda: HandlerCode.IGNORE)
 }
 
@@ -48,7 +48,7 @@ remote_mib_fields = {
     'inactivity_timeout': 30,               # inactivity time limit for a transaction
     'nak_timeout': 10,                      # time interval for NAK
     'nak_limit': 3,                        # limit on number of NAK expirations
-    'maximum_file_segment_length': 128,      # in octets
+    'maximum_file_segment_length': 4096,      # in octets
     'transmission_mode': TransmissionMode.NO_ACK,
     'crc_required_on_transmission': False,
 }
