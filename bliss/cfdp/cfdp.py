@@ -94,7 +94,7 @@ class CFDP(object):
             pdu:
                 An instance of a PDU subclass (EOF, MD, etc)
         """
-        bliss.core.log.info('Adding pdu ' + str(pdu) + ' to queue')
+        bliss.core.log.debug('Adding pdu ' + str(pdu) + ' to queue')
         self.outgoing_pdu_queue.put(pdu)
 
     def put(self, destination_id, source_path, destination_path, transmission_mode=None):
@@ -152,7 +152,7 @@ class CFDP(object):
         """Ingest pdu from file
         """
         if pdu_path not in self.received_pdu_files:
-            bliss.core.log.info("Ingesting PDU at path: {0}".format(pdu_path))
+            bliss.core.log.debug("Ingesting PDU at path: {0}".format(pdu_path))
             # cache file so that we know we read it
             self.received_pdu_files.append(pdu_path)
             # add to incoming so that receiving handler can deal with it
@@ -231,11 +231,10 @@ def receiving_handler(instance):
         try:
             pdu_bytes = instance.incoming_pdu_queue.get(block=False)
             pdu = read_incoming_pdu(pdu_bytes)
-            bliss.core.log.info('Incoming PDU Type: ' + str(pdu.header.pdu_type))
+            bliss.core.log.debug('Incoming PDU Type: ' + str(pdu.header.pdu_type))
 
-            bliss.core.log.info(str(pdu.header.destination_entity_id) + ' ' + str(instance.mib.local_entity_id))
             if pdu.header.destination_entity_id != instance.mib.local_entity_id:
-                bliss.core.log.info('Skipping PDU with mismatched destination entity id {0}'.format(pdu.header.destination_entity_id))
+                bliss.core.log.debug('Skipping PDU with mismatched destination entity id {0}'.format(pdu.header.destination_entity_id))
                 continue
 
             transaction_num = pdu.header.transaction_id
@@ -243,7 +242,7 @@ def receiving_handler(instance):
 
             if pdu.header.pdu_type == Header.FILE_DATA_PDU:
                 # If its file data we'll concat to file
-                bliss.core.log.info('Received File Data Pdu')
+                bliss.core.log.debug('Received File Data Pdu')
                 if machine is None:
                     bliss.core.log.info(
                         'Ignoring File Data for transaction that doesn\'t exist: {}'.format(transaction_num))
@@ -252,7 +251,7 @@ def receiving_handler(instance):
                     machine.inactivity_timer.restart()
                     machine.update_state(Event.RECEIVED_FILEDATA_PDU, pdu=pdu)
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
-                bliss.core.log.info('Received File Directive Pdu: ' + str(pdu.file_directive_code))
+                bliss.core.log.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
                 if pdu.file_directive_code  == FileDirective.METADATA:
                     # If machine doesn't exist, create a machine for this transaction
                     transmission_mode = pdu.header.transmission_mode
@@ -267,11 +266,10 @@ def receiving_handler(instance):
                         bliss.core.log.info('Ignoring EOF for transaction that doesn\'t exist: {}'
                                             .format(transaction_num))
                     else:
-                        bliss.core.log.info(str(pdu.condition_code))
                         if pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
                             machine.update_state(Event.RECEIVED_EOF_CANCEL_PDU, pdu=pdu)
                         elif pdu.condition_code == ConditionCode.NO_ERROR:
-                            bliss.core.log.info('Received EOF with checksum: {}'.format(pdu.file_checksum))
+                            bliss.core.log.debug('Received EOF with checksum: {}'.format(pdu.file_checksum))
                             machine.update_state(Event.RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
                         else:
                             bliss.core.log.warn('Received EOF with strang condition code: {}'.format(pdu.condition_code))
@@ -312,7 +310,7 @@ def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=bliss.config.get
         # make a filename of destination id + time
         pdu_filename = str(pdu.header.destination_entity_id) + '_' + str(int(time.time())) + '.pdu'
     pdu_file_path = os.path.join(output_directory, pdu_filename)
-    bliss.core.log.info('PDU file path ' + str(pdu_file_path))
+    bliss.core.log.debug('PDU file path ' + str(pdu_file_path))
     # https://stackoverflow.com/questions/17349918/python-write-string-of-bytes-to-file
     # pdu_bytes is an array of integers that need to be converted to hex
     write_to_file(pdu_file_path, bytearray(pdu_bytes))
@@ -327,9 +325,9 @@ def sending_handler(instance):
             pdu = instance.outgoing_pdu_queue.get(block=False)
             pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
             instance.pdu_counter += 1
-            bliss.core.log.info('Got PDU from outgoing queue: ' + str(pdu))
+            bliss.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))
             write_outgoing_pdu(pdu, pdu_filename=pdu_filename)
-            bliss.core.log.info('PDU transmitted: ' + str(pdu))
+            bliss.core.log.debug('PDU transmitted: ' + str(pdu))
         except gevent.queue.Empty:
             pass
         except Exception as e:
