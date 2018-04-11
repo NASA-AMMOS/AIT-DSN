@@ -1,5 +1,31 @@
+# Advanced Multi-Mission Operations System (AMMOS) Instrument Toolkit (AIT)
+# Bespoke Link to Instruments and Small Satellites (BLISS)
+#
+# Copyright 2017, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged. Any
+# commercial use must be negotiated with the Office of Technology Transfer
+# at the California Institute of Technology.
+#
+# This software may be subject to U.S. export control laws. By accepting
+# this software, the user agrees to comply with all applicable U.S. export
+# laws and regulations. User has the responsibility to obtain export licenses,
+# or other export authority as may be required before exporting such
+# information to foreign countries or providing access to foreign persons.
+
+import struct
 from bliss.cfdp.util import string_length_in_bytes, string_to_bytes, bytes_to_string
 from bliss.cfdp.primitives import TransmissionMode
+
+import bliss.core
+
+
+def int_to_byte_list(value):
+    value_binary_str = format(value,
+                                       '>0{}b'.format((value.bit_length() / 8 + 1) * 8))
+    value_byte_list = []
+    for index in range(len(value_binary_str) / 8):
+        value_byte_list.append(int(value_binary_str[index:index + 8], 2))
+    return value_byte_list
 
 class Header(object):
     # Header Flag Values
@@ -8,8 +34,6 @@ class Header(object):
     FILE_DATA_PDU = 1
     TOWARDS_RECEIVER = 0
     TOWARDS_SENDER = 1
-    ACK_MODE = 0
-    UNACK_MODE = 1
     CRC_NOT_PRESENT = 0
     CRC_PRESENT = 1
 
@@ -52,11 +76,11 @@ class Header(object):
         self.transmission_mode = kwargs.get('transmission_mode', TransmissionMode.NO_ACK)
         self.crc_flag = kwargs.get('crc_flag', self.CRC_NOT_PRESENT)
         self.pdu_data_field_length = kwargs.get('pdu_data_field_length', None)
-        # self.entity_ids_length = kwargs.get('entity_ids_length', None)
-        # self.transaction_id_length = kwargs.get('transaction_id_length', None)
         self.source_entity_id = kwargs.get('source_entity_id', None)
         self.transaction_id = kwargs.get('transaction_id', None)
         self.destination_entity_id = kwargs.get('destination_entity_id', None)
+        self.entity_ids_length = kwargs.get('entity_ids_length', None)
+        self.transaction_id_length = kwargs.get('transaction_id_length', None)
 
     def __copy__(self):
         newone = type(self)()
@@ -110,7 +134,7 @@ class Header(object):
             byte_1 = byte_1 | 0x10
         if self.direction == self.TOWARDS_SENDER:
             byte_1 = byte_1 | 0x08
-        if self.transmission_mode == self.UNACK_MODE:
+        if self.transmission_mode == TransmissionMode.NO_ACK:
             byte_1 = byte_1 | 0x04
         if self.crc_flag == self.CRC_PRESENT:
             byte_1 = byte_1 | 0x02
@@ -122,7 +146,7 @@ class Header(object):
         # Split value into 2 8 bit values
         bin_pdu_length = format(self.pdu_data_field_length, '016b')
         # Convert each half to and integer and append
-        header_bytes.append(int(bin_pdu_length[0:7], 2))
+        header_bytes.append(int(bin_pdu_length[0:8], 2))
         header_bytes.append(int(bin_pdu_length[8:], 2))
 
         # --- BYTE 4 ---
@@ -132,17 +156,33 @@ class Header(object):
         #   reserved (1)
         #   transaction seq num length (3)
 
-        # calculate entity id length by whichever is longer
-        if self.source_entity_id > self.destination_entity_id:
-            entity_id_length = string_length_in_bytes(self.source_entity_id)
-        else:
-            entity_id_length = string_length_in_bytes(self.destination_entity_id)
+        # If we were not provided a length before, do the work to calculate it
+        if not self.entity_ids_length:
+            # Get longer entity id length between source and destination
+            if isinstance(self.source_entity_id, int):
+                # calculate bit length as bytes. Round up (+1) if it's not a whole number
+                source_entity_id_length = self.source_entity_id.bit_length()/8 + 1
+            else:
+                source_entity_id_length = string_length_in_bytes(str(self.source_entity_id))
 
-        # Number of octets in entity id less one; '0' means that entity id is one octet
-        entity_id_length -= 1
-        # Truncate at 3 bits and convert to 4 bit binary string (first bit should be 0 for  placeholder)
-        bin_entity_id_length = format(entity_id_length & 0x7, '04b')
-        bin_trans_seq_num_len = format(string_length_in_bytes(self.transaction_id) & 0x7, '04b')
+            if isinstance(self.destination_entity_id, int):
+                dest_entity_id_length = self.destination_entity_id.bit_length()/8 + 1
+            else:
+                dest_entity_id_length = string_length_in_bytes(str(self.destination_entity_id))
+
+            entity_id_byte_length = source_entity_id_length \
+                if source_entity_id_length > dest_entity_id_length \
+                else dest_entity_id_length
+            self.entity_ids_length = entity_id_byte_length
+
+        # If we were not provided a length before, do the work to calculate it
+        if not self.transaction_id_length:
+            trans_seq_num_byte_len = (self.transaction_id.bit_length()/8 + 1)
+            self.transaction_id_length = trans_seq_num_byte_len
+
+        # Mask for only right 3 bits and convert to 4 bit binary string (left-most bit should be 0 for  placeholder)
+        bin_entity_id_length = format(self.entity_ids_length-1 & 0x7, '04b')
+        bin_trans_seq_num_len = format(self.transaction_id_length-1 & 0x7, '04b')
         byte_4 = int(bin_entity_id_length + bin_trans_seq_num_len, 2)
         header_bytes.append(byte_4)
 
@@ -152,19 +192,31 @@ class Header(object):
         #   transaction seq num (variable)
         #   destination entity id (variable)
 
-        # get bytes for each value
-        entity_id_binary = string_to_bytes(self.source_entity_id)
-        transaction_id_binary = string_to_bytes(self.transaction_id)
-        destination_id_binary = string_to_bytes(self.destination_entity_id)
+        if not isinstance(self.source_entity_id, int):
+            source_id_bytes = string_to_bytes(str(self.source_entity_id))
+            len_of_source_id_bytes = len(source_id_bytes)
+        else:
+            len_of_source_id_bytes = self.source_entity_id.bit_length()/8 + 1
+            source_id_bytes = int_to_byte_list(self.source_entity_id)
+        source_id_bytes = [0] * (self.entity_ids_length - len_of_source_id_bytes) + source_id_bytes
+        header_bytes.extend(source_id_bytes)
 
-        # tack on bytes to whole header bytes
-        header_bytes.extend(entity_id_binary)
-        header_bytes.extend(transaction_id_binary)
+        # Transaction ID is a number. Format as binary with minimum size caluclated above
+        len_of_trans_id = self.transaction_id.bit_length() / 8 + 1
+        transaction_id_bytes = int_to_byte_list(self.transaction_id)
+        transaction_id_bytes = [0] * (self.transaction_id_length - len_of_trans_id) + transaction_id_bytes
+        header_bytes.extend(transaction_id_bytes)
+
+        if not isinstance(self.destination_entity_id, int):
+            destination_id_binary = string_to_bytes(str(self.destination_entity_id))
+            len_of_destination_id_binary = len(destination_id_binary)
+        else:
+            len_of_destination_id_binary = self.destination_entity_id.bit_length()/8 + 1
+            destination_id_binary = int_to_byte_list(self.destination_entity_id)
+        destination_id_binary = [0] * (self.entity_ids_length - len_of_destination_id_binary) + destination_id_binary
         header_bytes.extend(destination_id_binary)
 
         return header_bytes
-        # pack bytes to struct
-        # return struct.pack('!' + 'B' * len(header_bytes), *header_bytes)
 
     @staticmethod
     def to_object(pdu_hdr):
@@ -185,7 +237,7 @@ class Header(object):
         # If masked bit is > 0, it's a file data pdu. Otherwise bit is 0 and its file directive
         pdu_type = Header.FILE_DATA_PDU if (byte_1 & 0x10) else Header.FILE_DIRECTIVE_PDU
         direction = Header.TOWARDS_SENDER if (byte_1 & 0x08) else Header.TOWARDS_RECEIVER
-        transmission_mode = Header.UNACK_MODE if (byte_1 & 0x04) else Header.ACK_MODE
+        transmission_mode = TransmissionMode.NO_ACK if (byte_1 & 0x04) else TransmissionMode.ACK
         crc_flag = Header.CRC_PRESENT if (byte_1 & 0x02) else Header.CRC_NOT_PRESENT
 
         # --- BYTES 2 and 3 ---
@@ -204,7 +256,7 @@ class Header(object):
         entity_ids_length = (byte_4 & 0x70) >> 4
         # add one because value is "length less 1"
         entity_ids_length += 1
-        transaction_id_length = byte_4 & 0x7
+        transaction_id_length = (byte_4 & 0x7) + 1
 
         # Remaining bytes, use length values above to figure out
         pdu_hdr_length = len(pdu_hdr)
@@ -216,18 +268,23 @@ class Header(object):
         # source id
         start_index = 4
         end_index = start_index + entity_ids_length
-        source_entity_id = bytes_to_string(pdu_hdr[start_index:end_index])
-        # go through bytes in reverse order so we can shift appropriately
+        # source_entity_id = bytes_to_string(pdu_hdr[start_index:end_index])
+
+        # convert list of bytes (as integers) to list of binary strings
+        # Join into a mega-binary string and conver to into
+        source_entity_id = int(''.join([format(b, '>08b') for b in pdu_hdr[start_index:end_index]]), 2)
 
         # tx seq num
         start_index = end_index
         end_index = start_index + transaction_id_length
-        transaction_id = bytes_to_string(pdu_hdr[start_index:end_index])
+        # transaction_id = bytes_to_string(pdu_hdr[start_index:end_index])
+        transaction_id = int(''.join([format(b, '>08b') for b in pdu_hdr[start_index:end_index]]), 2)
 
         # destination id
         start_index = end_index
         end_index = start_index + entity_ids_length
-        destination_entity_id = bytes_to_string(pdu_hdr[start_index:end_index])
+        # destination_entity_id = bytes_to_string(pdu_hdr[start_index:end_index])
+        destination_entity_id = int(''.join([format(b, '>08b') for b in pdu_hdr[start_index:end_index]]), 2)
 
         return Header(
             version=version,
@@ -238,5 +295,7 @@ class Header(object):
             pdu_data_field_length=pdu_data_length,
             source_entity_id=source_entity_id,
             transaction_id=transaction_id,
-            destination_entity_id=destination_entity_id
+            destination_entity_id=destination_entity_id,
+            entity_ids_length = entity_ids_length,
+            transaction_id_length = transaction_id_length
         )

@@ -23,7 +23,7 @@ import bliss.core.log
 
 if __name__ == '__main__':
 
-    cfdp = bliss.cfdp.CFDP('2')
+    cfdp = bliss.cfdp.CFDP(2)
     try:
         # cfdp.connect(('127.0.0.1', 8002))
         # # Set the address of the counterpart

@@ -13,6 +13,7 @@
 # information to foreign countries or providing access to foreign persons.
 
 from bliss.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType, HandlerCode, ConditionCode
+from bliss.cfdp.events import Event
 
 import bliss.core.log
 
@@ -77,6 +78,7 @@ class Transaction(object):
         self.start_time = None
         self.suspended = False
 
+        self.full_file_path = None
         self.recv_file_size = 0
         self.file_checksum = None
 
@@ -95,7 +97,6 @@ class Machine(object):
 
         # Set up fault and indication handlers
         self.indication_handler = kwargs.get('indication_handler', self._indication_handler)
-        self.fault_handler = kwargs.get('fault_handler', self._fault_handler)
 
         # Open file being sent or received (final file, not temp)
         self.file = None
@@ -136,7 +137,7 @@ class Machine(object):
         """
         bliss.core.log.info('INDICATION: ' + str(indication_type))
 
-    def _fault_handler(self, condition_code, *args, **kwargs):
+    def fault_handler(self, condition_code, *args, **kwargs):
         """
         Default fault handler, which is just to log a message
         Fault type is primitive type `ConditionCode`
@@ -151,16 +152,13 @@ class Machine(object):
             self.initiated_cancel = True
             self.cancel()
             if self.role == Role.CLASS_1_SENDER:
-                # TODO send cancel EOF
-                pass
+                self.update_state(Event.NOTICE_OF_CANCELLATION)
             elif self.role == Role.CLASS_1_RECEIVER:
                 self.finish_transaction()
         elif handler == HandlerCode.ABANDON:
-            # TODO process abandon
-            pass
+            self.update_state(Event.ABANDON_TRANSACTION)
         elif handler == HandlerCode.SUSPEND:
-            # TODO process suspended notice
-            pass
+            self.update_state(Event.NOTICE_OF_SUSPENSION)
 
     def update_state(self, event=None, pdu=None, request=None):
         """

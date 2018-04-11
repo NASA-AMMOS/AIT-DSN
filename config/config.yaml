@@ -36,6 +36,9 @@ default:
                 path: ../tmp/pdu
             test:
                 path: ../tmp/test
+            max_file_name_length: 64
+            max_entity_id_length: 8
+            max_transaction_id_length: 8
 
     logging:
         name: bliss

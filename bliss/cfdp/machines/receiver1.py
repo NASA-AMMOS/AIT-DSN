@@ -91,7 +91,7 @@ class Receiver1(Machine):
                 self.metadata = pdu
 
                 # Write out the MD pdu to the temp directory for now
-                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'), 'md_' + pdu.header.destination_entity_id + '.pdu')
+                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'), 'md_' + str(pdu.header.destination_entity_id) + '.pdu')
                 bliss.core.log.info('Writing MD to path: ' + incoming_pdu_path)
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
@@ -150,7 +150,7 @@ class Receiver1(Machine):
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
-                bliss.core.log.info("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
 
         elif self.state == self.S2:
@@ -200,7 +200,7 @@ class Receiver1(Machine):
                             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
                     bliss.core.log.info(
-                        'Writing file data to file {0} with offset {1}'.format(self.file_path, pdu.segment_offset))
+                        'Writing file data to file {0} with offset {1}'.format(self.temp_path, pdu.segment_offset))
                     # Seek offset to write in file if provided
                     if pdu.segment_offset is not None and pdu.segment_offset >= 0:
                         self.temp_file.seek(pdu.segment_offset)
@@ -221,7 +221,7 @@ class Receiver1(Machine):
 
                 # Write EOF to temp path
                 incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'),
-                                                 'eof_' + pdu.header.destination_entity_id + '.pdu')
+                                                 'eof_' + str(pdu.header.destination_entity_id) + '.pdu')
                 bliss.core.log.info('Writing EOF to path: ' + incoming_pdu_path)
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
@@ -276,5 +276,5 @@ class Receiver1(Machine):
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             else:
-                bliss.core.log.info("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
+                bliss.core.log.debug("Receiver {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
