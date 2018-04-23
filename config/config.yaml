@@ -23,6 +23,10 @@ default:
         filename: bsc.yaml
 
     dsn:
+        sle:
+            credentials:
+                username: user
+                password: pw
         cfdp:
             mib:
                 path: ../tmp/mib

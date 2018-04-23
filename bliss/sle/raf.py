@@ -158,7 +158,7 @@ class RAF(common.SLE):
         start_invoc = RafUsertoProviderPdu()
 
         if self._credentials:
-            pass
+            start_invoc['rafStartInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             start_invoc['rafStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -166,9 +166,9 @@ class RAF(common.SLE):
         start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
         stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
+        # start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
+        # start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
@@ -197,7 +197,7 @@ class RAF(common.SLE):
         pdu = RafUsertoProviderPdu()
 
         if self._credentials:
-            pass
+            pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 

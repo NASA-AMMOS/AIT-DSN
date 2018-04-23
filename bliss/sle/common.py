@@ -48,6 +48,8 @@ from collections import defaultdict
 import datetime as dt
 import errno
 import fcntl
+import hashlib
+import random
 import socket
 import struct
 import time
@@ -59,7 +61,7 @@ import gevent.monkey; gevent.monkey.patch_all()
 
 import pyasn1.error
 from pyasn1.codec.ber.encoder import encode
-from pyasn1.codec.der.encoder import encode as derencode
+from pyasn1.codec.der.encoder import encode as der_encode
 from pyasn1.codec.der.decoder import decode
 
 import bliss.core
@@ -67,6 +69,7 @@ import bliss.core.log
 
 from bliss.sle.pdu import service_instance
 from bliss.sle.pdu.service_instance import *
+from bliss.sle.pdu.common import HashInput, ISP1Credentials
 import util
 
 TML_SLE_FORMAT = '!ii'
@@ -94,20 +97,20 @@ class SLE(object):
 
     def __init__(self, *args, **kwargs):
         ''''''
-        self._hostname = bliss.config.get('sle.hostname',
+        self._hostname = bliss.config.get('dsn.sle.hostname',
                                           kwargs.get('hostname', None))
-        self._port = bliss.config.get('sle.port',
+        self._port = bliss.config.get('dsn.sle.port',
                                       kwargs.get('port', None))
-        self._heartbeat = bliss.config.get('sle.heartbeat',
+        self._heartbeat = bliss.config.get('dsn.sle.heartbeat',
                                            kwargs.get('heartbeat', 25))
-        self._deadfactor = bliss.config.get('sle.deadfactor',
+        self._deadfactor = bliss.config.get('dsn.sle.deadfactor',
                                             kwargs.get('deadfactor', 5))
-        self._buffer_size = bliss.config.get('sle.buffer_size',
+        self._buffer_size = bliss.config.get('dsn.sle.buffer_size',
                                              kwargs.get('buffer_size', 256000))
-        self._credentials = bliss.config.get('sle.credentials', None)
-        self._initiator_id = bliss.config.get('sle.initiator_id',
+        self._credentials = bliss.config.get('dsn.sle.credentials', None)
+        self._initiator_id = bliss.config.get('dsn.sle.initiator_id',
                                               kwargs.get('initiator_id', 'LSE'))
-        self._responder_port= bliss.config.get('sle.responder_port',
+        self._responder_port= bliss.config.get('dsn.sle.responder_port',
                                                kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._inst_id = kwargs.get('inst_id', None)
@@ -202,7 +205,7 @@ class SLE(object):
                 generic SLE attributes, encoded, and sent to SLE.
         '''
         if self._credentials:
-            pass
+            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -245,7 +248,7 @@ class SLE(object):
                 The reason code for why the unbind is happening.
         '''
         if self._credentials:
-            pass
+            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -308,7 +311,7 @@ class SLE(object):
                 generic SLE attributes, encoded, and sent to SLE.
         '''
         if self._credentials:
-            pass
+            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -345,6 +348,35 @@ class SLE(object):
                 'Unable to process further and skipping ...'
             )
             bliss.core.log.error(err.format(pdu_key))
+
+    def _generate_encoded_credentials(self):
+        ''''''
+        hash_input = HashInput()
+        now = dt.datetime.utcnow()
+        days = (now - dt.datetime(1958, 1, 1)).days
+        millisecs = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+        credential_time = struct.pack('!HIH', days, millisecs, 0)
+
+        ## This random number for DSN spec
+        # random_number = random.randint(0, 42949667295)
+
+        # This random number of SSPSIM
+        random_number = random.randint(0, 2147483647)
+
+        hash_input['time'] = credential_time
+        hash_input['randomNumber'] = random_number
+        hash_input['username'] = self._credentials['username']
+        hash_input['password'] = self._credentials['password']
+        der_encoded_hash_input = der_encode(hash_input)
+        the_protected = bytearray.fromhex(hashlib.sha1(der_encoded_hash_input).hexdigest())
+
+        isp1_creds = ISP1Credentials()
+        isp1_creds['time'] = credential_time
+        isp1_creds['randomNumber'] = random_number
+        isp1_creds['theProtected'] = the_protected
+
+        return encode(isp1_creds)
+        # return hashlib.sha1(self._credentials['username'] + '736C6574657365720A')
 
 
 def conn_handler(handler):

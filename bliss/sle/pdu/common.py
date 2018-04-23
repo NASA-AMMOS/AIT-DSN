@@ -19,16 +19,6 @@ from pyasn1.type import univ, char, namedtype, namedval, tag, constraint, useful
 # SLE Service Common Types
 #
 ###############################################################################
-class Credentials(univ.Choice):
-    pass
-
-
-Credentials.componentType = namedtype.NamedTypes(
-    namedtype.NamedType('unused', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
-    namedtype.NamedType('used', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(8, 256)).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
-)
-
-
 class DeliveryMode(univ.Integer):
     pass
 
@@ -329,6 +319,46 @@ LockStatusReport.componentType = namedtype.NamedTypes(
     namedtype.NamedType('carrierLockStatus', CarrierLockStatus()),
     namedtype.NamedType('subcarrierLockStatus', LockStatus()),
     namedtype.NamedType('symbolSyncLockStatus', SymbolLockStatus())
+)
+
+
+class RandomNumber(univ.Integer):
+    pass
+
+
+RandomNumber.subtypeSpec = constraint.ValueRangeConstraint(0, 42949667295)
+
+
+class HashInput(univ.Sequence):
+    pass
+
+
+HashInput.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('time', TimeCCSDS()),
+    namedtype.NamedType('randomNumber', RandomNumber()),
+    namedtype.NamedType('username', char.VisibleString()),
+    namedtype.NamedType('password', univ.OctetString())
+)
+
+
+class ISP1Credentials(univ.Sequence):
+    pass
+
+
+ISP1Credentials.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('time', TimeCCSDS()),
+    namedtype.NamedType('randomNumber', RandomNumber()),
+    namedtype.NamedType('theProtected', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(20, 20)))
+)
+
+
+class Credentials(univ.Choice):
+    pass
+
+
+Credentials.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('unused', univ.Null().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))),
+    namedtype.NamedType('used', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(8, 256)).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)))
 )
 
 
