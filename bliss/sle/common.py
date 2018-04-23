@@ -360,7 +360,8 @@ class SLE(object):
         ## This random number for DSN spec
         # random_number = random.randint(0, 42949667295)
 
-        # This random number of SSPSIM
+        # This random number for generic
+        # Taken from https://public.ccsds.org/Pubs/913x1b2.pdf 3.2.3
         random_number = random.randint(0, 2147483647)
 
         hash_input['time'] = credential_time
@@ -376,7 +377,6 @@ class SLE(object):
         isp1_creds['theProtected'] = the_protected
 
         return encode(isp1_creds)
-        # return hashlib.sha1(self._credentials['username'] + '736C6574657365720A')
 
 
 def conn_handler(handler):

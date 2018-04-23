@@ -69,12 +69,12 @@ if __name__ == '__main__':
     raf_mngr.connect()
     time.sleep(1)
 
-    raf_mngr.bind('sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1')
+    raf_mngr.bind()
     time.sleep(1)
 
     raf_mngr.start(datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
 
-    # tlm_monitor = gevent.spawn(process_pdu, raf_mngr)
+    tlm_monitor = gevent.spawn(process_pdu, raf_mngr)
     gevent.sleep(0)
     log.info('Processing telemetry. Press <Ctrl-c> to terminate connection ...')
     try:
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         pass
     finally:
 
-        # tlm_monitor.kill()
+        tlm_monitor.kill()
 
         raf_mngr.stop()
         time.sleep(1)

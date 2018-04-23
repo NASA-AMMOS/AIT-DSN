@@ -149,7 +149,7 @@ class CLTU(common.SLE):
         start_invoc = CltuUserToProviderPdu()
 
         if self._credentials:
-            pass
+            start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             start_invoc['cltuStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -190,7 +190,7 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
-            pass
+            pdu['cltuTransferDataInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['cltuTransferDataInvocation']['invokerCredentials']['unused'] = None
 
@@ -238,7 +238,7 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
-            pass
+            pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 
@@ -283,7 +283,7 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()
 
         if self._credentials:
-            pass
+            pdu['cltuThrowEventInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['cltuThrowEventInvocation']['invokerCredentials']['unused'] = None
 

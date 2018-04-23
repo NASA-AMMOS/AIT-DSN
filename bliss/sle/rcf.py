@@ -207,7 +207,7 @@ class RCF(common.SLE):
         start_invoc = RcfUsertoProviderPdu()
 
         if self._credentials:
-            pass
+            start_invoc['rcfStartInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             start_invoc['rcfStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -215,9 +215,7 @@ class RCF(common.SLE):
         start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
         stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        start_invoc['rcfStartInvocation']['startTime']['known']['ccsdsFormat'] = None
         start_invoc['rcfStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        start_invoc['rcfStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
         start_invoc['rcfStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 
         req_gvcid = GvcId()
@@ -256,7 +254,7 @@ class RCF(common.SLE):
         pdu = RcfUsertoProviderPdu()
 
         if self._credentials:
-            pass
+            pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
         else:
             pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 

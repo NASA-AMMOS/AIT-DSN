@@ -166,9 +166,7 @@ class RAF(common.SLE):
         start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
         stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        # start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        # start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
