@@ -257,13 +257,14 @@ class RAF(common.SLE):
         if 'positive' in result:
             if self._peer_auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
-                if self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
                     # Authentication failed. Ignore processing the return
                     bliss.core.log.info('Bind unsuccessful. Authentication failed.')
                     return
 
             if self._state == 'ready' or self._state == 'active':
                 # Peer abort with protocol error (3)
+                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
                 self.peer_abort(3)
 
             bliss.core.log.info('Bind successful')

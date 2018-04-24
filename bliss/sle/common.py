@@ -222,7 +222,7 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._auth_level in ['all']:
+        if self._auth_level in ['bind', 'all']:
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
