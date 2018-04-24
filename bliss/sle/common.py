@@ -107,19 +107,37 @@ class SLE(object):
                                             kwargs.get('deadfactor', 5))
         self._buffer_size = bliss.config.get('dsn.sle.buffer_size',
                                              kwargs.get('buffer_size', 256000))
-        self._credentials = bliss.config.get('dsn.sle.credentials', None)
         self._initiator_id = bliss.config.get('dsn.sle.initiator_id',
                                               kwargs.get('initiator_id', 'LSE'))
-        self._responder_port= bliss.config.get('dsn.sle.responder_port',
+        self._responder_id = bliss.config.get('dsn.sle.responder_id',
+                                              kwargs.get('responder_id', 'SSE'))
+        self._password = bliss.config.get('dsn.sle.password', None)
+        self._peer_password = bliss.config.get('dsn.sle.peer_password',
+                                               kwargs.get('peer_password', None))
+        self._responder_port = bliss.config.get('dsn.sle.responder_port',
                                                kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._inst_id = kwargs.get('inst_id', None)
+        self._auth_level = kwargs.get('auth_level', 'none')
+        self._peer_auth_level = kwargs.get('peer_auth_level', 'none')
 
         if not self._hostname or not self._port:
             msg = 'Connection configuration missing hostname ({}) or port ({})'
             msg = msg.format(self._hostname, self._port)
             bliss.core.log.error(msg)
             raise ValueError(msg)
+
+        if self._auth_level not in ['none', 'bind', 'all']:
+            raise ValueError('Authentication level must be one of: "none", "bind", "all"')
+        if self._peer_auth_level not in ['none', 'bind', 'all']:
+            raise ValueError('Peer Authentication level must be one of: "none", "bind", "all"')
+
+        self._local_entity_auth = {
+            'local_entity_id': self._initiator_id,
+            'auth_level': self._auth_level,
+            'time': None,
+            'random_number': None
+        }
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
         self._data_processor = gevent.spawn(data_processor, self)
@@ -204,8 +222,8 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._credentials:
-            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
+        if self._auth_level in ['all']:
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -247,8 +265,8 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
-        if self._credentials:
-            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
+        if self._auth_level in ['all']:
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -310,8 +328,8 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._credentials:
-            pdu['invokerCredentials']['used'] = self._generate_encoded_credentials()
+        if self._auth_level in ['all']:
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -349,25 +367,53 @@ class SLE(object):
             )
             bliss.core.log.error(err.format(pdu_key))
 
-    def _generate_encoded_credentials(self):
-        ''''''
-        hash_input = HashInput()
+    def make_credentials(self):
+        '''Makes credentials for the initiator'''
         now = dt.datetime.utcnow()
-        days = (now - dt.datetime(1958, 1, 1)).days
-        millisecs = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-        credential_time = struct.pack('!HIH', days, millisecs, 0)
-
         ## This random number for DSN spec
         # random_number = random.randint(0, 42949667295)
 
         # This random number for generic
         # Taken from https://public.ccsds.org/Pubs/913x1b2.pdf 3.2.3
         random_number = random.randint(0, 2147483647)
+        self._local_entity_auth['time'] = now
+        self._local_entity_auth['random_number'] = random_number
+        return self._generate_encoded_credentials(now, random_number, self._initiator_id, self._password)
+
+    def _check_return_credentials(self, responder_performer_credentials, username, password):
+        decoded_credentials = decode(responder_performer_credentials.asOctets(), ISP1Credentials())[0]
+        days, ms, us = struct.unpack('!HIH', str(bytearray(decoded_credentials['time'].asNumbers())))
+        time_delta = dt.timedelta(days=days, milliseconds=ms, microseconds=us)
+        cred_time = time_delta + dt.datetime(1958, 1, 1)
+        random_number = decoded_credentials['randomNumber']
+        performer_credentials = self._generate_encoded_credentials(cred_time,
+                                                                   random_number,
+                                                                   self._responder_id,
+                                                                   self._peer_password)
+        return performer_credentials == responder_performer_credentials
+
+    def _generate_encoded_credentials(self, current_time, random_number, username, password):
+        '''Generates encoded ISP1 credentials
+
+        Arguments:
+            current_time:
+                The datetime object representing the time to use to create the credentials.
+            random_number:
+                The random number to use to create the credentials.
+            username:
+                The username to use to create the credentials.
+            password:
+                The password to use to create the credentials.
+        '''
+        hash_input = HashInput()
+        days = (current_time - dt.datetime(1958, 1, 1)).days
+        millisecs = (current_time - current_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+        credential_time = struct.pack('!HIH', days, millisecs, 0)
 
         hash_input['time'] = credential_time
         hash_input['randomNumber'] = random_number
-        hash_input['username'] = self._credentials['username']
-        hash_input['password'] = self._credentials['password']
+        hash_input['username'] = username
+        hash_input['password'] = password
         der_encoded_hash_input = der_encode(hash_input)
         the_protected = bytearray.fromhex(hashlib.sha1(der_encoded_hash_input).hexdigest())
 

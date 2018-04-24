@@ -206,8 +206,8 @@ class RCF(common.SLE):
 
         start_invoc = RcfUsertoProviderPdu()
 
-        if self._credentials:
-            start_invoc['rcfStartInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
+        if self._auth_level in ['all']:
+            start_invoc['rcfStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['rcfStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -253,8 +253,8 @@ class RCF(common.SLE):
         '''
         pdu = RcfUsertoProviderPdu()
 
-        if self._credentials:
-            pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['used'] = self._generate_encoded_credentials()
+        if self._auth_level in ['all']:
+            pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 

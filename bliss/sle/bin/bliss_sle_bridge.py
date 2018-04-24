@@ -65,7 +65,10 @@ def process_pdu(raf_mngr):
 
 
 if __name__ == '__main__':
-    raf_mngr = bliss.sle.RAF(hostname='atb-ocio-sspsim.jpl.nasa.gov', port=5100)
+    raf_mngr = bliss.sle.RAF(hostname='atb-ocio-sspsim.jpl.nasa.gov', port=5100,
+                             auth_level="bind",
+                             peer_auth_level="bind",
+                             inst_id="sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1")
     raf_mngr.connect()
     time.sleep(1)
 
