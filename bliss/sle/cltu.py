@@ -295,22 +295,6 @@ class CLTU(common.SLE):
         bliss.core.log.info('Sending Throw Event Invocation')
         self.send(self.encode_pdu(pdu))
 
-    def peer_abort(self, reason=127):
-        ''' Send a peer abort notification to the CLTU interface
-
-        Arguments:
-            reason (optional integer):
-                An integer representing the reason for the peer abort. Valid
-                values are defined in
-                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
-        '''
-        pdu = CltuUserToProviderPdu()
-        pdu['cltuPeerAbortInvocation'] = reason
-
-        bliss.core.log.info('Sending Peer Abort')
-        self.send(self.encode_pdu(pdu))
-        self._state = 'unbound'
-
     def decode(self, message):
         ''' Decode an ASN.1 encoded CLTU PDU
 
@@ -324,47 +308,51 @@ class CLTU(common.SLE):
         '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
+    def peer_abort(self, reason=127):
+        ''' Send a peer abort notification to the CLTU interface
+
+        Arguments:
+            reason (optional integer):
+                An integer representing the reason for the peer abort. Valid
+                values are defined in
+                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
+        '''
+        pdu = CltuUserToProviderPdu()
+        pdu['cltuPeerAbortInvocation'] = reason
+        super(self.__class__, self).peer_abort(pdu)
+
     def _bind_return_handler(self, pdu):
         ''''''
-        result = pdu['cltuBindReturn']['result']
-        responder_identifier = pdu['cltuBindReturn']['responderIdentifier']
-
-        # Check that responder_id in the response matches what we know
-        if responder_identifier != self._responder_id:
-            # Invoke PEER-ABORT with unexpected responder id
-            self.peer_abort(1)
-            self._state = 'unbound'
-            return
-
-        if 'positive' in result:
-            if self._auth_level in ['bind', 'all']:
-                responder_performer_credentials = pdu['cltuBindReturn']['performerCredentials']['used']
-                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
-                                                  self._peer_password):
-                    # Authentication failed. Ignore processing the return
-                    bliss.core.log.info('Bind unsuccessful. Authentication failed.')
-                    return
-
-            if self._state == 'ready' or self._state == 'active':
-                # Peer abort with protocol error (3)
-                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
-                self.peer_abort(3)
-
-            bliss.core.log.info('Bind successful')
-            self._state = 'ready'
-        else:
-            bliss.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
-            self._state = 'unbound'
+        super(self.__class__, self)._bind_return_handler(pdu, provider_key='cltuBindReturn')
 
     def _unbind_return_handler(self, pdu):
         ''''''
-        result = pdu['cltuUnbindReturn']['result']
-        if 'positive' in result:
-            bliss.core.log.info('Unbind successful')
-            self._state = 'unbound'
-        else:
-            bliss.core.log.error('Unbind failed. Treating connection as unbound')
-            self._state = 'unbound'
+        super(self.__class__, self)._unbind_return_handler(pdu, provider_key='cltuUnbindReturn')
+
+    def _start_return_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._start_return_handler(pdu, provider_key='cltuStartReturn')
+
+    def _stop_return_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._stop_return_handler(pdu, provider_key='cltuStopReturn')
+
+    def _schedule_status_report_return_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._schedule_status_report_return_handler(pdu,
+                                                                           provider_key='cltuScheduleStatusReportReturn')
+
+    def _status_report_invoc_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._status_report_invoc_handler(pdu, provider_key='cltuStatusReportInvocation')
+
+    def _peer_abort_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._peer_abort_handler(pdu, provider_key='cltuPeerAbortInvocation')
+
+    def _get_param_return_handler(self, pdu):
+        ''''''
+        super(self.__class__, self)._get_param_return_handler(pdu, provider_key='cltuGetParameterReturn')
 
     def _trans_data_return_handler(self, pdu):
         ''''''
@@ -392,33 +380,6 @@ class CLTU(common.SLE):
                 diag,
                 buffer_avail
             ))
-
-    def _start_return_handler(self, pdu):
-        ''''''
-        result = pdu['cltuStartReturn']['result']
-        if 'positiveResult' in result:
-            self._start = result['positiveResult']['startRadiationTime']
-            self._stop = result['positiveResult']['stopRadiationTime']
-            bliss.core.log.info('Start Successful')
-            self._state = 'active'
-        else:
-            result = result['negativeResult']
-            if 'common' in result:
-                diag = result['common']
-            else:
-                diag = result['specific']
-            bliss.core.log.info('Start unsuccessful: {}'.format(diag))
-            self._state = 'ready'
-
-    def _stop_return_handler(self, pdu):
-        ''''''
-        result = pdu['cltuStopReturn']['result']
-        if 'positiveResult' in result:
-            bliss.core.log.info('Stop successful')
-            self._state = 'ready'
-        else:
-            bliss.core.log.info('Stop unsuccessful: {}'.format(result['negativeResult']))
-            self._state = 'active'
 
     def _async_notify_invoc_handler(self, pdu):
         pdu = pdu['cltuAsyncNotifyInvocation']
@@ -460,64 +421,6 @@ class CLTU(common.SLE):
             msg == 'Uplink Status: {}\n'.format(uplink_status[pdu['uplinkStatus']])
 
         bliss.core.log.info(msg)
-
-    def _schedule_status_report_return_handler(self, pdu):
-        ''''''
-        pdu = pdu['cltuScheduleStatusReportReturn']
-
-        if pdu['result'].getName() == 'positiveResult':
-            bliss.core.log.info('Status Report Scheduled Successfully')
-        else:
-            diag = pdu['result'].getComponent()
-
-            if diag.getName() == 'common':
-                diag_options = ['duplicateInvokeId', 'otherReason']
-            else:
-                diag_options = ['notSupportedInThisDeliveryMode', 'alreadyStopped', 'invalidReportingCycle']
-
-            reason = diag_options[int(diag.getComponent())]
-            bliss.core.log.warning('Status Report Scheduling Failed. Reason: {}'.format(reason))
-
-    def _status_report_invoc_handler(self, pdu):
-        ''''''
-        pdu = pdu['cltuStatusReportInvocation']
-
-        report = 'Status Report\n'
-        report += 'Number of Error Free Frames: {}\n'.format(pdu['errorFreeFrameNumber'])
-        report += 'Number of Delivered Frames: {}\n'.format(pdu['deliveredFrameNumber'])
-
-        frame_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Frame Sync Lock Status: {}\n'.format(frame_lock_status[pdu['frameSyncLockStatus']])
-
-        symbol_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Symbol Sync Lock Status: {}\n'.format(symbol_lock_status[pdu['symbolSyncLockStatus']])
-
-        lock_status = ['In Lock', 'Out of Lock', 'Not In Use', 'Unknown']
-        report += 'Subcarrier Lock Status: {}\n'.format(lock_status[pdu['subcarrierLockStatus']])
-
-        carrier_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Carrier Lock Status: {}\n'.format(lock_status[pdu['carrierLockStatus']])
-
-        production_status = ['Running', 'Interrupted', 'Halted']
-        report += 'Production Status: {}'.format(production_status[pdu['productionStatus']])
-
-        bliss.core.log.warning(report)
-
-    def _get_param_return_handler(self, pdu):
-        ''''''
-        pdu = pdu['cltuGetParameterReturn']
-    
-    def _peer_abort_handler(self, pdu):
-        ''''''
-        pdu = pdu['cltuPeerAbortInvocation']
-        opts = [
-            'accessDenied', 'unexpectedResponderId', 'operationalRequirement',
-            'protocolError', 'communicationsFailure', 'encodingError', 'returnTimeout',
-            'endOfServiceProvisionPeriod', 'unsolicitedInvokeId', 'otherReason'
-        ]
-        bliss.core.log.error('Peer Abort Received. {}'.format(opts[pdu]))
-        self._state = 'unbound'
-        self.disconnect()
 
     def _throw_event_handler(self, pdu):
         ''''''

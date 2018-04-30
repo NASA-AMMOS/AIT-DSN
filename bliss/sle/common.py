@@ -67,6 +67,7 @@ from pyasn1.codec.der.decoder import decode
 import bliss.core
 import bliss.core.log
 
+from bliss.sle.frames import TMTransFrame
 from bliss.sle.pdu import service_instance
 from bliss.sle.pdu.service_instance import *
 from bliss.sle.pdu.common import HashInput, ISP1Credentials
@@ -389,6 +390,19 @@ class SLE(object):
                                                                    self._peer_password)
         return performer_credentials == responder_performer_credentials
 
+    def peer_abort(self, pdu):
+        ''' Send a peer abort notification to the RAF interface
+
+        Arguments:
+            reason (optional integer):
+                An integer representing the reason for the peer abort. Valid
+                values are defined in
+                :class:`bliss.sle.pdu.common.PeerAbortDiagnostic`
+        '''
+        bliss.core.log.info('Sending Peer Abort')
+        self.send(self.encode_pdu(pdu))
+        self._state = 'unbound'
+
     def _generate_encoded_credentials(self, current_time, random_number, username, password):
         '''Generates encoded ISP1 credentials
 
@@ -421,10 +435,13 @@ class SLE(object):
 
         return encode(isp1_creds)
 
-    def _bind_return_handler(self, pdu):
+    def _bind_return_handler(self, pdu, provider_key=None):
         ''''''
-        result = pdu['rcfBindReturn']['result']
-        responder_identifier = pdu['rcfBindReturn']['responderIdentifier']
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        result = pdu[provider_key]['result']
+        responder_identifier = pdu[provider_key]['responderIdentifier']
 
         # Check that responder_id in the response matches what we know
         if responder_identifier != self._responder_id:
@@ -435,9 +452,8 @@ class SLE(object):
 
         if 'positive' in result:
             if self._auth_level in ['bind', 'all']:
-                responder_performer_credentials = pdu['rcfBindReturn']['performerCredentials']['used']
-                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
-                                                  self._peer_password):
+                responder_performer_credentials = pdu[provider_key]['performerCredentials']['used']
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
                     # Authentication failed. Ignore processing the return
                     bliss.core.log.info('Bind unsuccessful. Authentication failed.')
                     return
@@ -452,6 +468,119 @@ class SLE(object):
         else:
             bliss.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
             self._state = 'unbound'
+
+    def _unbind_return_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        result = pdu[provider_key]['result']
+        if 'positive' in result:
+            bliss.core.log.info('Unbind successful')
+            self._state = 'unbound'
+        else:
+            bliss.core.log.error('Unbind failed. Treating connection as unbound')
+            self._state = 'unbound'
+
+    def _start_return_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        result = pdu[provider_key]['result']
+        if 'positiveResult' in result:
+            bliss.core.log.info('Start successful')
+            self._state = 'active'
+        else:
+            result = result['negativeResult']
+            if 'common' in result:
+                diag = result['common']
+            else:
+                diag = result['specific']
+            bliss.core.log.info('Start unsuccessful: {}'.format(diag))
+            self._state = 'ready'
+
+    def _stop_return_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        result = pdu[provider_key]['result']
+        if 'positiveResult' in result:
+            bliss.core.log.info('Stop successful')
+            self._state = 'ready'
+        else:
+            bliss.core.log.info('Stop unsuccessful: {}'.format(result['negativeResult']))
+            self._state = 'active'
+
+    def _schedule_status_report_return_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        pdu = pdu[provider_key]
+        if pdu['result'].getName() == 'positiveResult':
+            bliss.core.log.info('Status Report Scheduled Successfully')
+        else:
+            diag = pdu['result'].getComponent()
+
+            if diag.getName() == 'common':
+                diag_options = ['duplicateInvokeId', 'otherReason']
+            else:
+                diag_options = ['notSupportedInThisDeliveryMode', 'alreadyStopped', 'invalidReportingCycle']
+
+            reason = diag_options[int(diag.getComponent())]
+            bliss.core.log.warning('Status Report Scheduling Failed. Reason: {}'.format(reason))
+
+    def _status_report_invoc_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        pdu = pdu[provider_key]
+        report = 'Status Report\n'
+        report += 'Number of Error Free Frames: {}\n'.format(pdu['errorFreeFrameNumber'])
+        report += 'Number of Delivered Frames: {}\n'.format(pdu['deliveredFrameNumber'])
+
+        frame_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
+        report += 'Frame Sync Lock Status: {}\n'.format(frame_lock_status[pdu['frameSyncLockStatus']])
+
+        symbol_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
+        report += 'Symbol Sync Lock Status: {}\n'.format(symbol_lock_status[pdu['symbolSyncLockStatus']])
+
+        lock_status = ['In Lock', 'Out of Lock', 'Not In Use', 'Unknown']
+        report += 'Subcarrier Lock Status: {}\n'.format(lock_status[pdu['subcarrierLockStatus']])
+
+        carrier_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
+        report += 'Carrier Lock Status: {}\n'.format(lock_status[pdu['carrierLockStatus']])
+
+        production_status = ['Running', 'Interrupted', 'Halted']
+        report += 'Production Status: {}'.format(production_status[pdu['productionStatus']])
+
+        bliss.core.log.warning(report)
+
+    def _get_param_return_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        pdu = pdu[provider_key]
+        #TODO: Implement
+
+    def _peer_abort_handler(self, pdu, provider_key=None):
+        ''''''
+        if not provider_key:
+            raise ValueError('Must provide provider key')
+
+        pdu = pdu[provider_key]
+        opts = [
+            'accessDenied', 'unexpectedResponderId', 'operationalRequirement',
+            'protocolError', 'communicationsFailure', 'encodingError', 'returnTimeout',
+            'endOfServiceProvisionPeriod', 'unsolicitedInvokeId', 'otherReason'
+        ]
+        bliss.core.log.error('Peer Abort Received. {}'.format(opts[pdu]))
+        self._state = 'unbound'
+        self.disconnect()
 
 
 def conn_handler(handler):
