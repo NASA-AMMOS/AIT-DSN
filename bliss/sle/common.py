@@ -119,7 +119,6 @@ class SLE(object):
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._inst_id = kwargs.get('inst_id', None)
         self._auth_level = kwargs.get('auth_level', 'none')
-        self._peer_auth_level = kwargs.get('peer_auth_level', 'none')
 
         if not self._hostname or not self._port:
             msg = 'Connection configuration missing hostname ({}) or port ({})'
@@ -129,8 +128,6 @@ class SLE(object):
 
         if self._auth_level not in ['none', 'bind', 'all']:
             raise ValueError('Authentication level must be one of: "none", "bind", "all"')
-        if self._peer_auth_level not in ['none', 'bind', 'all']:
-            raise ValueError('Peer Authentication level must be one of: "none", "bind", "all"')
 
         self._local_entity_auth = {
             'local_entity_id': self._initiator_id,
@@ -265,7 +262,7 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
@@ -328,7 +325,7 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
@@ -423,6 +420,38 @@ class SLE(object):
         isp1_creds['theProtected'] = the_protected
 
         return encode(isp1_creds)
+
+    def _bind_return_handler(self, pdu):
+        ''''''
+        result = pdu['rcfBindReturn']['result']
+        responder_identifier = pdu['rcfBindReturn']['responderIdentifier']
+
+        # Check that responder_id in the response matches what we know
+        if responder_identifier != self._responder_id:
+            # Invoke PEER-ABORT with unexpected responder id
+            self.peer_abort(1)
+            self._state = 'unbound'
+            return
+
+        if 'positive' in result:
+            if self._auth_level in ['bind', 'all']:
+                responder_performer_credentials = pdu['rcfBindReturn']['performerCredentials']['used']
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
+                                                  self._peer_password):
+                    # Authentication failed. Ignore processing the return
+                    bliss.core.log.info('Bind unsuccessful. Authentication failed.')
+                    return
+
+            if self._state == 'ready' or self._state == 'active':
+                # Peer abort with protocol error (3)
+                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
+                self.peer_abort(3)
+
+            bliss.core.log.info('Bind successful')
+            self._state = 'ready'
+        else:
+            bliss.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
+            self._state = 'unbound'
 
 
 def conn_handler(handler):

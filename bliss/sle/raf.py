@@ -96,7 +96,7 @@ class RAF(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
-        self._version = kwargs.get('version', 4)
+        self._version = kwargs.get('version', 5)
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -157,7 +157,7 @@ class RAF(common.SLE):
         '''
         start_invoc = RafUsertoProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             start_invoc['rafStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['rafStartInvocation']['invokerCredentials']['unused'] = None
@@ -194,7 +194,7 @@ class RAF(common.SLE):
         '''
         pdu = RafUsertoProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
@@ -255,7 +255,7 @@ class RAF(common.SLE):
             return
 
         if 'positive' in result:
-            if self._peer_auth_level in ['bind', 'all']:
+            if self._auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
                     # Authentication failed. Ignore processing the return

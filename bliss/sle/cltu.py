@@ -148,7 +148,7 @@ class CLTU(common.SLE):
         '''
         start_invoc = CltuUserToProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['cltuStartInvocation']['invokerCredentials']['unused'] = None
@@ -189,7 +189,7 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['cltuTransferDataInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuTransferDataInvocation']['invokerCredentials']['unused'] = None
@@ -237,7 +237,7 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
@@ -282,7 +282,7 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['cltuThrowEventInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuThrowEventInvocation']['invokerCredentials']['unused'] = None
@@ -337,7 +337,7 @@ class CLTU(common.SLE):
             return
 
         if 'positive' in result:
-            if self._peer_auth_level in ['bind', 'all']:
+            if self._auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['cltuBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
                                                   self._peer_password):

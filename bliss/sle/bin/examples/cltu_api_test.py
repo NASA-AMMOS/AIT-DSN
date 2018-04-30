@@ -41,8 +41,7 @@ cltu_mngr = bliss.sle.CLTU(
     hostname='atb-ocio-sspsim.jpl.nasa.gov',
     port=5100,
     inst_id='sagr=LSE-SSC.spack=Test.fsl-fg=1.cltu=cltu1',
-    auth_level="bind",
-    peer_auth_level="bind"
+    auth_level="bind"
 )
 
 cltu_mngr.connect()

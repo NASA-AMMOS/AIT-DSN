@@ -55,8 +55,7 @@ rcf_mngr = bliss.sle.RCF(
     inst_id='sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2',
     spacecraft_id=250,
     trans_frame_ver_num=1,
-    auth_level="bind",
-    peer_auth_level="bind"
+    auth_level="bind"
 )
 
 rcf_mngr.connect()

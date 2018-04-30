@@ -206,7 +206,7 @@ class RCF(common.SLE):
 
         start_invoc = RcfUsertoProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             start_invoc['rcfStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['rcfStartInvocation']['invokerCredentials']['unused'] = None
@@ -253,7 +253,7 @@ class RCF(common.SLE):
         '''
         pdu = RcfUsertoProviderPdu()
 
-        if self._auth_level in ['all']:
+        if self._auth_level == 'all':
             pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['rcfScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
@@ -329,7 +329,7 @@ class RCF(common.SLE):
             return
 
         if 'positive' in result:
-            if self._peer_auth_level in ['bind', 'all']:
+            if self._auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['rcfBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
                                                   self._peer_password):
