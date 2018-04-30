@@ -148,8 +148,8 @@ class CLTU(common.SLE):
         '''
         start_invoc = CltuUserToProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['cltuStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -189,8 +189,8 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['cltuTransferDataInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuTransferDataInvocation']['invokerCredentials']['unused'] = None
 
@@ -237,8 +237,8 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 
@@ -282,8 +282,8 @@ class CLTU(common.SLE):
         '''
         pdu = CltuUserToProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['cltuThrowEventInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['cltuThrowEventInvocation']['invokerCredentials']['unused'] = None
 
@@ -327,7 +327,29 @@ class CLTU(common.SLE):
     def _bind_return_handler(self, pdu):
         ''''''
         result = pdu['cltuBindReturn']['result']
+        responder_identifier = pdu['cltuBindReturn']['responderIdentifier']
+
+        # Check that responder_id in the response matches what we know
+        if responder_identifier != self._responder_id:
+            # Invoke PEER-ABORT with unexpected responder id
+            self.peer_abort(1)
+            self._state = 'unbound'
+            return
+
         if 'positive' in result:
+            if self._auth_level in ['bind', 'all']:
+                responder_performer_credentials = pdu['cltuBindReturn']['performerCredentials']['used']
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
+                                                  self._peer_password):
+                    # Authentication failed. Ignore processing the return
+                    bliss.core.log.info('Bind unsuccessful. Authentication failed.')
+                    return
+
+            if self._state == 'ready' or self._state == 'active':
+                # Peer abort with protocol error (3)
+                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
+                self.peer_abort(3)
+
             bliss.core.log.info('Bind successful')
             self._state = 'ready'
         else:

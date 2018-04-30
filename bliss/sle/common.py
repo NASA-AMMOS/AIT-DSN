@@ -48,6 +48,8 @@ from collections import defaultdict
 import datetime as dt
 import errno
 import fcntl
+import hashlib
+import random
 import socket
 import struct
 import time
@@ -59,7 +61,7 @@ import gevent.monkey; gevent.monkey.patch_all()
 
 import pyasn1.error
 from pyasn1.codec.ber.encoder import encode
-from pyasn1.codec.der.encoder import encode as derencode
+from pyasn1.codec.der.encoder import encode as der_encode
 from pyasn1.codec.der.decoder import decode
 
 import bliss.core
@@ -67,6 +69,7 @@ import bliss.core.log
 
 from bliss.sle.pdu import service_instance
 from bliss.sle.pdu.service_instance import *
+from bliss.sle.pdu.common import HashInput, ISP1Credentials
 import util
 
 TML_SLE_FORMAT = '!ii'
@@ -94,29 +97,44 @@ class SLE(object):
 
     def __init__(self, *args, **kwargs):
         ''''''
-        self._hostname = bliss.config.get('sle.hostname',
+        self._hostname = bliss.config.get('dsn.sle.hostname',
                                           kwargs.get('hostname', None))
-        self._port = bliss.config.get('sle.port',
+        self._port = bliss.config.get('dsn.sle.port',
                                       kwargs.get('port', None))
-        self._heartbeat = bliss.config.get('sle.heartbeat',
+        self._heartbeat = bliss.config.get('dsn.sle.heartbeat',
                                            kwargs.get('heartbeat', 25))
-        self._deadfactor = bliss.config.get('sle.deadfactor',
+        self._deadfactor = bliss.config.get('dsn.sle.deadfactor',
                                             kwargs.get('deadfactor', 5))
-        self._buffer_size = bliss.config.get('sle.buffer_size',
+        self._buffer_size = bliss.config.get('dsn.sle.buffer_size',
                                              kwargs.get('buffer_size', 256000))
-        self._credentials = bliss.config.get('sle.credentials', None)
-        self._initiator_id = bliss.config.get('sle.initiator_id',
+        self._initiator_id = bliss.config.get('dsn.sle.initiator_id',
                                               kwargs.get('initiator_id', 'LSE'))
-        self._responder_port= bliss.config.get('sle.responder_port',
+        self._responder_id = bliss.config.get('dsn.sle.responder_id',
+                                              kwargs.get('responder_id', 'SSE'))
+        self._password = bliss.config.get('dsn.sle.password', None)
+        self._peer_password = bliss.config.get('dsn.sle.peer_password',
+                                               kwargs.get('peer_password', None))
+        self._responder_port = bliss.config.get('dsn.sle.responder_port',
                                                kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._inst_id = kwargs.get('inst_id', None)
+        self._auth_level = kwargs.get('auth_level', 'none')
 
         if not self._hostname or not self._port:
             msg = 'Connection configuration missing hostname ({}) or port ({})'
             msg = msg.format(self._hostname, self._port)
             bliss.core.log.error(msg)
             raise ValueError(msg)
+
+        if self._auth_level not in ['none', 'bind', 'all']:
+            raise ValueError('Authentication level must be one of: "none", "bind", "all"')
+
+        self._local_entity_auth = {
+            'local_entity_id': self._initiator_id,
+            'auth_level': self._auth_level,
+            'time': None,
+            'random_number': None
+        }
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
         self._data_processor = gevent.spawn(data_processor, self)
@@ -201,8 +219,8 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._credentials:
-            pass
+        if self._auth_level in ['bind', 'all']:
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -244,8 +262,8 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -307,8 +325,8 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['invokerCredentials']['unused'] = None
 
@@ -345,6 +363,95 @@ class SLE(object):
                 'Unable to process further and skipping ...'
             )
             bliss.core.log.error(err.format(pdu_key))
+
+    def make_credentials(self):
+        '''Makes credentials for the initiator'''
+        now = dt.datetime.utcnow()
+        ## This random number for DSN spec
+        # random_number = random.randint(0, 42949667295)
+
+        # This random number for generic
+        # Taken from https://public.ccsds.org/Pubs/913x1b2.pdf 3.2.3
+        random_number = random.randint(0, 2147483647)
+        self._local_entity_auth['time'] = now
+        self._local_entity_auth['random_number'] = random_number
+        return self._generate_encoded_credentials(now, random_number, self._initiator_id, self._password)
+
+    def _check_return_credentials(self, responder_performer_credentials, username, password):
+        decoded_credentials = decode(responder_performer_credentials.asOctets(), ISP1Credentials())[0]
+        days, ms, us = struct.unpack('!HIH', str(bytearray(decoded_credentials['time'].asNumbers())))
+        time_delta = dt.timedelta(days=days, milliseconds=ms, microseconds=us)
+        cred_time = time_delta + dt.datetime(1958, 1, 1)
+        random_number = decoded_credentials['randomNumber']
+        performer_credentials = self._generate_encoded_credentials(cred_time,
+                                                                   random_number,
+                                                                   self._responder_id,
+                                                                   self._peer_password)
+        return performer_credentials == responder_performer_credentials
+
+    def _generate_encoded_credentials(self, current_time, random_number, username, password):
+        '''Generates encoded ISP1 credentials
+
+        Arguments:
+            current_time:
+                The datetime object representing the time to use to create the credentials.
+            random_number:
+                The random number to use to create the credentials.
+            username:
+                The username to use to create the credentials.
+            password:
+                The password to use to create the credentials.
+        '''
+        hash_input = HashInput()
+        days = (current_time - dt.datetime(1958, 1, 1)).days
+        millisecs = (current_time - current_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+        credential_time = struct.pack('!HIH', days, millisecs, 0)
+
+        hash_input['time'] = credential_time
+        hash_input['randomNumber'] = random_number
+        hash_input['username'] = username
+        hash_input['password'] = password
+        der_encoded_hash_input = der_encode(hash_input)
+        the_protected = bytearray.fromhex(hashlib.sha1(der_encoded_hash_input).hexdigest())
+
+        isp1_creds = ISP1Credentials()
+        isp1_creds['time'] = credential_time
+        isp1_creds['randomNumber'] = random_number
+        isp1_creds['theProtected'] = the_protected
+
+        return encode(isp1_creds)
+
+    def _bind_return_handler(self, pdu):
+        ''''''
+        result = pdu['rcfBindReturn']['result']
+        responder_identifier = pdu['rcfBindReturn']['responderIdentifier']
+
+        # Check that responder_id in the response matches what we know
+        if responder_identifier != self._responder_id:
+            # Invoke PEER-ABORT with unexpected responder id
+            self.peer_abort(1)
+            self._state = 'unbound'
+            return
+
+        if 'positive' in result:
+            if self._auth_level in ['bind', 'all']:
+                responder_performer_credentials = pdu['rcfBindReturn']['performerCredentials']['used']
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
+                                                  self._peer_password):
+                    # Authentication failed. Ignore processing the return
+                    bliss.core.log.info('Bind unsuccessful. Authentication failed.')
+                    return
+
+            if self._state == 'ready' or self._state == 'active':
+                # Peer abort with protocol error (3)
+                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
+                self.peer_abort(3)
+
+            bliss.core.log.info('Bind successful')
+            self._state = 'ready'
+        else:
+            bliss.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
+            self._state = 'unbound'
 
 
 def conn_handler(handler):

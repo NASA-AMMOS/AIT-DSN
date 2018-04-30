@@ -96,7 +96,7 @@ class RAF(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
-        self._version = kwargs.get('version', 4)
+        self._version = kwargs.get('version', 5)
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -157,8 +157,8 @@ class RAF(common.SLE):
         '''
         start_invoc = RafUsertoProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            start_invoc['rafStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             start_invoc['rafStartInvocation']['invokerCredentials']['unused'] = None
 
@@ -166,9 +166,7 @@ class RAF(common.SLE):
         start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
         stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
         start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
@@ -196,8 +194,8 @@ class RAF(common.SLE):
         '''
         pdu = RafUsertoProviderPdu()
 
-        if self._credentials:
-            pass
+        if self._auth_level == 'all':
+            pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
         else:
             pdu['rafScheduleStatusReportInvocation']['invokerCredentials']['unused'] = None
 
@@ -247,7 +245,28 @@ class RAF(common.SLE):
     def _bind_return_handler(self, pdu):
         ''''''
         result = pdu['rafBindReturn']['result']
+        responder_identifier = pdu['rafBindReturn']['responderIdentifier']
+
+        # Check that responder_id in the response matches what we know
+        if responder_identifier != self._responder_id:
+            # Invoke PEER-ABORT with unexpected responder id
+            self.peer_abort(1)
+            self._state = 'unbound'
+            return
+
         if 'positive' in result:
+            if self._auth_level in ['bind', 'all']:
+                responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
+                    # Authentication failed. Ignore processing the return
+                    bliss.core.log.info('Bind unsuccessful. Authentication failed.')
+                    return
+
+            if self._state == 'ready' or self._state == 'active':
+                # Peer abort with protocol error (3)
+                bliss.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
+                self.peer_abort(3)
+
             bliss.core.log.info('Bind successful')
             self._state = 'ready'
         else:

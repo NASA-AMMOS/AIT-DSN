@@ -52,7 +52,10 @@ import bliss.sle
 rcf_mngr = bliss.sle.RCF(
     hostname='atb-ocio-sspsim.jpl.nasa.gov',
     port=5100,
-    inst_id='sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2'
+    inst_id='sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2',
+    spacecraft_id=250,
+    trans_frame_ver_num=1,
+    auth_level="bind"
 )
 
 rcf_mngr.connect()
@@ -65,13 +68,19 @@ start = dt.datetime(2017, 01, 01)
 end = dt.datetime(2018, 01, 01)
 # rcf_mngr.start(start, end, 250, 0, virtual_channel=6)
 rcf_mngr.start(start, end, 250, 0, master_channel=True)
-time.sleep(20)
 
-rcf_mngr.stop()
-time.sleep(2)
+try:
+    while True:
+        time.sleep(0)
+except:
+    pass
+finally:
 
-rcf_mngr.unbind()
-time.sleep(2)
+    rcf_mngr.stop()
+    time.sleep(2)
 
-rcf_mngr.disconnect()
-time.sleep(2)
+    rcf_mngr.unbind()
+    time.sleep(2)
+
+    rcf_mngr.disconnect()
+    time.sleep(2)
