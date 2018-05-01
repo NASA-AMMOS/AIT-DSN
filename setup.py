@@ -25,7 +25,7 @@ setup(
     namespace_packages = ['bliss'],
 
     install_requires = [
-        'bliss-core==0.23.0',
+        'bliss-core>=0.23.0',
         'pyasn1',
         'enum34==1.1.6'
     ],
