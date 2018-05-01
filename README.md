@@ -1,8 +1,8 @@
-Bespoke Links to Instruments for Surface and Space (BLISS) Space Link Extension (SLE) Interface
-================================================================================================
+AMMOS Instrument Toolkit (AIT) Space Link Extension (SLE) Interface
+===================================================================
 
-BLISS SLE provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
-Extension interfaces. BLISS SLE supports the following interfaces:
+AIT SLE provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
+Extension interfaces. AIT SLE supports the following interfaces:
 
 - Return All Frames (RAF) interface
 - Return Channel Frames (RCF) interface
@@ -11,4 +11,4 @@ Extension interfaces. BLISS SLE supports the following interfaces:
 Getting Started
 ---------------
 
-You can read through the [Installation Page](https://github.jpl.nasa.gov/pages/bliss/bliss-sle/installation.html) for instruction on how to install BLISS SLE.
+You can read through the [Installation Page](http://ait-dsn.readthedocs.io/en/latest/installation.html) for instruction on how to install AIT SLE.
