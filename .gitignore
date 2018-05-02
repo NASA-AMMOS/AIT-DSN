@@ -1,0 +1,17 @@
+# Distribution / Packaging / Build files
+.coverage
+doc/build/*
+*.egg-info/
+*.egg
+build/
+
+# Object Files
+*.o
+*.pkl
+*.pyc
+
+# Temporary files
+*~
+
+# Nosetests ouptut file
+nosetests.xml
