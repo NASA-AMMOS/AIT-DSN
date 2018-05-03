@@ -26,8 +26,8 @@ class TMTransFrame(dict):
 
     def decode(self, data):
         ''' Decode data as a TM Transfer Frame '''
-        self['version'] = hexint(data[0]) & 0xA0
-        self['spacecraft_id'] = hexint(data[0:2]) & 0x3F00
+        self['version'] = hexint(data[0]) & 0xC0
+        self['spacecraft_id'] = hexint(data[0:2]) & 0x3FF0
         self['virtual_channel_id'] = hexint(data[1]) & 0x0E
         self['ocf_flag'] = hexint(data[1]) & 0x01
         self['master_chan_frame_count'] = data[2]
