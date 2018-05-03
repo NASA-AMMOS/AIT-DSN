@@ -21,7 +21,7 @@
 # 1. Open "MISSION MANAGERS" >  "Test" > "RCFv2 ONLC2"
 # 2. Ensure that the Production Id is set to "TestBaseband2"
 # 3. Ensure that GVCID is set to (250, 0, *)
-# 4. Open "PRODUCTION" > "TestBaseband2"
+# 4. Open "PRODUCTION" > "TestBaseband1"
 # 5. Ensure that Spacecraft Id is set to 250
 # 6. Ensure that VCID is checked and set to 6
 # 7. Ensure the Source field is set to DUMMY. **NOTE**, the
@@ -38,6 +38,13 @@
 # logging informing you of the various steps and data being sent
 # to the telemetry output port. Note, because we're using dummy data
 # we will see 0 bytes being output. This is working as expected.
+# If you run into issues with decoding problems on the TM Frames this
+# likely due to the TM frame size not being evenly divisible into
+# CCSDS Packets. The TM Frame processor assumes the data field contains
+# CCSDS Packets. Since all the dummy data is 0's, the processor
+# repeatedly strips 6 bytes off the packet data to process as a CCSDS header.
+# As such, (Telem Frame Length - 6 bytes for the TM Header) % 6 should be 0.
+# If it's not you'll likely encounter problems.
 #
 # You can confirm that virtual channels are working by using the commented
 # out start call in the script instead. Try changing the virtual_channel
@@ -54,8 +61,9 @@ rcf_mngr = bliss.sle.RCF(
     port=5100,
     inst_id='sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2',
     spacecraft_id=250,
-    trans_frame_ver_num=1,
-    auth_level="bind"
+    trans_frame_ver_num=0,
+    version=4,
+    auth_level="none"
 )
 
 rcf_mngr.connect()
@@ -65,7 +73,7 @@ rcf_mngr.bind()
 time.sleep(2)
 
 start = dt.datetime(2017, 01, 01)
-end = dt.datetime(2018, 01, 01)
+end = dt.datetime(2019, 01, 01)
 # rcf_mngr.start(start, end, 250, 0, virtual_channel=6)
 rcf_mngr.start(start, end, 250, 0, master_channel=True)
 
