@@ -13,6 +13,7 @@
 # information to foreign countries or providing access to foreign persons.
 
 import os
+import glob
 import unittest
 
 import bliss.core
@@ -21,7 +22,9 @@ from bliss.cfdp.pdu import Header, Metadata, EOF, FileData
 from bliss.cfdp.primitives import ConditionCode
 
 
-TEST_DIRECTORY = bliss.config.get('dsn.cfdp.test.path')
+TEST_DIRECTORY = bliss.config.get('dsn.cfdp.datasink.test.path')
+if not os.path.exists(TEST_DIRECTORY):
+    os.makedirs(TEST_DIRECTORY)
 
 class HeaderTest(unittest.TestCase):
 
@@ -41,6 +44,8 @@ class HeaderTest(unittest.TestCase):
 
     def tearDown(self):
         self.fixture = None
+        for f in glob.glob(os.path.join(TEST_DIRECTORY, '*')):
+            os.remove(f)
 
     def test_header_encoding_decoding(self):
         """Convert header to bytes and then back into an object"""
@@ -109,6 +114,8 @@ class MetadataTest(unittest.TestCase):
 
     def tearDown(self):
         self.fixture = None
+        for f in glob.glob(os.path.join(TEST_DIRECTORY, '*')):
+            os.remove(f)
 
     def test_md_encoding_decoding(self):
         """Convert MD to bytes and then back into an object"""
@@ -167,6 +174,8 @@ class EOFTest(unittest.TestCase):
 
     def tearDown(self):
         self.fixture = None
+        for f in glob.glob(os.path.join(TEST_DIRECTORY, '*')):
+            os.remove(f)
 
     def test_eof_encoding_decoding(self):
         """Convert EOF to bytes and then back into an object"""
@@ -224,6 +233,8 @@ class FileDataTest(unittest.TestCase):
 
     def tearDown(self):
         self.fixture = None
+        for f in glob.glob(os.path.join(TEST_DIRECTORY, '*')):
+            os.remove(f)
 
     def test_fd_encoding_decoding(self):
         """Convert EOF to bytes and then back into an object"""

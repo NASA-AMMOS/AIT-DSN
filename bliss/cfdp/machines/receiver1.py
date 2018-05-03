@@ -91,7 +91,7 @@ class Receiver1(Machine):
                 self.metadata = pdu
 
                 # Write out the MD pdu to the temp directory for now
-                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'), 'md_' + str(pdu.header.destination_entity_id) + '.pdu')
+                incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'], 'md_' + str(pdu.header.destination_entity_id) + '.pdu')
                 bliss.core.log.info('Writing MD to path: ' + incoming_pdu_path)
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
@@ -101,14 +101,14 @@ class Receiver1(Machine):
                     # Get the file path of the final destination file
                     # Get the absolute directory path so we can check if it exists,
                     # and store the full file path for later use
-                    self.file_path = os.path.join(os.path.join(bliss.config.get('dsn.cfdp.incoming.path'), pdu.destination_path))
+                    self.file_path = os.path.join(os.path.join(self.kernel._data_paths['incoming'], pdu.destination_path))
                     bliss.core.log.info('File Destination Path: ' + self.file_path)
 
                     # Open a temp file for incoming file data to go to
                     # File name will be entity id and transaction id
                     # Once the file transfer is done, this file will be removed
                     temp_file_path = os.path.join(
-                        bliss.config.get('dsn.cfdp.temp.path'),
+                        self.kernel._data_paths['tempfiles'],
                         'tmp_transfer_{0}_{1}'.format(self.transaction.entity_id, self.transaction.transaction_id)
                     )
                     self.temp_path = temp_file_path
@@ -220,7 +220,7 @@ class Receiver1(Machine):
                 assert(type(pdu) == bliss.cfdp.pdu.EOF)
 
                 # Write EOF to temp path
-                incoming_pdu_path = os.path.join(bliss.config.get('dsn.cfdp.temp.path'),
+                incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'],
                                                  'eof_' + str(pdu.header.destination_entity_id) + '.pdu')
                 bliss.core.log.info('Writing EOF to path: ' + incoming_pdu_path)
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
