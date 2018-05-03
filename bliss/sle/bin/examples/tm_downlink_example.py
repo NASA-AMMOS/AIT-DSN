@@ -50,8 +50,8 @@ from pyasn1.codec.der.decoder import decode
 
 from hexdump import hexdump
 
-from bliss.sle.pdus.raf import *
-from bliss.sle.pdus import raf
+from bliss.sle.pdu.raf import *
+from bliss.sle.pdu import raf
 
 TML_CONTEXT_MSG_FORMAT = '!IIbbbbIHH'
 TML_CONTEXT_MSG_TYPE = 0x02000000
@@ -95,7 +95,7 @@ bind_invoc['rafBindInvocation']['invokerCredentials']['unused'] = None
 bind_invoc['rafBindInvocation']['initiatorIdentifier'] = 'LSE'
 bind_invoc['rafBindInvocation']['responderPortIdentifier'] = 'default'
 bind_invoc['rafBindInvocation']['serviceType'] = 'rtnAllFrames'
-bind_invoc['rafBindInvocation']['versionNumber'] = 5
+bind_invoc['rafBindInvocation']['versionNumber'] = 4
 
 inst_ids = 'sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1'.split('.')
 inst_ids = [
@@ -145,14 +145,12 @@ start_time = struct.pack(
 
 stop_time = struct.pack(
     '!HIH',
-    21999,
+    22500,
     0,
     0
 )
 
-start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = None
 start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = None
 start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 start_invoc['rafStartInvocation']['requestedFrameQuality'] = 2
 
@@ -171,7 +169,7 @@ while True:
         err = e.args[0]
         if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
             # time.sleep(1)
-            # print 'No data available'
+            print 'No data available'
             continue
         else:
             # a "real" error occurred
