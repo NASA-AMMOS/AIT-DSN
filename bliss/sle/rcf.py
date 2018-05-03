@@ -187,16 +187,16 @@ class RCF(common.SLE):
             )
             raise AttributeError(err)
 
-        spacecraft_id = spacecraft_id if spacecraft_id else self._scid
-        if not spacecraft_id:
+        spacecraft_id = spacecraft_id if spacecraft_id is not None else self._scid
+        if spacecraft_id is None:
             err = (
                 'Transfer start invocation requires a spacecraft id '
                 'to specify the VCID from which to receive frames.'
             )
             raise AttributeError(err)
 
-        trans_frame_ver_num = trans_frame_ver_num if trans_frame_ver_num else self._tfvn
-        if not trans_frame_ver_num:
+        trans_frame_ver_num = trans_frame_ver_num if trans_frame_ver_num is not None else self._tfvn
+        if trans_frame_ver_num is None:
             err = (
                 'Transfer start invocation requires a transfer frame '
                 'version number to specify the VCID from which to '
