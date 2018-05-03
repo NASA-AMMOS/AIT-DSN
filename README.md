@@ -12,3 +12,6 @@ Getting Started
 ---------------
 
 You can read through the [Installation Page](http://ait-dsn.readthedocs.io/en/latest/installation.html) for instruction on how to install AIT SLE.
+
+-----
+[![Documentation Status](https://readthedocs.org/projects/ait-dsn/badge/?version=master)](http://ait-dsn.readthedocs.io/en/master/?badge=master)
