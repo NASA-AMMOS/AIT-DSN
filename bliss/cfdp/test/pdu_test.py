@@ -14,6 +14,7 @@
 
 import os
 import glob
+import shutil
 import unittest
 
 import bliss.core
@@ -22,9 +23,15 @@ from bliss.cfdp.pdu import Header, Metadata, EOF, FileData
 from bliss.cfdp.primitives import ConditionCode
 
 
-TEST_DIRECTORY = bliss.config.get('dsn.cfdp.datasink.test.path')
-if not os.path.exists(TEST_DIRECTORY):
-    os.makedirs(TEST_DIRECTORY)
+TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
+def setUpModule():
+    if not os.path.exists(TEST_DIRECTORY):
+        os.makedirs(TEST_DIRECTORY)
+
+def tearDownModule():
+    if os.path.exists(TEST_DIRECTORY):
+        shutil.rmtree(TEST_DIRECTORY)
+
 
 class HeaderTest(unittest.TestCase):
 

@@ -22,10 +22,6 @@ from bliss.cfdp.machines import Sender1
 from bliss.cfdp.primitives import ConditionCode, IndicationType
 
 
-TEST_DIRECTORY = bliss.config.get('dsn.cfdp.datasink.test.path')
-if not os.path.exists(TEST_DIRECTORY):
-    os.makedirs(TEST_DIRECTORY)
-
 # Supress logging because noisy
 patcher = mock.patch('bliss.core.log.info')
 patcher.start()
