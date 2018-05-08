@@ -62,6 +62,17 @@ class CFDP(object):
         # temporary list for holding PDUs that have been read from file
         self.received_pdu_files = []
 
+        self._data_paths = {}
+        self._data_paths['pdusink'] = bliss.config.get('dsn.cfdp.datasink.pdusink.path')
+        self._data_paths['outgoing'] = bliss.config.get('dsn.cfdp.datasink.outgoing.path')
+        self._data_paths['incoming'] = bliss.config.get('dsn.cfdp.datasink.incoming.path')
+        self._data_paths['tempfiles'] = bliss.config.get('dsn.cfdp.datasink.tempfiles.path')
+
+        # create needed paths if they don't exist
+        for name, path in self._data_paths.iteritems():
+            if not os.path.exists(path):
+                os.makedirs(path)
+
     def connect(self, host):
         """Connect with TC here"""
         self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -204,13 +215,16 @@ def read_pdus(instance):
     while True:
         gevent.sleep(0)
         try:
-            # bliss.core.log.info('Looking for PDUs to read with entity id ' + str(instance.mib.get_local_entity_id()))
-            for pdu_filename in [f for f in os.listdir(bliss.config.get('dsn.cfdp.pdu.path')) if f.endswith('.pdu')]:
+            # Get files from pdusink directory in order of creation
+            pdusink_path = instance._data_paths['pdusink']
+            pdu_files = [os.path.join(pdusink_path, f) for f in os.listdir(pdusink_path) if f.endswith('.pdu')]
+            pdu_files.sort(key=lambda x: os.path.getmtime(x))
+            for pdu_filename in pdu_files:
                 if pdu_filename not in instance.received_pdu_files:
                     # cache file so that we know we read it
                     instance.received_pdu_files.append(pdu_filename)
                     # add to incoming so that receiving handler can deal with it
-                    pdu_full_path = os.path.join(bliss.config.get('dsn.cfdp.pdu.path'), pdu_filename)
+                    pdu_full_path = os.path.join(pdusink_path, pdu_filename)
                     with open(pdu_full_path, 'rb') as pdu_file:
                         # add raw file contents to incoming queue
                         pdu_file_bytes = pdu_file.read()
@@ -294,7 +308,7 @@ def read_incoming_pdu(pdu):
     return make_pdu_from_bytes(pdu_bytes)
 
 
-def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=bliss.config.get('dsn.cfdp.pdu.path')):
+def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=None):
     """Helper function to write pdu to file, in lieu of sending over some other transport layer
 
     Arguments:
@@ -305,6 +319,10 @@ def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=bliss.config.get
     """
     # convert pdu to bytes to "deliver", i.e. write to file
     pdu_bytes = pdu.to_bytes()
+
+    if output_directory is None:
+        bliss.core.log.info(str(pdu_bytes))
+        return
 
     if pdu_filename is None:
         # make a filename of destination id + time
@@ -326,7 +344,7 @@ def sending_handler(instance):
             pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
             instance.pdu_counter += 1
             bliss.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))
-            write_outgoing_pdu(pdu, pdu_filename=pdu_filename)
+            write_outgoing_pdu(pdu, pdu_filename=pdu_filename, output_directory=instance._data_paths['pdusink'])
             bliss.core.log.debug('PDU transmitted: ' + str(pdu))
         except gevent.queue.Empty:
             pass

@@ -22,8 +22,6 @@ from bliss.cfdp.machines import Sender1
 from bliss.cfdp.primitives import ConditionCode, IndicationType
 
 
-TEST_DIRECTORY = bliss.config.get('dsn.cfdp.test.path')
-
 # Supress logging because noisy
 patcher = mock.patch('bliss.core.log.info')
 patcher.start()
@@ -34,6 +32,8 @@ class CFDPPutTest(unittest.TestCase):
     def setUp(self):
         # Set up a CFDP entity with ID 1
         self.cfdp = CFDP('1')
+        # Patch outgoing path with testdata path
+        self.cfdp._data_paths['outgoing'] = os.path.join(os.path.dirname(__file__), 'testdata')
 
     def tearDown(self):
         self.cfdp.disconnect()
@@ -41,8 +41,8 @@ class CFDPPutTest(unittest.TestCase):
 
     def test_put(self):
         destination_id = '2'
-        source_file = 'test.txt'
-        destination_file = 'test.txt'
+        source_file = 'small.txt'
+        destination_file = 'small.txt'
 
         transaction_id = self.cfdp.put(destination_id, source_file, destination_file)
 
@@ -57,9 +57,12 @@ class CFDPCommandTest(unittest.TestCase):
     def setUp(self):
         # Set up a CFDP entity with ID 1
         self.cfdp = CFDP('1')
+        # Patch outgoing path with testdata path
+        self.cfdp._data_paths['outgoing'] = os.path.join(os.path.dirname(__file__), 'testdata')
+
         destination_id = '2'
-        source_file = 'test.txt'
-        destination_file = 'test.txt'
+        source_file = 'small.txt'
+        destination_file = 'small.txt'
 
         self.transaction_id = self.cfdp.put(destination_id, source_file, destination_file)
         self.machine = self.cfdp._machines[self.transaction_id]

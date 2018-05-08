@@ -30,17 +30,16 @@ default:
             peer_password: pw
         cfdp:
             mib:
-                path: ../tmp/mib
-            outgoing:
-                path: ../tmp/outgoing
-            incoming:
-                path: ../tmp/incoming
-            temp:
-                path: ../tmp/temp
-            pdu:
-                path: ../tmp/pdu
-            test:
-                path: ../tmp/test
+                path: ./mib
+            datasink:
+                outgoing:
+                    path: ../bliss/cfdp/datasink/outgoing
+                incoming:
+                    path: ../bliss/cfdp/datasink/incoming
+                tempfiles:
+                    path: ../bliss/cfdp/datasink/tempfiles
+                pdusink:
+                    path: ../bliss/cfdp/datasink/pdusink
             max_file_name_length: 64
             max_entity_id_length: 8
             max_transaction_id_length: 8

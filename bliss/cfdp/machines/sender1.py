@@ -141,7 +141,7 @@ class Sender1(Machine):
 
                 # Store the actual file path
                 # Files should be located in path specified in bliss.config
-                outgoing_directory = bliss.config.get('dsn.cfdp.outgoing.path')
+                outgoing_directory = self.kernel._data_paths['outgoing']
                 full_source_path = os.path.join(outgoing_directory, request.info.get('source_path'))
                 self.transaction.full_file_path = full_source_path
 
