@@ -293,5 +293,5 @@ texinfo_documents = [
 # intersphinx_mapping = {'https://docs.python.org/': None}
 intersphinx_mapping = {
     'python': ('https://docs.python.org/2.7', None),
-    'bliss': ('https://github.jpl.nasa.gov/pages/bliss/bliss-core/', 'bliss-core.inv')
+    'bliss': ('https://github.jpl.nasa.gov/pages/bliss/bliss-core/', 'ait-core.inv')
 }

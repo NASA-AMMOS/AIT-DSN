@@ -1,17 +1,18 @@
-.. BLISS SLE documentation master file, created by
+.. AIT DSN documentation master file, created by
    sphinx-quickstart on Fri Oct 20 10:25:50 2017.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to BLISS SLE's documentation!
+Welcome to AIT DSN's documentation!
 =====================================
 
-BLISS SLE provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
-Extension interfaces. BLISS SLE supports the following interfaces:
+AIT DSN provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
+Extension interfaces. AIT DSN supports the following interfaces:
 
 - Return All Frames (RAF) interface
 - Return Channel Frames (RCF) interface
 - Forward Communications Link Transmission Unit (CLTU) interface
+- CCSDS File Delivery Protocol (CFDP) Class 1 interface
 
 Table of Contents:
 
@@ -19,7 +20,7 @@ Table of Contents:
    :maxdepth: 2
 
    installation
-   BLISS SLE API Documentation <bliss>
+   AIT DSN API Documentation <ait>
 
 
 
