@@ -27,4 +27,4 @@ For information on how to contribute please see the `AIT Contributing
 Guide <https://github.com/NASA-AMMOS/AIT-Core/wiki/Contributing>`__
 
 -----
-[![Documentation Status](https://readthedocs.org/projects/ait-dsn/badge/?version=master)](http://ait-dsn.readthedocs.io/en/master/?badge=master)
+[![Build Status](https://travis-ci.org/NASA-AMMOS/AIT-DSN.svg?branch=master)](https://travis-ci.org/NASA-AMMOS/AIT-DSN) [![Documentation Status](https://readthedocs.org/projects/ait-dsn/badge/?version=master)](http://ait-dsn.readthedocs.io/en/master/?badge=master)
