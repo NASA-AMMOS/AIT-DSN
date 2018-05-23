@@ -16,16 +16,16 @@ from setuptools import setup, find_packages
 import os
 
 setup(
-    name = 'bliss-sle',
+    name = 'ait-dsn',
     version = '0.1.0',
     packages = find_packages(exclude=['tests']),
-    author = 'BLISS-Core Development Team',
-    author_email = 'bliss@jpl.nasa.gov',
+    author = 'AIT Development Team',
+    author_email = 'ait-dev@googlegroups.com',
 
-    namespace_packages = ['bliss'],
+    namespace_packages = ['ait'],
 
     install_requires = [
-        'bliss-core>=0.37.0',
+        'ait-core>=1.0.0',
         'pyasn1',
         'enum34==1.1.6'
     ],
@@ -46,13 +46,13 @@ setup(
 
     entry_points = {
         'console_scripts': [
-            '{}=bliss.sle.bin.{}:main'.format(
+            '{}=ait.dsn.bin.{}:main'.format(
                 f.split('.')[0].replace('_', '-'),
                 f.split('.')[0])
-            for f in os.listdir('./bliss/sle/bin')
+            for f in os.listdir('./ait/dsn/bin')
             if f.endswith('.py') and
             f != '__init__.py' and
-            'bliss' in f
+            'ait' in f
 
         ]
     }

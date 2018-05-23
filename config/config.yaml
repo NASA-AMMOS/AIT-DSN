@@ -33,20 +33,20 @@ default:
                 path: ./mib
             datasink:
                 outgoing:
-                    path: ../bliss/cfdp/datasink/outgoing
+                    path: ../ait/dsn/cfdp/datasink/outgoing
                 incoming:
-                    path: ../bliss/cfdp/datasink/incoming
+                    path: ../ait/dsn/cfdp/datasink/incoming
                 tempfiles:
-                    path: ../bliss/cfdp/datasink/tempfiles
+                    path: ../ait/dsn/cfdp/datasink/tempfiles
                 pdusink:
-                    path: ../bliss/cfdp/datasink/pdusink
+                    path: ../ait/dsn/cfdp/datasink/pdusink
             max_file_name_length: 64
             max_entity_id_length: 8
             max_transaction_id_length: 8
 
     logging:
-        name: bliss
-        hostname: bliss.jpl.nasa.gov
+        name: ait
+        hostname: yourhostname.com
 
     phase: 'dev'
 
@@ -70,5 +70,5 @@ default:
       port: 8080
       telemetry:
         - stream:
-            name: OCO3_1553_EHS
+            name: 1553_HS_Packet
             port: 3076
