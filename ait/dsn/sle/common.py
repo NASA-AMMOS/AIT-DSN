@@ -405,7 +405,9 @@ class SLE(object):
         hash_input = HashInput()
         days = (current_time - dt.datetime(1958, 1, 1)).days
         millisecs = (current_time - current_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-        credential_time = struct.pack('!HIH', days, millisecs, 0)
+        microsecs = int(round(millisecs % 1 * 1000))
+        millisecs = int(millisecs)
+        credential_time = struct.pack('!HIH', days, millisecs, microsecs)
 
         hash_input['time'] = credential_time
         hash_input['randomNumber'] = random_number
