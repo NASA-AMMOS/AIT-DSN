@@ -22,13 +22,14 @@ Classes:
         implements the Forward CLTU standard.
 '''
 import binascii
-import pydoc
 import struct
+import pydoc
 
 import ait.core.log
 
 import common
-from ait.dsn.sle.pdu.cltu import *
+from ait.dsn.sle.pdu.cltu.v5 import *
+
 
 class CLTU(common.SLE):
     ''' SLE Forward Communications Link Transmission Unit (CLTU) interface class
@@ -323,23 +324,22 @@ class CLTU(common.SLE):
         '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
-    def _load_v4_classes(self):
-        '''Replaces `CltuThrowEventInvocation` and `CltuGetParameter` with version 4 classes'''
+    def _init_v4_classes(self):
+        '''Replaces a given V5 class with version 4 classes'''
 
-        def replace_class(cls, replacement_cls):
-            parts = replacement_cls.rsplit('.', 1)
-            if len(parts) > 1:
-                modname, clsname = parts
-                module = pydoc.locate(modname)
-                if module is None:
-                    raise ImportError('No module named %d' % modname)
-                new_cls = getattr(module, clsname)
-                if new_cls is None:
-                    raise ImportError('No class named %s' % replacement_cls)
-                ait.core.log.info("Replacing {0} with class {1}".format(cls, new_cls))
+        def replace(clsname):
+            modname = 'ait.dsn.sle.pdu.cltu.v4'
+            module = pydoc.locate(modname)
+            if module is None:
+                raise ImportError('No module named %s' % modname)
+            replcls = getattr(module, clsname)
+            if replcls is None:
+                raise ImportError('No class named %s.%s' % (modname, clsname))
+            ait.core.log.info("Replacing %s with class %s" % (clsname, replcls))
+            globals()[clsname] = replcls
 
-        replace_class('ait.dsn.sle.pdu.cltu.CltuGetParameter', 'ait.dsn.sle.pdu.cltu.CltuGetParameterV4')
-        replace_class('ait.dsn.sle.pdu.cltu.CltuThrowEventInvocation', 'ait.dsn.sle.pdu.cltu.CltuThrowEventInvocationV4')
+        replace('CltuUserToProviderPdu')
+        replace('CltuProviderToUserPdu')
 
     def _bind_return_handler(self, pdu):
         ''''''
@@ -377,7 +377,7 @@ class CLTU(common.SLE):
             # the appropriate version. Otherwise, 5 is the default and the classes are already those to be used.
             self._version = version_number
             if self._version == 4:
-                self._load_v4_classes()
+                self._init_v4_classes()
 
             ait.core.log.info('Bind successful')
             self._state = 'ready'
