@@ -22,14 +22,13 @@ Classes:
         implements the Forward CLTU standard.
 '''
 import binascii
+import pydoc
 import struct
 
 import ait.core.log
 
 import common
-import frames
 from ait.dsn.sle.pdu.cltu import *
-from ait.dsn.sle.pdu import cltu
 
 class CLTU(common.SLE):
     ''' SLE Forward Communications Link Transmission Unit (CLTU) interface class
@@ -324,6 +323,24 @@ class CLTU(common.SLE):
         '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
+    def _load_v4_classes(self):
+        '''Replaces `CltuThrowEventInvocation` and `CltuGetParameter` with version 4 classes'''
+
+        def replace_class(cls, replacement_cls):
+            parts = replacement_cls.rsplit('.', 1)
+            if len(parts) > 1:
+                modname, clsname = parts
+                module = pydoc.locate(modname)
+                if module is None:
+                    raise ImportError('No module named %d' % modname)
+                new_cls = getattr(module, clsname)
+                if new_cls is None:
+                    raise ImportError('No class named %s' % replacement_cls)
+                ait.core.log.info("Replacing {0} with class {1}".format(cls, new_cls))
+
+        replace_class('ait.dsn.sle.pdu.cltu.CltuGetParameter', 'ait.dsn.sle.pdu.cltu.CltuGetParameterV4')
+        replace_class('ait.dsn.sle.pdu.cltu.CltuThrowEventInvocation', 'ait.dsn.sle.pdu.cltu.CltuThrowEventInvocationV4')
+
     def _bind_return_handler(self, pdu):
         ''''''
         result = pdu['cltuBindReturn']['result']
@@ -349,6 +366,18 @@ class CLTU(common.SLE):
                 # Peer abort with protocol error (3)
                 ait.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
                 self.peer_abort(3)
+
+            # Check version for potential version negotiation
+            version_number = int(result['positive'])
+            if version_number not in self._supported_versions:
+                ait.core.log.info('Unsupported version number returned from responder.')
+                self.unbind(2)
+
+            # If version number is 4, we negotiated down from 5 so we must replace the PDU classes with the ones for
+            # the appropriate version. Otherwise, 5 is the default and the classes are already those to be used.
+            self._version = version_number
+            if self._version == 4:
+                self._load_v4_classes()
 
             ait.core.log.info('Bind successful')
             self._state = 'ready'

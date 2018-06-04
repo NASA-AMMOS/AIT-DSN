@@ -94,6 +94,7 @@ class SLE(object):
     _handlers = defaultdict(list)
     _data_queue = gevent.queue.Queue()
     _invoke_id = 0
+    _supported_versions = [4, 5]
 
     def __init__(self, *args, **kwargs):
         ''''''
@@ -420,39 +421,6 @@ class SLE(object):
         isp1_creds['theProtected'] = the_protected
 
         return encode(isp1_creds)
-
-    def _bind_return_handler(self, pdu):
-        ''''''
-        result = pdu['rcfBindReturn']['result']
-        responder_identifier = pdu['rcfBindReturn']['responderIdentifier']
-
-        # Check that responder_id in the response matches what we know
-        if responder_identifier != self._responder_id:
-            # Invoke PEER-ABORT with unexpected responder id
-            self.peer_abort(1)
-            self._state = 'unbound'
-            return
-
-        if 'positive' in result:
-            if self._auth_level in ['bind', 'all']:
-                responder_performer_credentials = pdu['rcfBindReturn']['performerCredentials']['used']
-                if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
-                                                  self._peer_password):
-                    # Authentication failed. Ignore processing the return
-                    ait.core.log.info('Bind unsuccessful. Authentication failed.')
-                    return
-
-            if self._state == 'ready' or self._state == 'active':
-                # Peer abort with protocol error (3)
-                ait.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
-                self.peer_abort(3)
-
-            ait.core.log.info('Bind successful')
-            self._state = 'ready'
-        else:
-            ait.core.log.info('Bind unsuccessful: {}'.format(result['negative']))
-            self._state = 'unbound'
-
 
 def conn_handler(handler):
     ''' Handler for processing data received from the DSN into PDUs'''

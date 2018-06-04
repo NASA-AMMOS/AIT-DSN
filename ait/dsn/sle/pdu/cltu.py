@@ -240,6 +240,7 @@ DiagnosticCltuThrowEvent.componentType = namedtype.NamedTypes(
 
 
 class CltuGetParameter(univ.Choice):
+    """CltuGetParameter v5"""
     pass
 
 CltuGetParameter.componentType = namedtype.NamedTypes(
@@ -295,6 +296,123 @@ CltuGetParameter.componentType = namedtype.NamedTypes(
         namedtype.NamedType('parameterName', ParameterName()),
         namedtype.NamedType('parameterValue', IntPosShort())
     )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 19))),
+
+    namedtype.NamedType('parModulationFrequency', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', ModulationFrequency())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 9))),
+
+    namedtype.NamedType('parModulationIndex', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', ModulationIndex())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 10))),
+
+    namedtype.NamedType('parNotificationMode', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('deffered', 0),
+            ('immediate', 1)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 11))),
+
+    namedtype.NamedType('parPlop1IdleSequenceLength', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', IntUnsignedShort())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 12))),
+
+    namedtype.NamedType('parPlopInEffect', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('plop1', 0),
+            ('plop2', 1)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 13))),
+
+    namedtype.NamedType('parProtocolAbortMode', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('abort', 0),
+            ('continue', 1)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 14))),
+
+    namedtype.NamedType('parReportingCycle', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', CurrentReportingCycle())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 15))),
+
+    namedtype.NamedType('parReturnTimeout', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', TimeoutPeriod())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 16))),
+
+    namedtype.NamedType('parRfAvailableRequired', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('yes', 0),
+            ('no', 1)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 17))),
+
+    namedtype.NamedType('parSubcarrierToBitRateRatio', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', SubcarrierDivisor())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 18)))
+)
+
+
+class CltuGetParameterV4(univ.Choice):
+    """CltuGetParameter v4"""
+    pass
+
+CltuGetParameterV4.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('parAcquisitionSequenceLength', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', IntUnsignedShort())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+
+    namedtype.NamedType('parBitLockRequired', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', univ.Integer().subtype(namedValues=namedval.NamedValues(
+            ('yes', 0),
+            ('no', 1)
+        )))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+
+    namedtype.NamedType('parGlobalVcId', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', GvcId())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+
+    namedtype.NamedType('parClcwPhysicalChannel', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue',  char.VisibleString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 32)).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3))),
+
+    namedtype.NamedType('parDeliveryMode', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', CltuDeliveryMode())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4))),
+
+    namedtype.NamedType('parCltuIdentification', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', CltuIdentification())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 5))),
+
+    namedtype.NamedType('parEventInvocationIdentification', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', CltuIdentification())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 6))),
+
+    namedtype.NamedType('parMaximumCltuLength', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', EventInvocationId())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 7))),
+
+    namedtype.NamedType('parMinimumDelayTime', univ.Sequence(componentType=namedtype.NamedTypes(
+        namedtype.NamedType('parameterName', ParameterName()),
+        namedtype.NamedType('parameterValue', Duration())
+    )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 8))),
 
     namedtype.NamedType('parModulationFrequency', univ.Sequence(componentType=namedtype.NamedTypes(
         namedtype.NamedType('parameterName', ParameterName()),
@@ -445,6 +563,7 @@ CltuTransferDataInvocation.componentType = namedtype.NamedTypes(
 
 
 class CltuThrowEventInvocation(univ.Sequence):
+    """CltuThrowEventInvocation v5"""
     pass
 
 
@@ -454,6 +573,20 @@ CltuThrowEventInvocation.componentType = namedtype.NamedTypes(
     namedtype.NamedType('eventInvocationIdentification', EventInvocationId()),
     namedtype.NamedType('eventIdentifier', IntPosShort()),
     namedtype.NamedType('eventQualifier', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 1024)))
+)
+
+
+class CltuThrowEventInvocationV4(univ.Sequence):
+    """CltuThrowEventInvocation v4"""
+    pass
+
+
+CltuThrowEventInvocationV4.componentType = namedtype.NamedTypes(
+    namedtype.NamedType('invokerCredentials', Credentials()),
+    namedtype.NamedType('invokeId', InvokeId()),
+    namedtype.NamedType('eventInvocationIdentification', EventInvocationId()),
+    namedtype.NamedType('eventIdentifier', IntPosShort()),
+    namedtype.NamedType('eventQualifier', univ.OctetString().subtype(subtypeSpec=constraint.ValueSizeConstraint(1, 128)))
 )
 
 
