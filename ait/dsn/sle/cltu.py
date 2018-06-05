@@ -324,7 +324,7 @@ class CLTU(common.SLE):
         '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
-    def _init_v4_classes(self):
+    def _replace_v4_pdus(self):
         '''Replaces a given version 5 asn1 definition class with version 4 class'''
 
         def replace(clsname):
@@ -339,7 +339,7 @@ class CLTU(common.SLE):
             globals()[clsname] = replcls
 
         replace('CltuUserToProviderPdu')
-        replace('CltuProviderToUserPdu')
+        replace('CltuUserToProviderPdu')
 
     def _bind_return_handler(self, pdu):
         ''''''
@@ -377,7 +377,7 @@ class CLTU(common.SLE):
             # the appropriate version. Otherwise, 5 is the default and the classes are already those to be used.
             self._version = version_number
             if self._version == 4:
-                self._init_v4_classes()
+                self._replace_v4_pdus()
 
             ait.core.log.info('Bind successful')
             self._state = 'ready'
