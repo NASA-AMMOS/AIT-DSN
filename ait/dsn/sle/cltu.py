@@ -28,7 +28,7 @@ import pydoc
 import ait.core.log
 
 import common
-from ait.dsn.sle.pdu.cltu.v5 import *
+from ait.dsn.sle.pdu.cltu.cltuv5 import *
 
 
 class CLTU(common.SLE):
@@ -325,10 +325,10 @@ class CLTU(common.SLE):
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
     def _init_v4_classes(self):
-        '''Replaces a given V5 class with version 4 classes'''
+        '''Replaces a given version 5 asn1 definition class with version 4 class'''
 
         def replace(clsname):
-            modname = 'ait.dsn.sle.pdu.cltu.v4'
+            modname = 'ait.dsn.sle.pdu.cltu.cltuv4'
             module = pydoc.locate(modname)
             if module is None:
                 raise ImportError('No module named %s' % modname)
