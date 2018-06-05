@@ -32,7 +32,8 @@
 # mirrored in the sim GUI where you'll be informed when a particular
 # cltu id has been successfully radiated.
 #
-# NOTE: This test should throw a ValueConstraintError when sending the throw event because sspsim negotiates down to v4.
+# NOTE: This test should print a ValueConstraintError (after the finally block) when sending the throw event because
+# sspsim negotiates down to v4.
 # The V4 throw-event event qualifier is a max length is 128. If the class replacement from v5 to v4 doesn't work,
 # this test will finish without errors.
 

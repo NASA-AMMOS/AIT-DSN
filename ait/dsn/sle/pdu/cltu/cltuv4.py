@@ -12,6 +12,7 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+from ait.dsn.sle.pdu.binds import *
 from ait.dsn.sle.pdu.cltu.common import *
 
 from pyasn1.type import univ, char, namedtype, namedval, tag, constraint
