@@ -26,9 +26,12 @@ import struct
 import pydoc
 
 import ait.core.log
-
 import common
-from ait.dsn.sle.pdu.cltu.cltuv5 import *
+
+if ait.config.get('dsn.sle.version', None) == 4:
+    from ait.dsn.sle.pdu.cltu.cltuv4 import *
+else:
+    from ait.dsn.sle.pdu.cltu.cltuv5 import *
 
 
 class CLTU(common.SLE):
@@ -324,23 +327,6 @@ class CLTU(common.SLE):
         '''
         return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
 
-    def _replace_v4_pdus(self):
-        '''Replaces a given version 5 asn1 definition class with version 4 class'''
-
-        def replace(clsname):
-            modname = 'ait.dsn.sle.pdu.cltu.cltuv4'
-            module = pydoc.locate(modname)
-            if module is None:
-                raise ImportError('No module named %s' % modname)
-            replcls = getattr(module, clsname)
-            if replcls is None:
-                raise ImportError('No class named %s.%s' % (modname, clsname))
-            ait.core.log.info("Replacing %s with class %s" % (clsname, replcls))
-            globals()[clsname] = replcls
-
-        replace('CltuUserToProviderPdu')
-        replace('CltuUserToProviderPdu')
-
     def _bind_return_handler(self, pdu):
         ''''''
         result = pdu['cltuBindReturn']['result']
@@ -366,18 +352,6 @@ class CLTU(common.SLE):
                 # Peer abort with protocol error (3)
                 ait.core.log.info('Bind unsuccessful. State already in READY or ACTIVE.')
                 self.peer_abort(3)
-
-            # Check version for potential version negotiation
-            version_number = int(result['positive'])
-            if version_number not in self._supported_versions:
-                ait.core.log.info('Unsupported version number returned from responder.')
-                self.unbind(2)
-
-            # If version number is 4, we negotiated down from 5 so we must replace the PDU classes with the ones for
-            # the appropriate version. Otherwise, 5 is the default and the classes are already those to be used.
-            self._version = version_number
-            if self._version == 4:
-                self._replace_v4_pdus()
 
             ait.core.log.info('Bind successful')
             self._state = 'ready'
