@@ -28,6 +28,7 @@ default:
             password: pw
             responder_id: uname
             peer_password: pw
+            version: 5
         cfdp:
             mib:
                 path: ./mib

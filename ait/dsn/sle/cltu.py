@@ -25,11 +25,13 @@ import binascii
 import struct
 
 import ait.core.log
-
 import common
-import frames
-from ait.dsn.sle.pdu.cltu import *
-from ait.dsn.sle.pdu import cltu
+
+if ait.config.get('dsn.sle.version', None) == 4:
+    from ait.dsn.sle.pdu.cltu.cltuv4 import *
+else:
+    from ait.dsn.sle.pdu.cltu.cltuv5 import *
+
 
 class CLTU(common.SLE):
     ''' SLE Forward Communications Link Transmission Unit (CLTU) interface class
@@ -288,9 +290,9 @@ class CLTU(common.SLE):
             pdu['cltuThrowEventInvocation']['invokerCredentials']['unused'] = None
 
         pdu['cltuThrowEventInvocation']['invokeId'] = self.invoke_id
-        pdu['cltuthroweventinvocation']['eventInvocationIdentification'] = self.event_invoc_id
-        pdu['cltuthroweventinvocation']['eventIdentifier'] = event_id
-        pdu['cltuthroweventinvocation']['eventQualifier'] = event_qualifier
+        pdu['cltuThrowEventInvocation']['eventInvocationIdentification'] = self.event_invoc_id
+        pdu['cltuThrowEventInvocation']['eventIdentifier'] = event_id
+        pdu['cltuThrowEventInvocation']['eventQualifier'] = event_qualifier
 
         ait.core.log.info('Sending Throw Event Invocation')
         self.send(self.encode_pdu(pdu))
@@ -540,3 +542,4 @@ class CLTU(common.SLE):
                 ]
             diag = diag_options[diag]
             msg = 'Event Invocation #{} Failed. Reason: {}'.format(eid, diag)
+        ait.core.log.info(msg)

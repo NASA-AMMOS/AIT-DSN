@@ -26,7 +26,7 @@ import pyasn1.error
 from pyasn1.codec.der.decoder import decode
 from pyasn1.codec.native.encoder import encode
 
-from bliss.core import log
+from ait.core import log
 
 import ait.dsn.sle
 import ait.dsn.sle.frames
