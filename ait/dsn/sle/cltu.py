@@ -23,7 +23,6 @@ Classes:
 '''
 import binascii
 import struct
-import pydoc
 
 import ait.core.log
 import common

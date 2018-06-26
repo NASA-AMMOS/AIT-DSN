@@ -94,7 +94,6 @@ class SLE(object):
     _handlers = defaultdict(list)
     _data_queue = gevent.queue.Queue()
     _invoke_id = 0
-    _supported_versions = [4, 5]
 
     def __init__(self, *args, **kwargs):
         ''''''
