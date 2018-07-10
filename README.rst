@@ -37,8 +37,8 @@ Guide <https://github.com/NASA-AMMOS/AIT-Core/wiki/Contributing>`__
 .. |travis| image:: https://travis-ci.org/NASA-AMMOS/AIT-DSN.svg?branch=master
     :alt: build status
     :scale: 100%
-    :target: https://travis-ci.org/NASA-AMMOS/AIT-Core
+    :target: https://travis-ci.org/NASA-AMMOS/AIT-DSN
 .. |docs| image:: https://readthedocs.org/projects/ait-dsn/badge/?version=master
     :alt: Documentation Status
     :scale: 100%
-    :target: https://ait-core.readthedocs.io/en/latest/?badge=master
+    :target: https://ait-dsn.readthedocs.io/en/latest/?badge=master
