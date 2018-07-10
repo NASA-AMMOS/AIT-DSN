@@ -27,6 +27,10 @@ with io.open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name = 'ait-dsn',
     version = '0.1.0',
+    description  = description,
+    long_description = long_description,
+    long_description_content_type = 'text/x-rst',
+    url = 'https://github.com/NASA-AMMOS/AIT-DSN',
     packages = find_packages(exclude=['tests']),
     author = 'AIT Development Team',
     author_email = 'ait-dev@googlegroups.com',
