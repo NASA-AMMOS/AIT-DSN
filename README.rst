@@ -9,10 +9,12 @@ Extension interfaces. AIT DSN supports the following interfaces:
 - Forward Communications Link Transmission Unit (CLTU) interface
 - CCSDS File Delivery Protocol Class 1 interface
 
+
 Getting Started
 ---------------
 
-You can read through the [Installation Page](http://ait-dsn.readthedocs.io/en/latest/installation.html) for instruction on how to install AIT DSN.
+You can read through the `Installation Page <http://ait-dsn.readthedocs.io/en/latest/installation.html>`__
+for instruction on how to install AIT DSN.
 
 Join the Community
 ------------------
@@ -27,5 +29,16 @@ Contributing
 For information on how to contribute please see the `AIT Contributing
 Guide <https://github.com/NASA-AMMOS/AIT-Core/wiki/Contributing>`__
 
------
-[![Build Status](https://travis-ci.org/NASA-AMMOS/AIT-DSN.svg?branch=master)](https://travis-ci.org/NASA-AMMOS/AIT-DSN) [![Documentation Status](https://readthedocs.org/projects/ait-dsn/badge/?version=master)](http://ait-dsn.readthedocs.io/en/master/?badge=master)
+--------------
+
+|travis|
+|docs|
+
+.. |travis| image:: https://travis-ci.org/NASA-AMMOS/AIT-DSN.svg?branch=master
+    :alt: build status
+    :scale: 100%
+    :target: https://travis-ci.org/NASA-AMMOS/AIT-DSN
+.. |docs| image:: https://readthedocs.org/projects/ait-dsn/badge/?version=master
+    :alt: Documentation Status
+    :scale: 100%
+    :target: https://ait-dsn.readthedocs.io/en/latest/?badge=master

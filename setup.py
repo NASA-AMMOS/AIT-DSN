@@ -12,15 +12,28 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+import io
+from os import path, listdir
 from setuptools import setup, find_packages
-import os
+
+description = "AIT DSN provides APIs for connecting to the Deep Space Network (DSN) " \
+              "via the Space Link Extension interfaces."
+
+# Get the long description from the README file
+here = path.abspath(path.dirname(__file__))
+with io.open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name = 'ait-dsn',
     version = '0.1.0',
+    description  = description,
+    long_description = long_description,
+    long_description_content_type = 'text/x-rst',
+    url = 'https://github.com/NASA-AMMOS/AIT-DSN',
     packages = find_packages(exclude=['tests']),
     author = 'AIT Development Team',
-    author_email = 'ait-dev@googlegroups.com',
+    author_email='ait-pmc@googlegroups.com',
 
     namespace_packages = ['ait'],
 
@@ -49,7 +62,7 @@ setup(
             '{}=ait.dsn.bin.{}:main'.format(
                 f.split('.')[0].replace('_', '-'),
                 f.split('.')[0])
-            for f in os.listdir('./ait/dsn/bin')
+            for f in listdir('./ait/dsn/bin')
             if f.endswith('.py') and
             f != '__init__.py' and
             'ait' in f
