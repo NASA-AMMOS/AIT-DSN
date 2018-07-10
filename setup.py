@@ -33,7 +33,7 @@ setup(
     url = 'https://github.com/NASA-AMMOS/AIT-DSN',
     packages = find_packages(exclude=['tests']),
     author = 'AIT Development Team',
-    author_email = 'ait-dev@googlegroups.com',
+    author_email='ait-pmc@googlegroups.com',
 
     namespace_packages = ['ait'],
 
