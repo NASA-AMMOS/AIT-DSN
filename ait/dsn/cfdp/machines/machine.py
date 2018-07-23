@@ -120,7 +120,7 @@ class Machine(object):
         self.machine_finished = False
         self.initiated_cancel = False
         self.is_ack_outgoing = False
-        self.is_oef_outgoing = False
+        self.is_eof_outgoing = False
         self.is_fin_outgoing = False
         self.is_md_outgoing = False
         self.is_nak_outgoing = False
@@ -170,6 +170,38 @@ class Machine(object):
         """
         raise NotImplementedError
 
+    def start_timers(self):
+        if self.inactivity_timer:
+            self.inactivity_timer.start()
+        if self.ack_timer:
+            self.ack_timer.start()
+        if self.nak_timer:
+            self.nak_timer.start()
+
+    def suspend_timers(self):
+        if self.inactivity_timer:
+            self.inactivity_timer.pause()
+        if self.ack_timer:
+            self.ack_timer.pause()
+        if self.nak_timer:
+            self.nak_timer.pause()
+
+    def resume_timers(self):
+        if self.inactivity_timer:
+            self.inactivity_timer.resume()
+        if self.ack_timer:
+            self.ack_timer.resume()
+        if self.nak_timer:
+            self.nak_timer.resume()
+
+    def cancel_timers(self):
+        if self.inactivity_timer:
+            self.inactivity_timer.cancel()
+        if self.ack_timer:
+            self.ack_timer.cancel()
+        if self.nak_timer:
+            self.nak_timer.cancel()
+
     def abandon(self):
         self.transaction.abandoned = True
         self.transaction.finished = True
@@ -181,12 +213,7 @@ class Machine(object):
         if not self.transaction.suspended:
             self.transaction.suspended = True
 
-            if self.inactivity_timer:
-                self.inactivity_timer.pause()
-            if self.ack_timer:
-                self.ack_timer.pause()
-            if self.nak_timer:
-                self.nak_timer.pause()
+            self.suspend_timers()
 
             self.indication_handler(IndicationType.SUSPENDED_INDICATION,
                                     transaction_id=self.transaction.transaction_id,
@@ -194,7 +221,7 @@ class Machine(object):
 
     def cancel(self):
         """Cancel self"""
-        self.is_oef_outgoing = False
+        self.is_eof_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
         self.is_md_outgoing = False
@@ -202,16 +229,11 @@ class Machine(object):
 
         self.transaction.cancelled = True
 
-        if self.inactivity_timer:
-            self.inactivity_timer.cancel()
-        if self.ack_timer:
-            self.ack_timer.cancel()
-        if self.nak_timer:
-            self.nak_timer.cancel()
+        self.cancel_timers()
 
     def notify_partner_of_cancel(self):
         """Ask partner to cancel and then shutdown"""
-        self.is_oef_outgoing = True
+        self.is_eof_outgoing = True
         self.transaction.cancelled = True
         self.indication_handler(IndicationType.TRANSACTION_FINISHED_INDICATION,
                                 transaction_id=self.transaction.transaction_id)
@@ -221,18 +243,13 @@ class Machine(object):
     def finish_transaction(self):
         """Closes out a transaction. Sends the appropriate Indication and resets instance variables"""
         ait.core.log.info("Machine {} finishing transaction...".format(self.transaction.transaction_id))
-        self.is_oef_outgoing = False
+        self.is_eof_outgoing = False
         self.is_ack_outgoing = False
         self.is_fin_outgoing = False
         self.is_md_outgoing = False
         self.is_nak_outgoing = False
 
-        if self.inactivity_timer:
-            self.inactivity_timer.cancel()
-        if self.ack_timer:
-            self.ack_timer.cancel()
-        if self.nak_timer:
-            self.nak_timer.cancel()
+        self.cancel_timers()
 
         self.transaction.finished = True
         if self.role == Role.CLASS_1_RECEIVER and not self.transaction.is_metadata_received:
