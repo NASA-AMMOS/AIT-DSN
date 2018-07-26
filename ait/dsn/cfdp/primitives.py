@@ -15,13 +15,6 @@
 from enum import Enum
 
 
-class MachineState(Enum):
-    SEND_METADATA = "SEND_METADATA"
-    SEND_FILEDATA = "SEND_FILEDATA"
-    SEND_EOF_FILL_GAPS = "SEND_EOF_FILL_GAPS"
-    TRANSACTION_CANCELLED = "TRANSACTION_CANCELLED"
-
-
 class TransmissionMode(Enum):
     ACK = "ACK"
     NO_ACK = "NO_ACK"

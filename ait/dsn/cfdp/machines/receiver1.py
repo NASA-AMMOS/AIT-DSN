@@ -51,30 +51,30 @@ class Receiver1(Machine):
         if self.state == self.S1:
 
             # USER-ISSUED REQUESTS (Rx)
-            if event == Event.RECEIVED_CANCEL_REQUEST:
+            if event == Event.E33_RECEIVED_CANCEL_REQUEST:
                 ait.core.log.info("Receiver {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 # User-issued request to cancel
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-                self.update_state(Event.NOTICE_OF_CANCELLATION)
+                self.update_state(Event.E3_NOTICE_OF_CANCELLATION)
 
-            elif event == Event.RECEIVED_REPORT_REQUEST:
+            elif event == Event.E34_RECEIVED_REPORT_REQUEST:
                 ait.core.log.info("Receiver {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
                 # User-issued report request
                 self.indication_handler(IndicationType.REPORT_INDICATION)
                 pass
 
             # NON-USER ISSUED
-            elif event == Event.ABANDON_TRANSACTION:
+            elif event == Event.E2_ABANDON_TRANSACTION:
                 ait.core.log.info("Receiver {0}: Received ABANDON event".format(self.transaction.entity_id))
                 self.shutdown()
 
-            elif event == Event.NOTICE_OF_CANCELLATION:
+            elif event == Event.E3_NOTICE_OF_CANCELLATION:
                 ait.core.log.info("Receiver {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
                 self.cancel()
                 self.finish_transaction()
                 self.shutdown()
 
-            elif event == Event.RECEIVED_METADATA_PDU:
+            elif event == Event.E10_RECEIVED_METADATA_PDU:
                 ait.core.log.info("Receiver {0}: Received METADATA PDU event".format(self.transaction.entity_id))
                 assert(pdu)
                 assert(type(pdu) == ait.dsn.cfdp.pdu.Metadata)
@@ -133,17 +133,17 @@ class Receiver1(Machine):
                 # Set state to be awaiting EOF
                 self.state = self.S2
 
-            elif event == Event.RECEIVED_EOF_NO_ERROR_PDU:
+            elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
                 ait.core.log.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
                 # Received EOF PDU before Metadata
                 self.finish_transaction()
 
-            elif event == Event.RECEIVED_EOF_CANCEL_PDU:
+            elif event == Event.E13_RECEIVED_EOF_CANCEL_PDU:
                 ait.core.log.info("Receiver {0}: Received EOF CANCEL PDU event".format(self.transaction.entity_id))
                 # This is a cancel PDU event from the other entity, so we just closed out the transaction
                 self.finish_transaction()
 
-            elif event == Event.INACTIVITY_TIMER_EXPIRED:
+            elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 ait.core.log.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event".format(self.transaction.entity_id))
                 # Raise inactivity fault
                 self.inactivity_timer.restart()
@@ -158,31 +158,31 @@ class Receiver1(Machine):
             # This is the path for ongoing file transfer, awaiting EOF
 
             # USER-ISSUED REQUESTS (Rx)
-            if event == Event.RECEIVED_CANCEL_REQUEST:
+            if event == Event.E33_RECEIVED_CANCEL_REQUEST:
                 ait.core.log.info("Receiver {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 # User-issued request to cancel
                 # Set the condition code of the transaction and close it out
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-                self.update_state(Event.NOTICE_OF_CANCELLATION)
+                self.update_state(Event.E3_NOTICE_OF_CANCELLATION)
 
-            elif event == Event.RECEIVED_REPORT_REQUEST:
+            elif event == Event.E34_RECEIVED_REPORT_REQUEST:
                 ait.core.log.info("Receiver {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
                 # User-issued report request
                 self.indication_handler(IndicationType.REPORT_INDICATION)
                 pass
 
             # NON-USER ISSUED
-            elif event == Event.ABANDON_TRANSACTION:
+            elif event == Event.E2_ABANDON_TRANSACTION:
                 ait.core.log.info("Receiver {0}: Received ABANDON event".format(self.transaction.entity_id))
                 self.shutdown()
 
-            elif event == Event.NOTICE_OF_CANCELLATION:
+            elif event == Event.E3_NOTICE_OF_CANCELLATION:
                 ait.core.log.info("Receiver {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
                 self.cancel()
                 self.finish_transaction()
                 self.shutdown()
 
-            elif event == Event.RECEIVED_FILEDATA_PDU:
+            elif event == Event.E11_RECEIVED_FILEDATA_PDU:
                 ait.core.log.info("Receiver {0}: Received FILE DATA PDU event".format(self.transaction.entity_id))
                 # File data received before Metadata has been received
                 assert(pdu)
@@ -214,7 +214,7 @@ class Receiver1(Machine):
                                                 offset=pdu.segment_offset,
                                                 length=len(pdu.data))
 
-            elif event == Event.RECEIVED_EOF_NO_ERROR_PDU:
+            elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
                 ait.core.log.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
                 assert(pdu)
                 assert(type(pdu) == ait.dsn.cfdp.pdu.EOF)
@@ -264,12 +264,12 @@ class Receiver1(Machine):
                                             transaction_id=self.transaction.transaction_id)
                 self.finish_transaction()
 
-            elif event == Event.RECEIVED_EOF_CANCEL_PDU:
+            elif event == Event.E13_RECEIVED_EOF_CANCEL_PDU:
                 ait.core.log.info("Receiver {0}: Received EOF CANCEL PDU event".format(self.transaction.entity_id))
                 # Cancel PDU from other entity
                 self.finish_transaction()
 
-            elif event == Event.INACTIVITY_TIMER_EXPIRED:
+            elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 ait.core.log.info("Receiver {0}: Received INACTIVITY TIMER EXPIRED event"
                                     .format(self.transaction.entity_id))
                 self.inactivity_timer.restart()

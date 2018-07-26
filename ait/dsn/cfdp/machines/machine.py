@@ -12,7 +12,7 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-from ait.dsn.cfdp.primitives import Role, MachineState, FinalStatus, IndicationType, HandlerCode, ConditionCode
+from ait.dsn.cfdp.primitives import Role, FinalStatus, IndicationType, HandlerCode, ConditionCode
 from ait.dsn.cfdp.events import Event
 
 import ait.core.log
@@ -87,8 +87,8 @@ class Machine(object):
 
     role = Role.UNDEFINED
     # state descriptors for the machine. override with appropriate descriptions in subclasses
-    S1 = MachineState.SEND_METADATA
-    S2 = MachineState.SEND_FILEDATA
+    S1 = "S1"
+    S2 = "S2"
 
     def __init__(self, cfdp, transaction_id, *args, **kwargs):
         self.kernel = cfdp
@@ -152,13 +152,13 @@ class Machine(object):
             self.initiated_cancel = True
             self.cancel()
             if self.role == Role.CLASS_1_SENDER:
-                self.update_state(Event.NOTICE_OF_CANCELLATION)
+                self.update_state(Event.E3_NOTICE_OF_CANCELLATION)
             elif self.role == Role.CLASS_1_RECEIVER:
                 self.finish_transaction()
         elif handler == HandlerCode.ABANDON:
-            self.update_state(Event.ABANDON_TRANSACTION)
+            self.update_state(Event.E2_ABANDON_TRANSACTION)
         elif handler == HandlerCode.SUSPEND:
-            self.update_state(Event.NOTICE_OF_SUSPENSION)
+            self.update_state(Event.E4_NOTICE_OF_SUSPENSION)
 
     def update_state(self, event=None, pdu=None, request=None):
         """

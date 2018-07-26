@@ -29,6 +29,9 @@ class Sender1(Machine):
     Class 1 Receiver state machine
     """
 
+    S1 = "SEND_METADATA"
+    S2 = "SEND_FILEDATA"
+
     role = Role.CLASS_1_SENDER
 
     def make_header_from_request(self, request):
@@ -194,11 +197,11 @@ class Sender1(Machine):
         if self.state == self.S1:
 
             # Only event in S1 with defined action is receiving a put request
-            if event == Event.RECEIVED_PUT_REQUEST:
+            if event == Event.E30_RECEIVED_PUT_REQUEST:
                 ait.core.log.info("Sender {0}: Received PUT REQUEST".format(self.transaction.entity_id))
                 self.handle_put_request(request)
 
-            elif event == Event.SEND_FILE_DIRECTIVE:
+            elif event == Event.E0_SEND_FILE_DIRECTIVE:
                 ait.core.log.debug("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
                 if self.transaction.frozen or self.transaction.suspended:
                     return
@@ -230,13 +233,13 @@ class Sender1(Machine):
             # This is the path for ongoing file transfer
 
             # USER-ISSUED REQUESTS
-            if event == Event.RECEIVED_REPORT_REQUEST:
+            if event == Event.E34_RECEIVED_REPORT_REQUEST:
                 ait.core.log.info("Sender {0}: Received REPORT REQUEST".format(self.transaction.entity_id))
                 # TODO logic to get report
                 self.indication_handler(IndicationType.REPORT_INDICATION,
                                         status_report=None)
 
-            elif event == Event.RECEIVED_FREEZE_REQUEST:
+            elif event == Event.E40_RECEIVED_FREEZE_REQUEST:
                 ait.core.log.info("Sender {0}: Received FREEZE REQUEST".format(self.transaction.entity_id))
                 if not self.transaction.frozen:
                     self.transaction.frozen = True
@@ -244,40 +247,40 @@ class Sender1(Machine):
                         # TODO trigger e5 (suspend timers)
                         pass
 
-            elif event == Event.RECEIVED_CANCEL_REQUEST:
+            elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
                 ait.core.log.info("Sender {0}: Received CANCEL REQUEST".format(self.transaction.entity_id))
                 self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-                self.update_state(Event.NOTICE_OF_CANCELLATION) # Trigger notice of cancellation
+                self.update_state(Event.E3_NOTICE_OF_CANCELLATION) # Trigger notice of cancellation
 
-            elif event == Event.RECEIVED_SUSPEND_REQUEST:
+            elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
                 ait.core.log.info("Sender {0}: Received SUSPEND REQUEST".format(self.transaction.entity_id))
-                self.update_state(Event.NOTICE_OF_SUSPENSION) # Trigger notice of suspension
+                self.update_state(Event.E4_NOTICE_OF_SUSPENSION) # Trigger notice of suspension
 
-            elif event == Event.RECEIVED_RESUME_REQUEST:
+            elif event == Event.E32_RECEIVED_RESUME_REQUEST:
                 ait.core.log.info("Sender {0}: Received RESUME REQUEST".format(self.transaction.entity_id))
                 if self.transaction.suspended is True:
                     self.transaction.suspended = False
                     self.indication_handler(IndicationType.RESUMED_INDICATION) # TODO progress param?
 
-            elif event == Event.RECEIVED_THAW_REQUEST:
+            elif event == Event.E41_RECEIVED_THAW_REQUEST:
                 ait.core.log.info("Sender {0}: Received THAW REQUEST".format(self.transaction.entity_id))
                 self.transaction.frozen = False
 
             # OTHER EVENTS
-            elif event == Event.ABANDON_TRANSACTION:
+            elif event == Event.E2_ABANDON_TRANSACTION:
                 ait.core.log.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
                 self.abandon()
 
-            elif event == Event.NOTICE_OF_CANCELLATION:
+            elif event == Event.E3_NOTICE_OF_CANCELLATION:
                 ait.core.log.info("Sender {0}: Received NOTICE OF CANCELLATION".format(self.transaction.entity_id))
                 # Set eof to outgoing to send a Cancel EOF
                 self.notify_partner_of_cancel()
 
-            elif event == Event.NOTICE_OF_SUSPENSION:
+            elif event == Event.E4_NOTICE_OF_SUSPENSION:
                 ait.core.log.info("Sender {0}: Received NOTICE OF SUSPENSION".format(self.transaction.entity_id))
                 self.suspend()
 
-            elif event == Event.SEND_FILE_DIRECTIVE:
+            elif event == Event.E0_SEND_FILE_DIRECTIVE:
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
@@ -302,7 +305,7 @@ class Sender1(Machine):
                     self.finish_transaction()
                     self.shutdown()
 
-            elif event == Event.SEND_FILE_DATA:
+            elif event == Event.E1_SEND_FILE_DATA:
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
