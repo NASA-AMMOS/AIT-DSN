@@ -125,6 +125,7 @@ class Sender1(Machine):
         return fd
 
     def enter_s2_state(self, outgoing_directory):
+        """S2 : Send file once"""
         # Now that the MD PDU has been queued, state is S2
         # We are going to be sending file data PDUs from now on
         self.state = self.S2

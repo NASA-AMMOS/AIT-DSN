@@ -116,3 +116,10 @@ class TimerType(Enum):
     ACK_TIMER = "ACK_TIMER"
     NAK_TIMER = "NAK_TIMER"
     INACTIVITY_TIMER = "INACTIVITY_TIMER"
+
+
+class TransactionStatus(Enum):
+    UNDEFINED = 0x00
+    ACTIVE = 0x01
+    TERMINATED = 0x10
+    UNRECOGNIZED = 0x11

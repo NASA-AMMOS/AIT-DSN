@@ -19,8 +19,8 @@ import unittest
 
 import ait.core
 from ait.dsn.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
-from ait.dsn.cfdp.pdu import Header, Metadata, EOF, FileData
-from ait.dsn.cfdp.primitives import ConditionCode
+from ait.dsn.cfdp.pdu import Header, Metadata, EOF, FileData, ACK
+from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus
 
 
 TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
@@ -215,6 +215,66 @@ class EOFTest(unittest.TestCase):
         self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
         self.assertEqual(limit_checksum, pdu_object.file_checksum)
         self.assertEqual(self.fixture.file_size, pdu_object.file_size)
+
+
+class ACKTest(unittest.TestCase):
+
+    def setUp(self):
+        hdr = {
+            'version': 1,
+            'pdu_type': 0,
+            'direction': 0,
+            'transmission_mode': 1,
+            'crc_flag': 0,
+            'pdu_data_field_length': 25,
+            'source_entity_id': 123,
+            'transaction_id': 1,
+            'destination_entity_id': 124
+        }
+        ack = {
+            'directive_code': None,
+            'directive_subtype_code': None,
+            'condition_code': ConditionCode.NO_ERROR,
+            'transaction_status': None,
+        }
+        self.fixture = ACK(**ack)
+        self.fixture.header = Header(**hdr)
+
+    def tearDown(self):
+        self.fixture = None
+        for f in glob.glob(os.path.join(TEST_DIRECTORY, '*')):
+            os.remove(f)
+
+    def test_ack_encoding_decoding(self):
+        """Convert EOF to bytes and then back into an object"""
+        self.fixture.is_valid()
+        ack_bytes = self.fixture.to_bytes()[self.fixture.header.length:]
+        pdu_object = ACK.to_object(ack_bytes)
+
+        self.assertEqual(self.fixture.directive_code, pdu_object.directive_code)
+        self.assertEqual(self.fixture.directive_subtype_code, pdu_object.directive_subtype_code)
+        self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
+        self.assertEqual(self.fixture.transaction_status, pdu_object.transaction_status)
+
+    def test_ack_read_write(self):
+        """Write EOF to file, then read back to header"""
+        self.fixture.is_valid()
+        test_file = 'test_ack.pdu'
+        full_file_path = os.path.join(TEST_DIRECTORY, test_file)
+
+        # write header to file
+        write_outgoing_pdu(self.fixture, pdu_filename=test_file, output_directory=TEST_DIRECTORY)
+
+        # read header from file
+        pdu_object = None
+        with open(full_file_path, 'rb') as pdu_file:
+            bytes = pdu_file.read()
+            pdu_object = read_incoming_pdu(bytes)
+
+        self.assertEqual(self.fixture.directive_code, pdu_object.directive_code)
+        self.assertEqual(self.fixture.directive_subtype_code, pdu_object.directive_subtype_code)
+        self.assertEqual(self.fixture.condition_code, pdu_object.condition_code)
+        self.assertEqual(self.fixture.transaction_status, pdu_object.transaction_status)
 
 
 class FileDataTest(unittest.TestCase):
