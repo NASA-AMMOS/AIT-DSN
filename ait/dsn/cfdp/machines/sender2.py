@@ -20,6 +20,7 @@ from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF
 from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType
 from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
+from ait.dsn.cfdp.timer import Timer
 from sender1 import Sender1
 
 import ait.core
@@ -34,6 +35,13 @@ class Sender2(Sender1):
     S4 = "TRANSACTION_CANCELLED"
 
     nak_queue = gevent.queue.Queue()
+
+    def __init__(self, cfdp, transaction_id, *args, **kwargs):
+        super(Sender2, self).__init__(cfdp, transaction_id, *args, **kwargs)
+        # start up timers
+        self.inactivity_timer = Timer()
+        self.ack_timer = Timer()
+        self.nak_timer = Timer()
 
     def enter_s3_state(self, condition_code=None):
         """S3 : Send EOF, fill any gaps"""
@@ -81,75 +89,75 @@ class Sender2(Sender1):
             if event == Event.E30_RECEIVED_PUT_REQUEST:
                 self.handle_put_request(request)
 
-            # elif event == Event.E2_ABANDON_TRANSACTION:
-            #     # E2: N/A
-            #     pass
-            #
-            # elif event == Event.E3_NOTICE_OF_CANCELLATION:
-            #     # E3 : N/A
-            #     pass
-            #
-            # elif event == Event.E4_NOTICE_OF_SUSPENSION:
-            #     # E4 : N/A
-            #     pass
-            #
-            # elif event == Event.E5_SUSPEND_TIMERS:
-            #     # E5 : N/A
-            #     pass
-            #
-            # elif event == Event.E6_RESUME_TIMERS:
-            #     # E6 : N/A
-            #     pass
-            #
-            # elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
-            #     # E14
-            #     pass
-            #
-            # elif event == Event.E15_RECEIVED_NAK_PDU:
-            #     # E15 : N/A
-            #     pass
-            #
-            # elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-            #     # E17
-            #     pass
-            #
-            # elif event == Event.E25_ACK_TIMER_EXPIRED:
-            #     # E25
-            #     pass
-            #
-            # elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
-            #     # E31: N/A
-            #     pass
-            #
-            # elif event == Event.E32_RECEIVED_RESUME_REQUEST:
-            #     # E32: N/A
-            #     pass
-            #
-            # elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
-            #     # E33: N/A
-            #     pass
-            #
-            # elif event == Event.E34_RECEIVED_REPORT_REQUEST:
-            #     # E34: N/A
-            #     pass
-            #
-            # elif event == Event.E40_RECEIVED_FREEZE_REQUEST:
-            #     # E40: N/A
-            #     pass
-            #
-            # elif event == Event.E41_RECEIVED_THAW_REQUEST:
-            #     # #41: N/A
-            #     pass
-            #
-            # elif event == Event.E1_SEND_FILE_DATA:
-            #     # E1
-            #     pass
-            #
-            # elif event == Event.E4_NOTICE_OF_SUSPENSION:
-            #     pass
-            #
-            # elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-            #     pass
+            elif event == Event.E2_ABANDON_TRANSACTION:
+                # E2: N/A
+                return
+
+            elif event == Event.E3_NOTICE_OF_CANCELLATION:
+                # E3 : N/A
+                return
+
+            elif event == Event.E4_NOTICE_OF_SUSPENSION:
+                # E4 : N/A
+                return
+
+            elif event == Event.E5_SUSPEND_TIMERS:
+                # E5 : N/A
+                return
+
+            elif event == Event.E6_RESUME_TIMERS:
+                # E6 : N/A
+                return
+
+            elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
+                # E14
+                return
+
+            elif event == Event.E15_RECEIVED_NAK_PDU:
+                # E15 : N/A
+                return
+
+            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
+                # E17
+                return
+
+            elif event == Event.E25_ACK_TIMER_EXPIRED:
+                # E25
+                return
+
+            elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
+                # E31: N/A
+                return
+
+            elif event == Event.E32_RECEIVED_RESUME_REQUEST:
+                # E32: N/A
+                return
+
+            elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
+                # E33: N/A
+                return
+
+            elif event == Event.E34_RECEIVED_REPORT_REQUEST:
+                # E34: N/A
+                return
+
+            elif event == Event.E40_RECEIVED_FREEZE_REQUEST:
+                # E40: N/A
+                return
+
+            elif event == Event.E41_RECEIVED_THAW_REQUEST:
+                # #41: N/A
+                return
+
+            elif event == Event.E1_SEND_FILE_DATA:
+                # E1
+                return
+
+            elif event == Event.E4_NOTICE_OF_SUSPENSION:
+                return
+
+            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
+                return
 
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
@@ -159,23 +167,23 @@ class Sender2(Sender1):
             # Metadata has already been received
             # This is the path for ongoing file transfer (AKA "Send file once" for Class 2)
 
-            # if event == Event.E15_RECEIVED_NAK_PDU:
-            #     # E15
-            #     pass
-            #
-            # elif event == Event.E5_SUSPEND_TIMERS:
-            #     # E5 : N/A
-            #     pass
-            #
-            # elif event == Event.E6_RESUME_TIMERS:
-            #     # E6 : Trigger send file data (N/A)
-            #     pass
-            #
-            # elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
-            #     # E14
-            #     pass
-
             if event == Event.E15_RECEIVED_NAK_PDU:
+                # E15
+                return
+
+            elif event == Event.E5_SUSPEND_TIMERS:
+                # E5 : N/A
+                return
+
+            elif event == Event.E6_RESUME_TIMERS:
+                # E6 : Trigger send file data (N/A)
+                return
+
+            elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
+                # E14
+                return
+
+            elif event == Event.E15_RECEIVED_NAK_PDU:
                 # E15
                 if self.transaction.suspended or self.transaction.frozen:
                     return
@@ -268,15 +276,15 @@ class Sender2(Sender1):
 
         elif self.state == self.S4:
 
-            # if event == Event.E3_NOTICE_OF_CANCELLATION:
-            #     # E3 : N/A
-            #     pass
-            #
-            # elif event == Event.E15_RECEIVED_NAK_PDU:
-            #     # E15 n/a
-            #     pass
+            if event == Event.E3_NOTICE_OF_CANCELLATION:
+                # E3 : N/A
+                return
 
-            if event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
+            elif event == Event.E15_RECEIVED_NAK_PDU:
+                # E15 n/a
+                return
+
+            elif event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
                 # E14
                 self.finish_transaction()
                 self.shutdown()
