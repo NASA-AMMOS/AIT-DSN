@@ -1,6 +1,6 @@
 from enum import Enum
 from pdu import PDU
-from ait.dsn.cfdp.primitives import FileDirective, ConditionCode, TransactionStatus
+from ait.dsn.cfdp.primitives import FileDirective, ConditionCode, TransactionStatus, DirectiveCode
 
 class ACK(PDU):
 
@@ -28,8 +28,8 @@ class ACK(PDU):
         byte_2 = byte_2 | self.directive_subtype_code
         bytes.append(byte_2)
 
-        byte_3 = self.condition_code << 4
-        byte_3 = byte_3 | self.transaction_status
+        byte_3 = self.condition_code.value << 4
+        byte_3 = byte_3 | self.transaction_status.value
         bytes.append(byte_3)
 
         if self.header:
@@ -50,12 +50,12 @@ class ACK(PDU):
             raise ValueError('file directive code is not type ACK')
 
         # Extract 4 bit directive code and 4 bit subtype
-        directive_code = FileDirective(pdu_bytes[1] >> 4)
+        directive_code = DirectiveCode(pdu_bytes[1] >> 4)
         directive_subtype_code = pdu_bytes[1] & 0x0F
 
         # Extract 4 bit condition code, 2 bit transaction status
-        condition_code = ConditionCode(pdu_bytes[1] >> 4)
-        transaction_status = TransactionStatus(pdu_bytes[1] & 0x03)
+        condition_code = ConditionCode(pdu_bytes[2] >> 4)
+        transaction_status = TransactionStatus(pdu_bytes[2] & 0x03)
 
         return ACK(
             directive_code=directive_code,

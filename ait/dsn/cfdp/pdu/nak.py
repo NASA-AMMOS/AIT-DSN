@@ -9,8 +9,16 @@ class NAK(PDU):
     def __init__(self, *args, **kwargs):
         super(NAK, self).__init__()
         self.header = kwargs.get('header', None)
+        # 4.1.6.4.2.3
+        # Each NAK PDU shall identify the subset of file data to which it pertains, i.e., the scope of the NAK PDU.
+        # The scope of a NAK PDU is expressed as two offsets within  the file, indicating the start and end of the scope.
         self.start_of_scope = kwargs.get('start_of_scope', None)
         self.end_of_scope = kwargs.get('end_of_scope', None)
+
+        # In addition to its scope, each NAK PDU shall contain zero or more segment requests.
+        # The segment request(s) in a NAK PDU shall identify the start offsets and end offsets
+        # of all extents of file data within its scope which have not yet been received, and shall
+        # also identify missing metadata if any. TODO
         self.segment_requests = kwargs.get('segment_requests', [])
 
     def to_bytes(self):
@@ -34,8 +42,7 @@ class NAK(PDU):
         bytes.append(int(byte_3[16:24], 2))
         bytes.append(int(byte_3[24:32], 2))
 
-        # N x 64 segment requests
-        # TODO after receiver 2
+        # TODO N x 64 segment requests
 
         if self.header:
             header_bytes = self.header.to_bytes()
@@ -48,23 +55,30 @@ class NAK(PDU):
         if not isinstance(pdu_bytes, list):
             raise ValueError('nak body should be a list of bytes represented as integers')
 
-        if len(pdu_bytes) < 3:
-            raise ValueError('nak body should be at least 3 bytes long')
+        if len(pdu_bytes) < 9:
+            raise ValueError('nak body should be at least 9 bytes long')
 
         if FileDirective(pdu_bytes[0]) != NAK.file_directive_code:
             raise ValueError('file directive code is not type NAK')
 
-        # Extract 4 bit directive code and 4 bit subtype
-        directive_code = FileDirective(pdu_bytes[1] >> 4)
-        directive_subtype_code = pdu_bytes[1] & 0x0F
+        # 32 bit start of scope
+        # convert all to 8-bit strings and append to make a full 32 bit string
+        start_scope_bin = format(pdu_bytes[1], '>08b') \
+                               + format(pdu_bytes[2], '>08b') \
+                               + format(pdu_bytes[3], '>08b') \
+                               + format(pdu_bytes[4], '>08b')
+        start_of_scope = int(start_scope_bin, 2)
 
-        # Extract 4 bit condition code, 2 bit transaction status
-        condition_code = ConditionCode(pdu_bytes[1] >> 4)
-        transaction_status = TransactionStatus(pdu_bytes[1] & 0x03)
+        # 32 bit end of scope
+        end_scope_bin = format(pdu_bytes[5], '>08b') \
+                           + format(pdu_bytes[6], '>08b') \
+                           + format(pdu_bytes[7], '>08b') \
+                           + format(pdu_bytes[8], '>08b')
+        end_of_scope = int(end_scope_bin, 2)
+
+        # TODO N x 64 Segment requests
 
         return NAK(
-            directive_code=directive_code,
-            directive_subtype_code=directive_subtype_code,
-            condition_code=condition_code,
-            transaction_status=transaction_status
+            start_of_scope=start_of_scope,
+            end_of_scope=end_of_scope
         )

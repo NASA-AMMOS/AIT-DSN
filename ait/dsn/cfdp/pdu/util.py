@@ -17,6 +17,9 @@ from md import Metadata
 from eof import EOF
 from filedata import FileData
 from header import Header
+from ack import ACK
+from nak import NAK
+from finished import Finished
 from ait.dsn.cfdp.primitives import FileDirective
 
 def make_pdu_from_bytes(pdu_bytes):
@@ -40,11 +43,17 @@ def make_pdu_from_bytes(pdu_bytes):
             eof.header = header
             return eof
         elif directive_code == FileDirective.FINISHED:
-            pass
+            finished = Finished.to_object(pdu_body)
+            finished.header = header
+            return finished
         elif directive_code == FileDirective.ACK:
-            pass
+            ack = ACK.to_object(pdu_body)
+            ack.header = header
+            return ack
         elif directive_code == FileDirective.NAK:
-            pass
+            nak = NAK.to_object(pdu_body)
+            nak.header = header
+            return nak
         elif directive_code == FileDirective.PROMPT:
             pass
         elif directive_code == FileDirective.KEEP_ALIVE:

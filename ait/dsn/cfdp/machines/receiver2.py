@@ -114,7 +114,7 @@ class Receiver2(Receiver1):
                 assert (type(pdu) == ait.dsn.cfdp.pdu.EOF)
 
                 # TODO update nak list
-                # TODO transmit ack eof
+                # TODO transmit ack eof pdu
 
                 # Write EOF to temp path
                 incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'],
@@ -155,9 +155,11 @@ class Receiver2(Receiver1):
                 # TODO else state = s2
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU or event == Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU:
+                #: N/A
                 return
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
+                #: N/A
                 return
 
 
@@ -173,9 +175,11 @@ class Receiver2(Receiver1):
                 pass
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU or event == Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU:
+                #: N/A
                 return
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
+                #: N/A
                 return
 
             elif event == Event.E26_NAK_TIMER_EXPIRED:
@@ -196,9 +200,11 @@ class Receiver2(Receiver1):
                 self.ack_timer.resume()
 
             elif event == Event.E10_RECEIVED_METADATA_PDU:
+                #: N/A
                 return
 
             elif event == Event.E11_RECEIVED_FILEDATA_PDU:
+                #: N/A
                 return
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
@@ -224,12 +230,15 @@ class Receiver2(Receiver1):
                 self.ack_timer.pause()
 
             elif event == Event.E10_RECEIVED_METADATA_PDU:
+                #: N/A
                 return
 
             elif event == Event.E11_RECEIVED_FILEDATA_PDU:
+                #: N/A
                 return
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
+                #: N/A
                 return
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU:
@@ -242,6 +251,7 @@ class Receiver2(Receiver1):
                 # TODO else transmit finished
 
             elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
+                #: N/A
                 return
 
         # General events that apply to several states
@@ -325,6 +335,7 @@ class Receiver2(Receiver1):
             self.enter_s2_state()
 
         elif event == Event.E11_RECEIVED_FILEDATA_PDU:
+            # S1 and S2
             ait.core.log.info("Receiver {0}: Received FILE DATA PDU event".format(self.transaction.entity_id))
             # File data received before Metadata has been received
             assert (pdu)
