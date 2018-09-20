@@ -15,3 +15,6 @@ build/
 
 # Nosetests ouptut file
 nosetests.xml
+
+# Macintosh file
+*.DS_Store
