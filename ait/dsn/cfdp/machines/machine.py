@@ -72,7 +72,6 @@ class Transaction(object):
         self.final_status = None
         self.finished = False
         self.frozen = False
-        self.is_metadata_received = False
         self.metadata = None
         self.other_entity_id = None  # entity ID of other end of Tx
         self.start_time = None
@@ -113,6 +112,7 @@ class Machine(object):
         self.eof = None
 
         # State machine flags
+        self.md_received = False
         self.pdu_received = False
         self.put_request_received = False
         self.eof_received = False
@@ -129,6 +129,8 @@ class Machine(object):
         self.inactivity_timer = None
         self.ack_timer = None
         self.nak_timer = None
+        self.ack_count = 0
+        self.nak_count = 0
 
     def _indication_handler(self, indication_type, *args, **kwargs):
         """
@@ -252,7 +254,7 @@ class Machine(object):
         self.cancel_timers()
 
         self.transaction.finished = True
-        if self.role == Role.CLASS_1_RECEIVER and not self.transaction.is_metadata_received:
+        if self.role == Role.CLASS_1_RECEIVER and not self.md_received:
             self.transaction.final_status = FinalStatus.FINAL_STATUS_NO_METADATA
         elif self.transaction.cancelled:
             self.transaction.final_status = FinalStatus.FINAL_STATUS_CANCELLED
