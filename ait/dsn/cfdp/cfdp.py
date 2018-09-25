@@ -255,6 +255,7 @@ def receiving_handler(instance):
             machine = instance._machines[transaction_num] if transaction_num in instance._machines else None
 
             if pdu.header.pdu_type == Header.FILE_DATA_PDU:
+                # File data PDU received
                 # If its file data we'll concat to file
                 ait.core.log.debug('Received File Data Pdu')
                 if machine is None:
@@ -264,7 +265,9 @@ def receiving_handler(instance):
                     # Restart inactivity timer here when PDU is being given to a machine
                     machine.inactivity_timer.restart()
                     machine.update_state(Event.E11_RECEIVED_FILEDATA_PDU, pdu=pdu)
+
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
+                # File directive PDU received. Route the different types of file directives w/ their appropriate events
                 ait.core.log.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
                 if pdu.file_directive_code  == FileDirective.METADATA:
                     # If machine doesn't exist, create a machine for this transaction
@@ -287,6 +290,13 @@ def receiving_handler(instance):
                             machine.update_state(Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
                         else:
                             ait.core.log.warn('Received EOF with strang condition code: {}'.format(pdu.condition_code))
+                elif pdu.file_directive_code == FileDirective.NAK:
+                    if machine is None:
+                        ait.core.log.info('Ignoring NAK for transaction that doesn\'t exist: {}'
+                                      .format(transaction_num))
+                    else:
+                        machine.update_state(Event.E15_RECEIVED_NAK_PDU, pdu=pdu)
+
         except gevent.queue.Empty:
             pass
         except Exception as e:
@@ -367,6 +377,14 @@ def transaction_handler(instance):
                         and machine.inactivity_timer.expired():
                     machine.inactivity_timer.cancel()
                     machine.update_state(Event.E27_INACTIVITY_TIMER_EXPIRED)
+                elif hasattr(machine, 'nak_timer') and machine.nak_timer is not None \
+                        and machine.nak_timer.expired():
+                    machine.nak_timer.cancel()
+                    machine.update_state(Event.E26_NAK_TIMER_EXPIRED)
+                elif hasattr(machine, 'ack_timer') and machine.ack_timer is not None \
+                        and machine.ack_timer.expired():
+                    machine.ack_timer.cancel()
+                    machine.update_state(Event.E25_ACK_TIMER_EXPIRED)
                 elif machine.role != Role.CLASS_1_RECEIVER:
                     # Let 1 file directive go per machine. R1 doesn't output PDUs
                     machine.update_state(Event.E0_SEND_FILE_DIRECTIVE)

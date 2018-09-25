@@ -39,10 +39,15 @@ class Receiver2(Receiver1):
         # start up timers
         self.ack_timer = Timer()
         self.nak_timer = Timer()
+        self.last_nak_start_scope = 0
+        self.last_nak_end_scope = 0
         self.received_list = []  # list of received File PDUs offset and length. Used to determine gaps and create NAKs accordingly
 
     def enter_s2_state(self):
-        """Get Missing Data state"""
+        """
+        Procedures for entering the S2 state: Get Missing Data
+        This is where we beginning transmitting NAKs to get gaps in the file data
+        """
         self.state = self.S2
         if not self.transaction.suspended and not self.transaction.frozen:
             # Now that we've received EOF and entered S2 (get missing data), we go through the received list and report any gaps
@@ -50,7 +55,12 @@ class Receiver2(Receiver1):
         self.nak_timer.start(self.kernel.mib.nak_timeout(self.transaction.entity_id))
 
     def enter_s3_state(self):
-        """Send Finished PDU and COnfirm Delivery"""
+        """
+        Procedures for entering the S3 state: Send Finished PDU and Confirm delivery
+        Compares the received file size to the expected file size from the MD PDU
+        and compares the calculated checksum to the expected checksum from the EOF PDU.
+        Then finalizes the file by saving the temp file to the final destination.
+        """
         self.state = self.S3
         # At this point, all missing data should be resolved
         self.transaction.delivery_code = DeliveryCode.DATA_COMPLETE
@@ -91,42 +101,70 @@ class Receiver2(Receiver1):
         self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def enter_s4_state(self):
+        """
+        Procedures for entering the S4 state: Transaction Cancelled
+        """
         if self.state == self.S3:
             # Possibly retain tmp file
             pass
         self.state = self.S4
         self.transaction.suspended = False
         self.transaction.cancelled = True
-        self.finish_transaction()
+        self.finish_transaction()  # TODO update to send Finished PDU
         self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def create_and_transmit_naks(self):
-        # Check NAK list for gaps or lost MD
-        # sort the list by offset
+        """
+        Constructs and transmits NAK PDUs based off the contents of `self.received_list`.
+        `self.received_list` contains the offset and length of each FileData PDU received. This procedure
+        iterates through and determines the gaps in order to construct the NAK sequence.
+
+        The end of scope is the entire length of the file if the EOF PDU has been received. Otherwise, it is the current
+        reception progress (case of NAK timeout, e.g.)
+        """
+        # If we have already transmitted a NAK sequence, last_nak_end_scope will be > 0. Set our start scope to be
+        # where we left off before
+        start_scope = self.last_nak_start_scope
+        if self.last_nak_end_scope > 0:
+            start_scope = self.last_nak_end_scope
+
+        # If we have received the EOF, the end scope is the full file length
+        # Else, end scope is the current progress of received file
+        if self.eof and self.eof_received:
+            end_scope = self.metadata.file_size
+            self.last_nak_end_scope = end_scope
+        else:
+            end_scope = self.transaction.recv_file_size
+
+        # Sort the list by offset
         received_list = sorted(self.received_list, key=lambda x: x.get('offset'))
+
+        segment_requests = []
         for index, item in enumerate(received_list):
-            start_scope = None
-            end_scope = None
             if index == 0 and item.get('offset') != 0:
-                # Check first pdu
-                # Make a NAK pdu to notify missing start of file until where this first pdu starts
-                start_scope = 0
-                end_scope = item.get('offset')
+                # Check the first received and figure out if we are missing the first FileData PDU (if offset != 0)
+                start = 0
+                end = item.get('offset')
+                segment_requests.append((start, end))
             elif index == len(received_list) - 1 and item.get('offset') + item.get('length') + 1 < self.metadata.file_size:
-                # Check last item
-                # Make NAK pdu to notify missing end of file (length of file doesnt match file size from eof_pdu)
-                start_scope = item.get('offset') + item.get('length') + 1
-                end_scope = self.metadata.file_size
+                # Check the last received and figure out if we are missing the last FileData PDU (if offset != file size)
+                start = item.get('offset') + item.get('length') + 1
+                end = self.metadata.file_size
+                segment_requests.append((start, end))
             else:
+                # Compare the item to the previous item to figure out if there is a gap between contiguous items
                 prev_item = received_list[index - 1]
                 if prev_item.get('offset') + prev_item.get('length') + 1 < item.get('offset'):
-                    # Contiguous items scope differs by more than 1
-                    start_scope = prev_item.get('offset') + prev_item.get('length') + 1
-                    end_scope = item.get('offset')
+                    start = prev_item.get('offset') + prev_item.get('length') + 1
+                    end = item.get('offset')
+                    segment_requests.append((start, end))
 
-            if start_scope and end_scope:
-                nak = NAK(header=self.header, start_of_scope=start_scope, end_of_scope=end_scope)
-                self.kernel.send(nak)
+        if not self.metadata and not self.md_received:
+            # Missing metadata start and end offset is 0
+            segment_requests.append((0, 0))
+
+        nak = NAK(header=self.header, start_of_scope=start_scope, end_of_scope=end_scope, segment_requests=segment_requests)
+        self.kernel.send(nak)
 
     def update_state(self, event=None, pdu=None, request=None):
         if self.state == self.S1:
@@ -142,7 +180,6 @@ class Receiver2(Receiver1):
                 assert (pdu)
                 assert (type(pdu) == ait.dsn.cfdp.pdu.EOF)
 
-                # TODO update nak list with EOF because received before MD
                 self.eof_received = True
                 self.eof = pdu
                 # TODO transmit ack eof pdu
@@ -377,7 +414,8 @@ class Receiver2(Receiver1):
 
             if not self.md_received or not self.metadata or not isinstance(self.metadata, Metadata):
                 # Received a file data PDU before receiving metadata
-                # TODO add md missing to nak list
+                # Start & end offset of MD is 0
+                pass
 
             # Store file data to temp file
             # Check that temp file is still open

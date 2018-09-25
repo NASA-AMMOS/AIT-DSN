@@ -30,11 +30,13 @@ class Sender2(Sender1):
 
     role = Role.CLASS_2_SENDER
 
+    # From `Sender1`
+    # S1 - send metadata
+    # S2 - Send File
     # Additional states for Class 2
     S3 = "SEND_EOF_FILL_GAPS"
     S4 = "TRANSACTION_CANCELLED"
 
-    nak_queue = gevent.queue.Queue()
 
     def __init__(self, cfdp, transaction_id, *args, **kwargs):
         super(Sender2, self).__init__(cfdp, transaction_id, *args, **kwargs)
@@ -42,6 +44,7 @@ class Sender2(Sender1):
         self.inactivity_timer = Timer()
         self.ack_timer = Timer()
         self.nak_timer = Timer()
+        self.nak_queue = None
 
     def enter_s3_state(self, condition_code=None):
         """S3 : Send EOF, fill any gaps"""
@@ -50,8 +53,8 @@ class Sender2(Sender1):
         self.transaction.condition_code = ConditionCode.NO_ERROR if condition_code is None else condition_code
         self.make_eof_pdu(self.transaction.condition_code)
         # Start ack and inactivity timers
-        self.inactivity_timer.start()
-        self.ack_timer.start()
+        self.inactivity_timer.start(self.kernel.mib.inactivity_timeout(self.transaction.entity_id))
+        self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def enter_s4_state(self, condition_code=None):
         """S4 : Transaction cancelled"""
@@ -61,8 +64,7 @@ class Sender2(Sender1):
         self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED if condition_code is None else condition_code
         self.make_eof_pdu(self.transaction.condition_code)
         # Start ack and inactivity timers
-        self.ack_timer.start()
-
+        self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def handle_file_transfer(self, outgoing_directory):
         '''Handles state transition from after receiving the MD PDU for copy file procedures'''
@@ -88,76 +90,6 @@ class Sender2(Sender1):
             # Only event in S1 with defined action is receiving a put request
             if event == Event.E30_RECEIVED_PUT_REQUEST:
                 self.handle_put_request(request)
-
-            elif event == Event.E2_ABANDON_TRANSACTION:
-                # E2: N/A
-                return
-
-            elif event == Event.E3_NOTICE_OF_CANCELLATION:
-                # E3 : N/A
-                return
-
-            elif event == Event.E4_NOTICE_OF_SUSPENSION:
-                # E4 : N/A
-                return
-
-            elif event == Event.E5_SUSPEND_TIMERS:
-                # E5 : N/A
-                return
-
-            elif event == Event.E6_RESUME_TIMERS:
-                # E6 : N/A
-                return
-
-            elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
-                # E14
-                return
-
-            elif event == Event.E15_RECEIVED_NAK_PDU:
-                # E15 : N/A
-                return
-
-            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-                # E17
-                return
-
-            elif event == Event.E25_ACK_TIMER_EXPIRED:
-                # E25
-                return
-
-            elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
-                # E31: N/A
-                return
-
-            elif event == Event.E32_RECEIVED_RESUME_REQUEST:
-                # E32: N/A
-                return
-
-            elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
-                # E33: N/A
-                return
-
-            elif event == Event.E34_RECEIVED_REPORT_REQUEST:
-                # E34: N/A
-                return
-
-            elif event == Event.E40_RECEIVED_FREEZE_REQUEST:
-                # E40: N/A
-                return
-
-            elif event == Event.E41_RECEIVED_THAW_REQUEST:
-                # #41: N/A
-                return
-
-            elif event == Event.E1_SEND_FILE_DATA:
-                # E1
-                return
-
-            elif event == Event.E4_NOTICE_OF_SUSPENSION:
-                return
-
-            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-                return
 
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
@@ -187,7 +119,9 @@ class Sender2(Sender1):
                 # E15
                 if self.transaction.suspended or self.transaction.frozen:
                     return
-                # TODO queue nakked data
+
+                assert(type(pdu) == ait.dsn.cfdp.pdu.NAK)
+                self.nak_queue = gevent.queue.Queue(items=pdu.segment_requests)
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
                 # E25
@@ -198,14 +132,16 @@ class Sender2(Sender1):
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                if self.nak_queue.empty():
-                    return
-
                 ait.core.log.debug("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
                 # Check if entire file is done being sent. If yes, queue up EOF
                 # Send file data
-                fd = self.nak_queue.get(block=False)
-                self.kernel.send(fd)
+
+                if self.file is None or (not self.file.closed and self.file.tell() == self.metadata.file_size):
+                    # Check if entire file is done being sent. If yes, go to S3 and queue up EOF
+                    self.enter_s3_state()
+                else:
+                    fd = self.make_fd_pdu()
+                    self.kernel.send(fd)
 
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
@@ -219,8 +155,11 @@ class Sender2(Sender1):
 
             elif event == Event.E15_RECEIVED_NAK_PDU:
                 ait.core.log.info("Sender {0}: Received NAK PDU event".format(self.transaction.entity_id))
-                if not self.transaction.suspended and not self.transaction.frozen:
-                    self.nak_queue.put() # TODO put data
+                if self.transaction.suspended or self.transaction.frozen:
+                    return
+
+                assert (type(pdu) == ait.dsn.cfdp.pdu.NAK)
+                self.nak_queue = gevent.queue.Queue(items=pdu.segment_requests)
 
             elif event ==  Event.E16_RECEIVED_FINISHED_NO_ERROR_PDU:
                 # E14
@@ -231,7 +170,8 @@ class Sender2(Sender1):
                 # E15
                 if self.transaction.suspended or self.transaction.frozen:
                     return
-                # TODO queue nakked data, trigger E1
+                self.nak_queue = gevent.queue.Queue(items=pdu.segment_requests)
+                self.update_state(Event.E1_SEND_FILE_DATA)
 
             elif event == Event.E16_RECEIVED_FINISHED_NO_ERROR_PDU:
                 # E16
@@ -245,7 +185,7 @@ class Sender2(Sender1):
             elif event == Event.E25_ACK_TIMER_EXPIRED:
                 # E25
                 # start ack time
-                self.ack_timer.start()
+                self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
                 # FIXME if ack limit reached:
                 self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
                 self.is_eof_outgoing = True
@@ -253,7 +193,7 @@ class Sender2(Sender1):
 
             elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 # E27
-                self.inactivity_timer.start()
+                self.inactivity_timer.start(self.kernel.mib.inactivity_timeout(self.transaction.entity_id))
                 self.fault_handler(ConditionCode.INACTIVITY_DETECTED)
 
             elif event == Event.E1_SEND_FILE_DATA:
@@ -265,10 +205,11 @@ class Sender2(Sender1):
                     return
 
                 ait.core.log.debug("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
-                # Check if entire file is done being sent. If yes, queue up EOF
-                # Send file data
-                fd = self.nak_queue.get(block=False)
-                self.kernel.send(fd)
+                # Go through the nak queue to send file data
+                while not self.nak_queue.empty():
+                    segment = self.nak_queue.get()
+                    fd = self.make_fd_pdu(offset=segment[0], length=segment[1])
+                    self.kernel.send(fd)
 
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
@@ -292,7 +233,7 @@ class Sender2(Sender1):
             elif event == Event.E25_ACK_TIMER_EXPIRED:
                 # E25
                 # start ack time
-                self.ack_timer.start()
+                self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
                 if True:
                     # Trigger e2
                     self.update_state(Event.E2_ABANDON_TRANSACTION)

@@ -99,12 +99,17 @@ class Sender1(Machine):
         )
         return self.eof
 
-    def make_fd_pdu(self):
+    def make_fd_pdu(self, offset=None, length=None):
+        if self.file is None:
+            # TODO error for if file is not open
+            return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
         file_chunk_size = self.kernel.mib.maximum_file_segment_length(self.transaction.entity_id)
-        offset = 0
-        data_chunk = None
-        if self.file is not None:
+        if offset is None:
             offset = self.file.tell()
+        if length is not None:
+            data_chunk = self.file.read(length)
+        else:
             data_chunk = self.file.read(file_chunk_size)
         if not data_chunk:
             # FIXME to be more accurate of an error
