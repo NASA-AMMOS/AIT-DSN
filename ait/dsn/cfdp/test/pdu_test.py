@@ -294,6 +294,7 @@ class NAKTest(unittest.TestCase):
         nak = {
             'start_of_scope': 2343,
             'end_of_scope': 2346,
+            'segment_requests': [(0, 9), (12, 20)]
         }
         self.fixture = NAK(**nak)
         self.fixture.header = Header(**hdr)
@@ -311,6 +312,7 @@ class NAKTest(unittest.TestCase):
 
         self.assertEqual(self.fixture.start_of_scope, pdu_object.start_of_scope)
         self.assertEqual(self.fixture.end_of_scope, pdu_object.end_of_scope)
+        self.assertItemsEqual(self.fixture.segment_requests, pdu_object.segment_requests)
 
     def test_nak_read_write(self):
         """Write NAK to file, then read back to object"""
@@ -330,6 +332,7 @@ class NAKTest(unittest.TestCase):
         self.assertNotEqual(pdu_object, None)
         self.assertEqual(self.fixture.start_of_scope, pdu_object.start_of_scope)
         self.assertEqual(self.fixture.end_of_scope, pdu_object.end_of_scope)
+        self.assertItemsEqual(self.fixture.segment_requests, pdu_object.segment_requests)
 
 
 class FinishedTest(unittest.TestCase):

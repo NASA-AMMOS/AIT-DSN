@@ -42,7 +42,21 @@ class NAK(PDU):
         bytes.append(int(byte_3[16:24], 2))
         bytes.append(int(byte_3[24:32], 2))
 
-        # TODO N x 64 segment requests
+        # 32 * N segment requests
+        for segment in self.segment_requests:
+            start = segment[0]
+            start_byte = format(start, '>032b')
+            bytes.append(int(start_byte[0:8], 2))
+            bytes.append(int(start_byte[8:16], 2))
+            bytes.append(int(start_byte[16:24], 2))
+            bytes.append(int(start_byte[24:32], 2))
+
+            end = segment[1]
+            end_byte = format(end, '>032b')
+            bytes.append(int(end_byte[0:8], 2))
+            bytes.append(int(end_byte[8:16], 2))
+            bytes.append(int(end_byte[16:24], 2))
+            bytes.append(int(end_byte[24:32], 2))
 
         if self.header:
             header_bytes = self.header.to_bytes()
@@ -76,9 +90,21 @@ class NAK(PDU):
                            + format(pdu_bytes[8], '>08b')
         end_of_scope = int(end_scope_bin, 2)
 
-        # TODO N x 64 Segment requests
+        # 32 * N segment requests
+        segments = []
+        for index in range(9, len(pdu_bytes), 8):
+            start = int(format(pdu_bytes[index], '>08b') \
+                           + format(pdu_bytes[index + 1], '>08b') \
+                           + format(pdu_bytes[index + 2], '>08b') \
+                           + format(pdu_bytes[index + 3], '>08b'), 2)
+            end = int(format(pdu_bytes[index + 4], '>08b') \
+                    + format(pdu_bytes[index + 5], '>08b') \
+                    + format(pdu_bytes[index + 6], '>08b') \
+                    + format(pdu_bytes[index + 7], '>08b'), 2)
+            segments.append((start, end))
 
         return NAK(
             start_of_scope=start_of_scope,
-            end_of_scope=end_of_scope
+            end_of_scope=end_of_scope,
+            segment_requests=segments
         )
