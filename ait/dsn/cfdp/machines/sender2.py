@@ -12,14 +12,10 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-import copy
-import os
 import gevent.queue
 
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF
 from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType
-from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
 from ait.dsn.cfdp.timer import Timer
 from sender1 import Sender1
 
@@ -90,6 +86,76 @@ class Sender2(Sender1):
             # Only event in S1 with defined action is receiving a put request
             if event == Event.E30_RECEIVED_PUT_REQUEST:
                 self.handle_put_request(request)
+
+            elif event == Event.E2_ABANDON_TRANSACTION:
+                # E2: N/A
+                return
+
+            elif event == Event.E3_NOTICE_OF_CANCELLATION:
+                # E3 : N/A
+                return
+
+            elif event == Event.E4_NOTICE_OF_SUSPENSION:
+                # E4 : N/A
+                return
+
+            elif event == Event.E5_SUSPEND_TIMERS:
+                # E5 : N/A
+                return
+
+            elif event == Event.E6_RESUME_TIMERS:
+                # E6 : N/A
+                return
+
+            elif event == Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU or event == Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU:
+                # E14
+                return
+
+            elif event == Event.E15_RECEIVED_NAK_PDU:
+                # E15 : N/A
+                return
+
+            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
+                # E17
+                return
+
+            elif event == Event.E25_ACK_TIMER_EXPIRED:
+                # E25
+                return
+
+            elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
+                # E31: N/A
+                return
+
+            elif event == Event.E32_RECEIVED_RESUME_REQUEST:
+                # E32: N/A
+                return
+
+            elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
+                # E33: N/A
+                return
+
+            elif event == Event.E34_RECEIVED_REPORT_REQUEST:
+                # E34: N/A
+                return
+
+            elif event == Event.E40_RECEIVED_FREEZE_REQUEST:
+                # E40: N/A
+                return
+
+            elif event == Event.E41_RECEIVED_THAW_REQUEST:
+                # #41: N/A
+                return
+
+            elif event == Event.E1_SEND_FILE_DATA:
+                # E1
+                return
+
+            elif event == Event.E4_NOTICE_OF_SUSPENSION:
+                return
+
+            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
+                return
 
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
