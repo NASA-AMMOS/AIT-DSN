@@ -19,6 +19,7 @@ import unittest
 import copy
 from functools import partial
 import filecmp
+import mock
 
 import gevent
 import traceback
@@ -44,16 +45,21 @@ def tearDownModule():
         shutil.rmtree(TEST_DIRECTORY)
 
 
-class HeaderTest(unittest.TestCase):
+class Receiver2NakTest(unittest.TestCase):
+
+    full_source_path = None
 
     def setUp(self):
         self.cfdp = CFDP(2)
-        self.receiver = Receiver2(self.cfdp, 1)
-
         self.source_path = 'medium.txt'
         self.destination_path = 'test/path/med.txt'
         self.full_source_path = os.path.join(self.cfdp._data_paths['outgoing'], self.source_path)
         self.full_dest_path = os.path.join(self.cfdp._data_paths['incoming'], self.destination_path)
+
+        self.receiver = Receiver2(self.cfdp, 1)
+        # setting the source path on this adhoc attribute so we can access it later in the mock
+        self.receiver._full_source_path = self.full_source_path
+        self.cfdp._machines[1] = self.receiver
 
         # CREATE PDUS
         self.pdus = []
@@ -126,9 +132,9 @@ class HeaderTest(unittest.TestCase):
         self.cfdp.disconnect()
 
         # clear data from datasink
-        if os.path.exists(self.cfdp._data_paths['incoming']):
-            shutil.rmtree(self.cfdp._data_paths['incoming'])
-            os.makedirs(self.cfdp._data_paths['incoming'])
+        # if os.path.exists(self.cfdp._data_paths['incoming']):
+        #     shutil.rmtree(self.cfdp._data_paths['incoming'])
+        #     os.makedirs(self.cfdp._data_paths['incoming'])
 
         if os.path.exists(self.cfdp._data_paths['tempfiles']):
             shutil.rmtree(self.cfdp._data_paths['tempfiles'])
@@ -172,3 +178,47 @@ class HeaderTest(unittest.TestCase):
         # Assert nak list is 0 because we received everything
         my_nak_list = sorted(my_nak_list, key=lambda x: x[0])
         self.assertItemsEqual(my_nak_list, self.receiver.nak_list, 'Receiver NAK list and recorded missed PDUs match');
+
+    def send(self, pdu):
+        """Mock CFDP.send() for below test to catch when the receiver sends the NAK sequence. Then we can mimic the retransmission"""
+        receiver = self._machines[1]
+        full_source_path = receiver._full_source_path
+        print '\n***MOCKING SEND OF NAK PDU***\n'
+        with open(full_source_path, 'rb') as file:
+            for segment in pdu.segment_requests:
+                offset = segment[0]
+                length = segment[1] - segment[0]
+                file.seek(offset)
+                chunk = file.read(length)
+                header = copy.copy(receiver.header)
+                header.pdu_type = Header.FILE_DATA_PDU
+
+                # Calculate pdu data field length for header
+                data_field_length_octets = 4
+                # Get file data size
+                data_field_length_octets += len(chunk)
+                header.pdu_data_field_length = data_field_length_octets
+
+                fd = FileData(
+                    header=header,
+                    segment_offset=offset,
+                    data=chunk)
+                receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=fd)
+
+    @mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send)
+    def test_get_missing_data(self):
+        """Test that receiver appropriate receives the retransmitted missing data"""
+        my_nak_list = []
+        self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
+        for i in range(0, len(self.pdus)):
+            # Only send every other file
+            if i % 2 == 0:
+                self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
+            else:
+                my_nak_list.append((self.pdus[i].segment_offset, self.pdus[i].segment_offset + len(self.pdus[i].data)))
+        self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
+
+        gevent.sleep(20) # sleep to await a few NAK timeouts
+
+        self.assertEqual(len(self.receiver.nak_list), 0)
+        self.assertEqual(filecmp.cmp(self.full_source_path, self.full_dest_path, shallow=True), True, 'Source and destination files are equal.')

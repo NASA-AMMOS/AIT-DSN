@@ -196,10 +196,6 @@ class Receiver2(Receiver1):
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
-                    # Close temp file
-                    if self.temp_file is not None and not self.temp_file.closed:
-                        self.temp_file.close()
-
                     # Check received vs. reported file size
                     if self.transaction.recv_file_size != pdu.file_size:
                         ait.core.log.error('Receiver {0} -- file size fault. Received: {1}; Expected: {2}'
@@ -209,7 +205,6 @@ class Receiver2(Receiver1):
 
                     # Check checksum on the temp file before we save it to the actual destination
                     temp_file_checksum = calc_checksum(self.temp_path)
-                    print self.temp_path
                     if temp_file_checksum != pdu.file_checksum:
                         ait.core.log.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
                                            .format(self.transaction.entity_id, temp_file_checksum,
@@ -263,13 +258,15 @@ class Receiver2(Receiver1):
             elif event == Event.E26_NAK_TIMER_EXPIRED:
                 self.nak_count += 1  # increment NAK limit
                 self.nak_timer.start(self.kernel.mib.nak_timeout(self.transaction.entity_id))
-                if len(self.get_nak_list_from_received()) == 0:
+                self.get_nak_list_from_received()
+                if len(self.nak_list) == 0:
+                    ait.core.log.info("Receiver {0}: NAK Timer expired. Entering S3".format(self.transaction.entity_id))
                     self.enter_s3_state()
                 elif not self.transaction.suspended and not self.transaction.frozen:
                     if self.nak_count >= self.kernel.mib.nak_limit(self.transaction.entity_id):
                         self.fault_handler(ConditionCode.NAK_LIMIT_REACHED)
-
-                self.transmit_naks()
+                    ait.core.log.info("Receiver {0}: NAK Timer expired. NAK List {1}".format(self.transaction.entity_id, self.nak_list))
+                    self.transmit_naks()
 
         elif self.state == self.S3:
             if event == Event.E5_SUSPEND_TIMERS:
@@ -434,10 +431,9 @@ class Receiver2(Receiver1):
                                        .format(self.transaction.entity_id, self.temp_path))
                     self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
-            ait.core.log.info(
-                'Writing file data to file {0} with offset {1}'.format(self.temp_path, pdu.segment_offset))
+            ait.core.log.debug('Writing file data: offset {0}, length {1}'.format(pdu.segment_offset, len(pdu.data)))
             # Seek offset to write in file if provided
-            if pdu.segment_offset is not None and pdu.segment_offset >= 0:
+            if pdu.segment_offset is not None:
                 self.temp_file.seek(pdu.segment_offset)
             self.temp_file.write(pdu.data)
             # Update file size
