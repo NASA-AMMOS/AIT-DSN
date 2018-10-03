@@ -44,6 +44,7 @@ class Sender2(Sender1):
 
     def enter_s3_state(self, condition_code=None):
         """S3 : Send EOF, fill any gaps"""
+        ait.core.log.debug("Sender {0}: entering S3 state".format(self.transaction.entity_id))
         self.state = self.S3
         self.is_eof_outgoing = True
         self.transaction.condition_code = ConditionCode.NO_ERROR if condition_code is None else condition_code
@@ -165,11 +166,7 @@ class Sender2(Sender1):
             # Metadata has already been received
             # This is the path for ongoing file transfer (AKA "Send file once" for Class 2)
 
-            if event == Event.E15_RECEIVED_NAK_PDU:
-                # E15
-                return
-
-            elif event == Event.E5_SUSPEND_TIMERS:
+            if event == Event.E5_SUSPEND_TIMERS:
                 # E5 : N/A
                 return
 
@@ -183,6 +180,7 @@ class Sender2(Sender1):
 
             elif event == Event.E15_RECEIVED_NAK_PDU:
                 # E15
+                ait.core.log.info("Sender {0}: Received NAK PDU event".format(self.transaction.entity_id))
                 if self.transaction.suspended or self.transaction.frozen:
                     return
 
@@ -226,21 +224,11 @@ class Sender2(Sender1):
 
                 assert (type(pdu) == ait.dsn.cfdp.pdu.NAK)
                 self.nak_queue = gevent.queue.Queue(items=pdu.segment_requests)
-
-            elif event ==  Event.E16_RECEIVED_FINISHED_NO_ERROR_PDU:
-                # E14
-                ait.core.log.info("Sender {0}: Received FINISH NO ERROR PDU event".format(self.transaction.entity_id))
-                self.finish_transaction()
-
-            elif event == Event.E15_RECEIVED_NAK_PDU:
-                # E15
-                if self.transaction.suspended or self.transaction.frozen:
-                    return
-                self.nak_queue = gevent.queue.Queue(items=pdu.segment_requests)
                 self.update_state(Event.E1_SEND_FILE_DATA)
 
             elif event == Event.E16_RECEIVED_FINISHED_NO_ERROR_PDU:
                 # E16
+                ait.core.log.info("Sender {0}: Received FINISH NO ERROR PDU event".format(self.transaction.entity_id))
                 # transmit Ack Finished
                 self.is_ack_outgoing = True
                 self.make_ack_finished_pdu()
@@ -253,9 +241,9 @@ class Sender2(Sender1):
                 # start ack time
                 self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
                 # FIXME if ack limit reached:
-                self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
-                self.is_eof_outgoing = True
-                self.make_eof_pdu(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                # self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                # self.is_eof_outgoing = True
+                # self.make_eof_pdu(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
 
             elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 # E27
@@ -267,10 +255,10 @@ class Sender2(Sender1):
                 if self.transaction.frozen or self.transaction.suspended:
                     return
 
-                if self.nak_queue.empty():
+                if self.nak_queue is None or self.nak_queue.empty():
                     return
 
-                ait.core.log.debug("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
+                ait.core.log.info("Sender {0}: Received SEND FILE DATA".format(self.transaction.entity_id))
                 # Go through the nak queue to send file data
                 while not self.nak_queue.empty():
                     segment = self.nak_queue.get()
@@ -315,7 +303,26 @@ class Sender2(Sender1):
 
 
         # COMMON EVENTS THAT ARE SHARED BY S2 - S4
-        if event == Event.E2_ABANDON_TRANSACTION:
+        if event == Event.E0_SEND_FILE_DIRECTIVE:
+            ait.core.log.debug("Sender {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+            if self.transaction.frozen or self.transaction.suspended:
+                return
+
+            # TODO add checks to see if file directive is actually ready
+            if self.is_md_outgoing is True:
+                self.kernel.send(self.metadata)
+                self.is_md_outgoing = False
+
+            elif self.is_eof_outgoing is True:
+                ait.core.log.info("EOF TYPE: " + str(self.eof.header.pdu_type))
+                self.kernel.send(self.eof)
+                self.is_eof_outgoing = False
+                self.eof_sent = True
+
+                if self.kernel.mib.issue_eof_sent:
+                    self.indication_handler(IndicationType.EOF_SENT_INDICATION,
+                                            transaction_id=self.transaction.transaction_id)
+        elif event == Event.E2_ABANDON_TRANSACTION:
             # E2
             ait.core.log.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
             self.abandon()

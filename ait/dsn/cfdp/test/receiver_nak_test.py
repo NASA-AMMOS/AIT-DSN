@@ -132,9 +132,9 @@ class Receiver2NakTest(unittest.TestCase):
         self.cfdp.disconnect()
 
         # clear data from datasink
-        # if os.path.exists(self.cfdp._data_paths['incoming']):
-        #     shutil.rmtree(self.cfdp._data_paths['incoming'])
-        #     os.makedirs(self.cfdp._data_paths['incoming'])
+        if os.path.exists(self.cfdp._data_paths['incoming']):
+            shutil.rmtree(self.cfdp._data_paths['incoming'])
+            os.makedirs(self.cfdp._data_paths['incoming'])
 
         if os.path.exists(self.cfdp._data_paths['tempfiles']):
             shutil.rmtree(self.cfdp._data_paths['tempfiles'])
@@ -145,22 +145,21 @@ class Receiver2NakTest(unittest.TestCase):
             os.makedirs(self.cfdp._data_paths['pdusink'])
 
     def test_receiver2_got_all_file_data(self):
-        """Ensure that receiver nak list is empty when all file data is received and that the source and destination files are equal"""
+        """Ensure that sender nak list is empty when all file data is received and that the source and destination files are equal"""
 
         self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
         for i in range(0, len(self.pdus)):
             self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
         self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
 
-        for i in range(0, 5):
-            gevent.sleep(1)
+        gevent.sleep(5)
 
         # Assert nak list is 0 because we received everything
         self.assertEqual(len(self.receiver.nak_list), 0, 'No naks to be processed because all data is received.')
         self.assertEqual(filecmp.cmp(self.full_source_path, self.full_dest_path, shallow=True), True, 'Source and destination files are equal.')
 
     def test_receiver2_has_naks(self):
-        """Ensure that receiver nak list is empty when all file data is received and that the source and destination files are equal"""
+        """Ensure that sender nak list is empty when all file data is received and that the source and destination files are equal"""
 
         my_nak_list = []
         self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
@@ -172,15 +171,14 @@ class Receiver2NakTest(unittest.TestCase):
                 my_nak_list.append((self.pdus[i].segment_offset, self.pdus[i].segment_offset + len(self.pdus[i].data)))
         self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
 
-        for i in range(0, 5):
-            gevent.sleep(1)
+        gevent.sleep(5)
 
         # Assert nak list is 0 because we received everything
         my_nak_list = sorted(my_nak_list, key=lambda x: x[0])
         self.assertItemsEqual(my_nak_list, self.receiver.nak_list, 'Receiver NAK list and recorded missed PDUs match');
 
     def send(self, pdu):
-        """Mock CFDP.send() for below test to catch when the receiver sends the NAK sequence. Then we can mimic the retransmission"""
+        """Mock CFDP.send() for below test to catch when the sender sends the NAK sequence. Then we can mimic the retransmission"""
         receiver = self._machines[1]
         full_source_path = receiver._full_source_path
         print '\n***MOCKING SEND OF NAK PDU***\n'
@@ -207,7 +205,7 @@ class Receiver2NakTest(unittest.TestCase):
 
     @mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send)
     def test_get_missing_data(self):
-        """Test that receiver appropriate receives the retransmitted missing data"""
+        """Test that sender appropriate receives the retransmitted missing data"""
         my_nak_list = []
         self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
         for i in range(0, len(self.pdus)):

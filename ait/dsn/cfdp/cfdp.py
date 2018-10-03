@@ -45,7 +45,7 @@ class CFDP(object):
     incoming_pdu_queue = gevent.queue.Queue()
 
     def __init__(self, entity_id, *args, **kwargs):
-        # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
+        # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or sender
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
         self._read_pdu_handler = gevent.spawn(read_pdus, self)
@@ -377,21 +377,21 @@ def transaction_handler(instance):
                         and machine.inactivity_timer.expired():
                     machine.inactivity_timer.cancel()
                     machine.update_state(Event.E27_INACTIVITY_TIMER_EXPIRED)
-                elif hasattr(machine, 'nak_timer') and machine.nak_timer is not None \
+                if hasattr(machine, 'nak_timer') and machine.nak_timer is not None \
                         and machine.nak_timer.expired():
                     machine.nak_timer.cancel()
                     machine.update_state(Event.E26_NAK_TIMER_EXPIRED)
-                elif hasattr(machine, 'ack_timer') and machine.ack_timer is not None \
+                if hasattr(machine, 'ack_timer') and machine.ack_timer is not None \
                         and machine.ack_timer.expired():
                     machine.ack_timer.cancel()
                     machine.update_state(Event.E25_ACK_TIMER_EXPIRED)
-                elif machine.role != Role.CLASS_1_RECEIVER:
+                if machine.role != Role.CLASS_1_RECEIVER:
                     # Let 1 file directive go per machine. R1 doesn't output PDUs
                     machine.update_state(Event.E0_SEND_FILE_DIRECTIVE)
 
             # Loop again to send file data
             for trans_num, machine in instance._machines.items():
-                if machine.role == Role.CLASS_1_SENDER:
+                if machine.role == Role.CLASS_1_SENDER or machine.role == Role.CLASS_2_SENDER:
                     machine.update_state(Event.E1_SEND_FILE_DATA)
         except Exception as e:
             ait.core.log.warn("EXCEPTION: " + e.message)

@@ -105,8 +105,12 @@ class Sender1(Machine):
             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
         file_chunk_size = self.kernel.mib.maximum_file_segment_length(self.transaction.entity_id)
+        ait.core.log.debug("Sender {0}: Offset, length {1} {2}"
+                          .format(self.transaction.entity_id, offset, length))
         if offset is None:
             offset = self.file.tell()
+        else:
+            offset = self.file.seek(offset)
         if length is not None:
             data_chunk = self.file.read(length)
         else:
@@ -190,7 +194,6 @@ class Sender1(Machine):
         # Make MD PDU from request and queue it up for sending
         self.make_metadata_pdu_from_request(request)
         self.is_md_outgoing = True
-
         self.handle_file_transfer(outgoing_directory)
 
     def update_state(self, event=None, pdu=None, request=None):
