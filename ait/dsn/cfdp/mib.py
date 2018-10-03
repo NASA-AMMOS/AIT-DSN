@@ -46,8 +46,8 @@ remote_mib_fields = {
     'ack_limit': 3,                        # positive ack count limit (number of expirations)
     'ack_timeout': 10,                      #
     'inactivity_timeout': 30,               # inactivity time limit for a transaction
-    'nak_timeout': 10,                      # time interval for NAK
-    'nak_limit': 3,                        # limit on number of NAK expirations
+    'nak_timeout': 5,                      # time interval for NAK
+    'nak_limit': 10,                        # limit on number of NAK expirations
     'maximum_file_segment_length': 4096,      # in octets
     'transmission_mode': TransmissionMode.NO_ACK,
     'crc_required_on_transmission': False,

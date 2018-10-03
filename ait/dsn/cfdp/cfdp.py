@@ -22,7 +22,7 @@ import gevent.queue
 import gevent.socket
 
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.machines import Receiver1, Sender1
+from ait.dsn.cfdp.machines import Receiver1, Sender1, Sender2, Receiver2
 from ait.dsn.cfdp.mib import MIB
 from ait.dsn.cfdp.pdu import make_pdu_from_bytes, Header
 from ait.dsn.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, ConditionCode
@@ -45,7 +45,7 @@ class CFDP(object):
     incoming_pdu_queue = gevent.queue.Queue()
 
     def __init__(self, entity_id, *args, **kwargs):
-        # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
+        # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or sender
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
         self._read_pdu_handler = gevent.spawn(read_pdus, self)
@@ -136,10 +136,6 @@ class CFDP(object):
         if transmission_mode is None:
             transmission_mode = self.mib.transmission_mode(destination_id)
 
-        if transmission_mode == TransmissionMode.ACK:
-            # TODO raise invalid transmission mode since we don't support ACK right now
-            pass
-
         # Create a `Request` which contains all the parameters for a Put.request
         # This is passed to the machine to progress the state
         request = create_request_from_type(RequestType.PUT_REQUEST,
@@ -147,10 +143,10 @@ class CFDP(object):
                                            source_path=source_path,
                                            destination_path=destination_path,
                                            transmission_mode=transmission_mode)
-        # if transmission_mode == TransmissionMode.ACK:
-        #     machine = Sender2(self, transaction_num, request=request)
-        # else:
-        machine = Sender1(self, transaction_num)
+        if transmission_mode == TransmissionMode.ACK:
+            machine = Sender2(self, transaction_num)
+        else:
+            machine = Sender1(self, transaction_num)
         # Send the Put.request `Request` to the newly created machine
         # This is where the rest of the Put request procedures are done
         machine.update_state(event=Event.E30_RECEIVED_PUT_REQUEST, request=request)
@@ -255,6 +251,7 @@ def receiving_handler(instance):
             machine = instance._machines[transaction_num] if transaction_num in instance._machines else None
 
             if pdu.header.pdu_type == Header.FILE_DATA_PDU:
+                # File data PDU received
                 # If its file data we'll concat to file
                 ait.core.log.debug('Received File Data Pdu')
                 if machine is None:
@@ -264,17 +261,22 @@ def receiving_handler(instance):
                     # Restart inactivity timer here when PDU is being given to a machine
                     machine.inactivity_timer.restart()
                     machine.update_state(Event.E11_RECEIVED_FILEDATA_PDU, pdu=pdu)
+
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
+                # File directive PDU received. Route the different types of file directives w/ their appropriate events
                 ait.core.log.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
                 if pdu.file_directive_code  == FileDirective.METADATA:
                     # If machine doesn't exist, create a machine for this transaction
                     transmission_mode = pdu.header.transmission_mode
                     if machine is None:
-                        # if transmission_mode == TransmissionMode.NO_ACK:
-                        machine = Receiver1(instance, transaction_num)
+                        if transmission_mode == TransmissionMode.ACK:
+                            machine = Receiver2(instance, transaction_num)
+                        else:
+                            machine = Receiver1(instance, transaction_num)
                         instance._machines[transaction_num] = machine
 
                     machine.update_state(Event.E10_RECEIVED_METADATA_PDU, pdu=pdu)
+
                 elif pdu.file_directive_code == FileDirective.EOF:
                     if machine is None:
                         ait.core.log.info('Ignoring EOF for transaction that doesn\'t exist: {}'
@@ -287,6 +289,14 @@ def receiving_handler(instance):
                             machine.update_state(Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
                         else:
                             ait.core.log.warn('Received EOF with strang condition code: {}'.format(pdu.condition_code))
+
+                elif pdu.file_directive_code == FileDirective.NAK:
+                    if machine is None:
+                        ait.core.log.info('Ignoring NAK for transaction that doesn\'t exist: {}'
+                                      .format(transaction_num))
+                    else:
+                        machine.update_state(Event.E15_RECEIVED_NAK_PDU, pdu=pdu)
+
         except gevent.queue.Empty:
             pass
         except Exception as e:
@@ -367,13 +377,21 @@ def transaction_handler(instance):
                         and machine.inactivity_timer.expired():
                     machine.inactivity_timer.cancel()
                     machine.update_state(Event.E27_INACTIVITY_TIMER_EXPIRED)
-                elif machine.role != Role.CLASS_1_RECEIVER:
+                if hasattr(machine, 'nak_timer') and machine.nak_timer is not None \
+                        and machine.nak_timer.expired():
+                    machine.nak_timer.cancel()
+                    machine.update_state(Event.E26_NAK_TIMER_EXPIRED)
+                if hasattr(machine, 'ack_timer') and machine.ack_timer is not None \
+                        and machine.ack_timer.expired():
+                    machine.ack_timer.cancel()
+                    machine.update_state(Event.E25_ACK_TIMER_EXPIRED)
+                if machine.role != Role.CLASS_1_RECEIVER:
                     # Let 1 file directive go per machine. R1 doesn't output PDUs
                     machine.update_state(Event.E0_SEND_FILE_DIRECTIVE)
 
             # Loop again to send file data
             for trans_num, machine in instance._machines.items():
-                if machine.role == Role.CLASS_1_SENDER:
+                if machine.role == Role.CLASS_1_SENDER or machine.role == Role.CLASS_2_SENDER:
                     machine.update_state(Event.E1_SEND_FILE_DATA)
         except Exception as e:
             ait.core.log.warn("EXCEPTION: " + e.message)

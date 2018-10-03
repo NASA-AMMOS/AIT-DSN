@@ -18,7 +18,7 @@ import os
 import gevent.queue
 
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF
+from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF, NAK
 from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType, DeliveryCode
 from ait.dsn.cfdp.util import write_to_file, calc_checksum
 from ait.dsn.cfdp.timer import Timer
@@ -39,17 +39,29 @@ class Receiver2(Receiver1):
         # start up timers
         self.ack_timer = Timer()
         self.nak_timer = Timer()
+        self.last_nak_start_scope = 0
+        self.last_nak_end_scope = 0
+        self.received_list = []  # list of received File PDUs offset and length. Used to determine gaps and create NAKs accordingly
+        self.nak_list = None
 
     def enter_s2_state(self):
-        """Get Missing Data state"""
+        """
+        Procedures for entering the S2 state: Get Missing Data
+        This is where we beginning transmitting NAKs to get gaps in the file data
+        """
         self.state = self.S2
         if not self.transaction.suspended and not self.transaction.frozen:
-            # TODO transmit nak
-            pass
-        self.nak_timer.start()
+            # Now that we've received EOF and entered S2 (get missing data), we go through the received list and report any gaps
+            self.transmit_naks()
+        self.nak_timer.start(self.kernel.mib.nak_timeout(self.transaction.entity_id))
 
-    def enter_s3_state(self, event=None, pdu=None):
-        """Send Finished PDU and COnfirm Delivery"""
+    def enter_s3_state(self):
+        """
+        Procedures for entering the S3 state: Send Finished PDU and Confirm delivery
+        Compares the received file size to the expected file size from the MD PDU
+        and compares the calculated checksum to the expected checksum from the EOF PDU.
+        Then finalizes the file by saving the temp file to the final destination.
+        """
         self.state = self.S3
         # At this point, all missing data should be resolved
         self.transaction.delivery_code = DeliveryCode.DATA_COMPLETE
@@ -61,18 +73,18 @@ class Receiver2(Receiver1):
                 self.temp_file.close()
 
             # Check received vs. reported file size
-            if self.transaction.recv_file_size != pdu.file_size:
+            if self.transaction.recv_file_size != self.metadata.file_size:
                 ait.core.log.error('Receiver {0} -- file size fault. Received: {1}; Expected: {2}'
-                                   .format(self.transaction.entity_id, self.transaction.recv_file_size, pdu.file_size))
-                return self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
+                                   .format(self.transaction.entity_id, self.transaction.recv_file_size, self.metadata.file_size))
+                self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
 
             # Check checksum on the temp file before we save it to the actual destination
             temp_file_checksum = calc_checksum(self.temp_path)
-            if temp_file_checksum != pdu.file_checksum:
+            if temp_file_checksum != self.eof.file_checksum:
                 ait.core.log.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
                                    .format(self.transaction.entity_id, temp_file_checksum,
-                                           pdu.file_checksum))
-                return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
+                                           self.eof.file_checksum))
+                self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
 
         # Copy temp file to destination path
         destination_directory_path = os.path.dirname(self.file_path)
@@ -81,24 +93,83 @@ class Receiver2(Receiver1):
         try:
             shutil.copy(self.temp_path, self.file_path)
         except IOError:
-            return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+            self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
         # TODO Filestore requests, not yet implemented
         # TODO 4.1.6.3.2 Unacknowledged Mode Procedures at the Receiving Entity check timer?
 
         # TODO Issue Finished No Error
-        self.ack_timer.start()
+        self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def enter_s4_state(self):
+        """
+        Procedures for entering the S4 state: Transaction Cancelled
+        """
         if self.state == self.S3:
             # Possibly retain tmp file
             pass
         self.state = self.S4
         self.transaction.suspended = False
         self.transaction.cancelled = True
-        self.finish_transaction()
-        self.ack_timer.start()
+        self.finish_transaction()  # TODO update to send Finished PDU
+        self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
+    def transmit_naks(self):
+        """
+        Constructs and transmits NAK PDUs based off the contents of `self.received_list`.
+        `self.received_list` contains the offset and length of each FileData PDU received. This procedure
+        iterates through and determines the gaps in order to construct the NAK sequence.
+
+        The end of scope is the entire length of the file if the EOF PDU has been received. Otherwise, it is the current
+        reception progress (case of NAK timeout, e.g.)
+        """
+        # If we have already transmitted a NAK sequence, last_nak_end_scope will be > 0. Set our start scope to be
+        # where we left off before
+        start_scope = self.last_nak_start_scope
+        if self.last_nak_end_scope > 0:
+            start_scope = self.last_nak_end_scope
+
+        # If we have received the EOF, the end scope is the full file length
+        # Else, end scope is the current progress of received file
+        if self.eof and self.eof_received:
+            end_scope = self.metadata.file_size
+            self.last_nak_end_scope = end_scope
+        else:
+            end_scope = self.transaction.recv_file_size
+
+        nak = NAK(header=self.header, start_of_scope=start_scope, end_of_scope=end_scope, segment_requests=self.nak_list)
+        self.kernel.send(nak)
+
+    def get_nak_list_from_received(self):
+        # Sort the list by offset
+        received_list = sorted(self.received_list, key=lambda x: x.get('offset'))
+
+        self.nak_list = []
+        for index, item in enumerate(received_list):
+            if index == 0 and item.get('offset') != 0:
+                # Check the first received and figure out if we are missing the first FileData PDU (if offset != 0)
+                start = 0
+                end = item.get('offset')
+                self.nak_list.append((start, end))
+            elif index == len(received_list) - 1 and item.get('offset') + item.get(
+                    'length') + 1 < self.metadata.file_size:
+                # Check the last received and figure out if we are missing the last FileData PDU (if offset != file size)
+                start = item.get('offset') + item.get('length')
+                end = self.metadata.file_size
+                self.nak_list.append((start, end))
+            else:
+                # Compare the item to the previous item to figure out if there is a gap between contiguous items
+                prev_item = received_list[index - 1]
+                if prev_item.get('offset') + prev_item.get('length') + 1 < item.get('offset'):
+                    start = prev_item.get('offset') + prev_item.get('length')
+                    end = item.get('offset')
+                    self.nak_list.append((start, end))
+
+        if self.metadata is None and not self.md_received:
+            # Missing metadata start and end offset is 0
+            self.nak_list.append((0, 0))
+
+        return self.nak_list
 
     def update_state(self, event=None, pdu=None, request=None):
         if self.state == self.S1:
@@ -109,11 +180,13 @@ class Receiver2(Receiver1):
                 self.inactivity_timer.resume()
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
+                # Received EOF before receiving metadata
                 ait.core.log.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))
                 assert (pdu)
                 assert (type(pdu) == ait.dsn.cfdp.pdu.EOF)
 
-                # TODO update nak list
+                self.eof_received = True
+                self.eof = pdu
                 # TODO transmit ack eof pdu
 
                 # Write EOF to temp path
@@ -123,16 +196,12 @@ class Receiver2(Receiver1):
                 write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
 
                 if self.metadata.file_transfer:
-                    # Close temp file
-                    if self.temp_file is not None and not self.temp_file.closed:
-                        self.temp_file.close()
-
                     # Check received vs. reported file size
                     if self.transaction.recv_file_size != pdu.file_size:
                         ait.core.log.error('Receiver {0} -- file size fault. Received: {1}; Expected: {2}'
                                            .format(self.transaction.entity_id, self.transaction.recv_file_size,
                                                    pdu.file_size))
-                        return self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
+                        self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
 
                     # Check checksum on the temp file before we save it to the actual destination
                     temp_file_checksum = calc_checksum(self.temp_path)
@@ -140,7 +209,7 @@ class Receiver2(Receiver1):
                         ait.core.log.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
                                            .format(self.transaction.entity_id, temp_file_checksum,
                                                    pdu.file_checksum))
-                        return self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
+                        self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
 
                 # Copy temp file to destination path
                 destination_directory_path = os.path.dirname(self.file_path)
@@ -149,10 +218,14 @@ class Receiver2(Receiver1):
                 try:
                     shutil.copy(self.temp_path, self.file_path)
                 except IOError:
-                    return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+                    self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
-                # TODO if nak list empty, state = s3
-                # TODO else state = s2
+                if len(self.get_nak_list_from_received()) > 0:
+                    self.enter_s2_state()
+                else:
+                    # if nak list empty, state = s3
+                    ait.core.log.info('Receiver {0} -- NAK list is empty. Finishing and confirming delivery'.format(self.transaction.entity_id))
+                    self.enter_s3_state()
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU or event == Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU:
                 #: N/A
@@ -183,12 +256,17 @@ class Receiver2(Receiver1):
                 return
 
             elif event == Event.E26_NAK_TIMER_EXPIRED:
-                self.nak_timer.start()
-                # TODO if nak list empty, S3
-                if not self.transaction.suspended and not self.transaction.frozen:
-                    # TODO If nak limit reached, fault nak limit
-                    pass
-                # TODO fault transmit nak
+                self.nak_count += 1  # increment NAK limit
+                self.nak_timer.start(self.kernel.mib.nak_timeout(self.transaction.entity_id))
+                self.get_nak_list_from_received()
+                if len(self.nak_list) == 0:
+                    ait.core.log.info("Receiver {0}: NAK Timer expired. Entering S3".format(self.transaction.entity_id))
+                    self.enter_s3_state()
+                elif not self.transaction.suspended and not self.transaction.frozen:
+                    if self.nak_count >= self.kernel.mib.nak_limit(self.transaction.entity_id):
+                        self.fault_handler(ConditionCode.NAK_LIMIT_REACHED)
+                    ait.core.log.info("Receiver {0}: NAK Timer expired. NAK List {1}".format(self.transaction.entity_id, self.nak_list))
+                    self.transmit_naks()
 
         elif self.state == self.S3:
             if event == Event.E5_SUSPEND_TIMERS:
@@ -216,7 +294,7 @@ class Receiver2(Receiver1):
                 self.shutdown()
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
-                self.ack_timer.start()
+                self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
                 # TODO if ack limit reached, ack fault
                 # TODO transmit finished
 
@@ -246,7 +324,7 @@ class Receiver2(Receiver1):
                 self.shutdown()
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
-                self.ack_timer.start()
+                self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
                 # TODO if ack limit reached, E2
                 # TODO else transmit finished
 
@@ -269,13 +347,14 @@ class Receiver2(Receiver1):
         elif event == Event.E10_RECEIVED_METADATA_PDU:
             # S1 and S2
             ait.core.log.info("Receiver {0}: Received METADATA PDU event".format(self.transaction.entity_id))
-            if self.transaction.is_metadata_received:
+            if self.md_received:
                 return
 
             assert (pdu)
             assert (type(pdu) == ait.dsn.cfdp.pdu.Metadata)
 
-            self.transaction.is_metadata_received = True
+            if not self.header:
+                self.header = copy.copy(pdu.header)
             # Set id of the sender
             self.transaction.other_entity_id = pdu.header.source_entity_id
             # Save transaction metadata
@@ -285,6 +364,7 @@ class Receiver2(Receiver1):
             #   - flow label
             #   - file name information
             # all from the MD pdu. So we just store the MD pdu
+            self.md_received = True
             self.metadata = pdu
 
             # Write out the MD pdu to the temp directory for now
@@ -326,13 +406,8 @@ class Receiver2(Receiver1):
                                     destination_path=pdu.destination_path,
                                     messages_to_user=None)
 
-            # TODO update nak list?
-
             # TODO Process TLVs, not yet implemented
             # Messages to user, filestore requests, ...
-
-            # Set state to be awaiting EOF
-            self.enter_s2_state()
 
         elif event == Event.E11_RECEIVED_FILEDATA_PDU:
             # S1 and S2
@@ -341,32 +416,36 @@ class Receiver2(Receiver1):
             assert (pdu)
             assert (type(pdu) == ait.dsn.cfdp.pdu.FileData)
 
-            if self.metadata.file_transfer:
-                # Store file data to temp file
-                # Check that temp file is still open
-                if self.temp_file is None or self.temp_file.closed:
-                    try:
-                        self.temp_file = open(self.temp_path, 'wb')
-                    except IOError:
-                        ait.core.log.error('Receiver {0} -- could not open file: {1}'
-                                           .format(self.transaction.entity_id, self.temp_path))
-                        return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+            if not self.md_received or not self.metadata or not isinstance(self.metadata, Metadata):
+                # Received a file data PDU before receiving metadata
+                # Start & end offset of MD is 0
+                pass
 
-                ait.core.log.info(
-                    'Writing file data to file {0} with offset {1}'.format(self.temp_path, pdu.segment_offset))
-                # Seek offset to write in file if provided
-                if pdu.segment_offset is not None and pdu.segment_offset >= 0:
-                    self.temp_file.seek(pdu.segment_offset)
-                self.temp_file.write(pdu.data)
-                # Update file size
-                self.transaction.recv_file_size += len(pdu.data)
-                # Issue file segment received
-                if self.kernel.mib.issue_file_segment_recv:
-                    self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
-                                            transaction_id=self.transaction.transaction_id,
-                                            offset=pdu.segment_offset,
-                                            length=len(pdu.data))
-                # TODO updated nak list
+            # Store file data to temp file
+            # Check that temp file is still open
+            if self.temp_file is None or self.temp_file.closed:
+                try:
+                    self.temp_file = open(self.temp_path, 'wb')
+                except IOError:
+                    ait.core.log.error('Receiver {0} -- could not open file: {1}'
+                                       .format(self.transaction.entity_id, self.temp_path))
+                    self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+            ait.core.log.debug('Writing file data: offset {0}, length {1}'.format(pdu.segment_offset, len(pdu.data)))
+            # Seek offset to write in file if provided
+            if pdu.segment_offset is not None:
+                self.temp_file.seek(pdu.segment_offset)
+            self.temp_file.write(pdu.data)
+            # Update file size
+            self.transaction.recv_file_size += len(pdu.data)
+            # Issue file segment received
+            if self.kernel.mib.issue_file_segment_recv:
+                self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
+                                        transaction_id=self.transaction.transaction_id,
+                                        offset=pdu.segment_offset,
+                                        length=len(pdu.data))
+            # TODO updated nak list
+            self.received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
 
         elif event == Event.E13_RECEIVED_EOF_CANCEL_PDU:
             self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
