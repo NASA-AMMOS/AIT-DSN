@@ -12,6 +12,7 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+import gevent.queue
 from ait.dsn.cfdp.primitives import Role, FinalStatus, IndicationType, HandlerCode, ConditionCode
 from ait.dsn.cfdp.events import Event
 
@@ -117,7 +118,6 @@ class Machine(object):
         self.put_request_received = False
         self.eof_received = False
         self.eof_sent = False
-        self.machine_finished = False
         self.initiated_cancel = False
         self.is_ack_outgoing = False
         self.is_eof_outgoing = False
@@ -277,5 +277,5 @@ class Machine(object):
 
         # TODO issue Tx indication (finished, abandoned, etc)
 
-        self.transaction.finish = True
+        self.transaction.finished = True
         self.is_shutdown = True

@@ -18,8 +18,8 @@ import os
 import gevent.queue
 
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF, NAK
-from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType, DeliveryCode
+from ait.dsn.cfdp.pdu import Metadata, NAK, ACK, Finished, Header
+from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType, DeliveryCode, FileDirective, TransactionStatus, FinishedPduFileStatus
 from ait.dsn.cfdp.util import write_to_file, calc_checksum
 from ait.dsn.cfdp.timer import Timer
 from receiver1 import Receiver1
@@ -43,6 +43,8 @@ class Receiver2(Receiver1):
         self.last_nak_end_scope = 0
         self.received_list = []  # list of received File PDUs offset and length. Used to determine gaps and create NAKs accordingly
         self.nak_list = None
+        self.ack_list = gevent.queue.Queue()
+        self.finished_list = gevent.queue.Queue()
 
     def enter_s2_state(self):
         """
@@ -92,13 +94,15 @@ class Receiver2(Receiver1):
             os.makedirs(destination_directory_path)
         try:
             shutil.copy(self.temp_path, self.file_path)
+            file_status_code = FinishedPduFileStatus.FILE_RETAINED_SUCCESSFUL
         except IOError:
             self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+            file_status_code = FinishedPduFileStatus.FILE_DISCARDED_FILESTORE_REJECTION
 
         # TODO Filestore requests, not yet implemented
         # TODO 4.1.6.3.2 Unacknowledged Mode Procedures at the Receiving Entity check timer?
 
-        # TODO Issue Finished No Error
+        self.make_finished_pdu(condition_code=ConditionCode.NO_ERROR, delivery_code=Finished.COMPLETE, file_status=file_status_code)
         self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def enter_s4_state(self):
@@ -111,7 +115,9 @@ class Receiver2(Receiver1):
         self.state = self.S4
         self.transaction.suspended = False
         self.transaction.cancelled = True
-        self.finish_transaction()  # TODO update to send Finished PDU
+        self.make_finished_pdu(condition_code=ConditionCode.CANCEL_REQUEST_RECEIVED, delivery_code=Finished.COMPLETE,
+                               file_status=FinishedPduFileStatus.FILE_STATUS_UNREPORTED)
+        self.finish_transaction()
         self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
 
     def transmit_naks(self):
@@ -137,7 +143,9 @@ class Receiver2(Receiver1):
         else:
             end_scope = self.transaction.recv_file_size
 
-        nak = NAK(header=self.header, start_of_scope=start_scope, end_of_scope=end_scope, segment_requests=self.nak_list)
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DIRECTIVE_PDU
+        nak = NAK(header=header, start_of_scope=start_scope, end_of_scope=end_scope, segment_requests=self.nak_list)
         self.kernel.send(nak)
 
     def get_nak_list_from_received(self):
@@ -171,6 +179,32 @@ class Receiver2(Receiver1):
 
         return self.nak_list
 
+    def make_ack_eof_pdu(self, condition_code):
+        """
+        :param directive_code: FileDirective type of PDU being ACKed
+        :param condition_code: ConditionCode of the ACKed PDU
+        :return:
+        """
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DIRECTIVE_PDU
+        directive_subtype_code = 0b0000
+        ack = ACK(directive_code=FileDirective.EOF,
+                  directive_subtype_code=directive_subtype_code,
+                  condition_code=condition_code,
+                  transaction_status=TransactionStatus.UNDEFINED,
+                  header=header)
+        self.ack_list.put(ack)
+
+    def make_finished_pdu(self, condition_code, delivery_code, file_status):
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DIRECTIVE_PDU
+        finished = Finished(condition_code=condition_code,
+                            end_system_status=Finished.END_SYSTEM,
+                            delivery_code=delivery_code,
+                            file_status=file_status,
+                            header=header)
+        self.finished_list.put(finished)
+
     def update_state(self, event=None, pdu=None, request=None):
         if self.state == self.S1:
             if event == Event.E5_SUSPEND_TIMERS:
@@ -187,7 +221,7 @@ class Receiver2(Receiver1):
 
                 self.eof_received = True
                 self.eof = pdu
-                # TODO transmit ack eof pdu
+                self.make_ack_eof_pdu(ConditionCode.NO_ERROR)
 
                 # Write EOF to temp path
                 incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'],
@@ -244,8 +278,7 @@ class Receiver2(Receiver1):
                 self.inactivity_timer.resume()
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
-                # TODO transmit ack eof
-                pass
+                self.make_ack_eof_pdu(ConditionCode.NO_ERROR)
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU or event == Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU:
                 #: N/A
@@ -286,17 +319,18 @@ class Receiver2(Receiver1):
                 return
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
-                # TODO transmit ack eof
-                pass
+                self.make_ack_eof_pdu(ConditionCode.NO_ERROR)
 
             elif event == Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU or event == Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU:
                 self.finish_transaction()
                 self.shutdown()
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
+                self.ack_count += 1
                 self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
-                # TODO if ack limit reached, ack fault
-                # TODO transmit finished
+                if self.ack_count >= self.kernel.mib.ack_limit(self.transaction.entity_id):
+                    self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                self.make_finished_pdu(ConditionCode.NO_ERROR, delivery_code=Finished.COMPLETE, file_status=FinishedPduFileStatus.FILE_RETAINED_SUCCESSFUL)
 
         elif self.state == self.S4:
             if event == Event.E3_NOTICE_OF_CANCELLATION:
@@ -324,20 +358,35 @@ class Receiver2(Receiver1):
                 self.shutdown()
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
+                self.ack_count += 1
                 self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
-                # TODO if ack limit reached, E2
-                # TODO else transmit finished
+                if self.ack_count >= self.kernel.mib.ack_limit(self.transaction.entity_id):
+                    self.update_state(Event.E2_ABANDON_TRANSACTION)
+                else:
+                    self.make_finished_pdu(ConditionCode.CANCEL_REQUEST_RECEIVED, delivery_code=Finished.INCOMPLETE,
+                                       file_status=FinishedPduFileStatus.FILE_STATUS_UNREPORTED)
 
             elif event == Event.E33_RECEIVED_CANCEL_REQUEST:
                 #: N/A
                 return
 
         # General events that apply to several states
-        if event == Event.E2_ABANDON_TRANSACTION:
+        if event == Event.E0_SEND_FILE_DIRECTIVE:
+            ait.core.log.debug("Receiver {0}: Received SEND FILE DIRECTIVE".format(self.transaction.entity_id))
+            if self.transaction.frozen or self.transaction.suspended:
+                return
+
+            if len(self.ack_list) > 0:
+                self.kernel.send(self.ack_list.get())
+
+            elif len(self.finished_list) > 0:
+                self.kernel.send(self.finished_list.get())
+
+        elif event == Event.E2_ABANDON_TRANSACTION:
             self.abandon()
 
         elif event == Event.E3_NOTICE_OF_CANCELLATION:
-            self.update_state(Event.E4_NOTICE_OF_SUSPENSION)
+            self.enter_s4_state()
 
         elif event == Event.E4_NOTICE_OF_SUSPENSION:
             self.suspend()
@@ -411,7 +460,7 @@ class Receiver2(Receiver1):
 
         elif event == Event.E11_RECEIVED_FILEDATA_PDU:
             # S1 and S2
-            ait.core.log.info("Receiver {0}: Received FILE DATA PDU event".format(self.transaction.entity_id))
+            ait.core.log.debug("Receiver {0}: Received FILE DATA PDU event".format(self.transaction.entity_id))
             # File data received before Metadata has been received
             assert (pdu)
             assert (type(pdu) == ait.dsn.cfdp.pdu.FileData)
@@ -444,12 +493,11 @@ class Receiver2(Receiver1):
                                         transaction_id=self.transaction.transaction_id,
                                         offset=pdu.segment_offset,
                                         length=len(pdu.data))
-            # TODO updated nak list
             self.received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
 
         elif event == Event.E13_RECEIVED_EOF_CANCEL_PDU:
             self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
-            # TODO transmit ack eof
+            self.make_ack_eof_pdu(ConditionCode.CANCEL_REQUEST_RECEIVED)
             self.finish_transaction()
             self.shutdown()
 

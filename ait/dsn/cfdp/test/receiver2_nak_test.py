@@ -20,7 +20,6 @@ import copy
 from functools import partial
 import filecmp
 import mock
-from random import randint
 
 import gevent
 import traceback
@@ -29,13 +28,11 @@ import ait.core
 import ait.core.log
 from ait.dsn.cfdp import CFDP
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.machines import Sender2
-from ait.dsn.cfdp.pdu import FileData, Metadata, EOF, NAK
+from ait.dsn.cfdp.machines import Receiver2
 from ait.dsn.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
-from ait.dsn.cfdp.request import create_request_from_type
 from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
 from ait.dsn.cfdp.pdu import Header, Metadata, EOF, FileData, ACK, NAK, Finished
-from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, DirectiveCode, FinishedPduFileStatus, TransmissionMode, RequestType
+from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, FileDirective, FinishedPduFileStatus, TransmissionMode
 
 
 TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
@@ -48,21 +45,21 @@ def tearDownModule():
         shutil.rmtree(TEST_DIRECTORY)
 
 
-class Sender2NakTest(unittest.TestCase):
+class Receiver2NakTest(unittest.TestCase):
 
     full_source_path = None
 
     def setUp(self):
-        self.cfdp = CFDP(1)
+        self.cfdp = CFDP(2)
         self.source_path = 'medium.txt'
         self.destination_path = 'test/path/med.txt'
         self.full_source_path = os.path.join(self.cfdp._data_paths['outgoing'], self.source_path)
         self.full_dest_path = os.path.join(self.cfdp._data_paths['incoming'], self.destination_path)
 
-        self.sender = Sender2(self.cfdp, 1)
-        # give sender a received list to keep track of PDUs to nak in the patched send method
-        self.sender._received_list = []
-        self.cfdp._machines[1] = self.sender
+        self.receiver = Receiver2(self.cfdp, 1)
+        # setting the source path on this adhoc attribute so we can access it later in the mock
+        self.receiver._full_source_path = self.full_source_path
+        self.cfdp._machines[1] = self.receiver
 
         # CREATE PDUS
         self.pdus = []
@@ -147,61 +144,79 @@ class Sender2NakTest(unittest.TestCase):
             shutil.rmtree(self.cfdp._data_paths['pdusink'])
             os.makedirs(self.cfdp._data_paths['pdusink'])
 
-    def send(self, pdu):
-        """Mock CFDP.send() to catch the Sender's pdus"""
-        sender = self._machines[1]
-        print '\n***CAUGHT SEND OF PDU***\n', pdu
-        if type(pdu) == FileData:
-            # skip random file data
-            if randint(0, 9) % 2 == 0:
-                sender._received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
-
-        elif type(pdu) == EOF:
-            # Received EOF, so evaluate the missed PDUs and create a NAK sequence
-            received_list = sorted(sender._received_list, key=lambda x: x.get('offset'))
-            nak_list = []
-            for index, item in enumerate(received_list):
-                if index == 0 and item.get('offset') != 0:
-                    # Check the first received and figure out if we are missing the first FileData PDU (if offset != 0)
-                    start = 0
-                    end = item.get('offset')
-                    nak_list.append((start, end))
-                elif index == len(received_list) - 1 and item.get('offset') + item.get(
-                        'length') + 1 < sender.metadata.file_size:
-                    # Check the last received and figure out if we are missing the last FileData PDU (if offset != file size)
-                    start = item.get('offset') + item.get('length')
-                    end = sender.metadata.file_size
-                    nak_list.append((start, end))
-                else:
-                    # Compare the item to the previous item to figure out if there is a gap between contiguous items
-                    prev_item = received_list[index - 1]
-                    if prev_item.get('offset') + prev_item.get('length') + 1 < item.get('offset'):
-                        start = prev_item.get('offset') + prev_item.get('length')
-                        end = item.get('offset')
-                        nak_list.append((start, end))
-
-            # create the NAK pdu
-            start_scope = 0
-            end_scope = sender.metadata.file_size
-            nak = NAK(header=sender.header, start_of_scope=start_scope, end_of_scope=end_scope,
-                      segment_requests=nak_list)
-            sender.kernel.send(nak)
-
-        elif type(pdu) == NAK:
-            # Catch the sending of the NAK and treat is as if receiving NAK from the receiver. Transmit the missing data
-            sender.update_state(Event.E15_RECEIVED_NAK_PDU, pdu=pdu)
-
-
-    @unittest.skip('TODO finish test implementation when ACK procedures are implemented')
-    @mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send)
-    def test_sender2_resends_segment_requests(self):
+    def test_receiver2_got_all_file_data(self):
         """Ensure that sender nak list is empty when all file data is received and that the source and destination files are equal"""
 
-        request = create_request_from_type(RequestType.PUT_REQUEST,
-                                           destination_id=2,
-                                           source_path=self.source_path,
-                                           destination_path=self.destination_path,
-                                           transmission_mode=TransmissionMode.ACK)
-        self.sender.update_state(event=Event.E30_RECEIVED_PUT_REQUEST, request=request)
+        self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
+        for i in range(0, len(self.pdus)):
+            self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
+        self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
 
-        gevent.sleep(10)
+        gevent.sleep(5)
+
+        # Assert nak list is 0 because we received everything
+        self.assertEqual(len(self.receiver.nak_list), 0, 'No naks to be processed because all data is received.')
+        self.assertEqual(filecmp.cmp(self.full_source_path, self.full_dest_path, shallow=True), True, 'Source and destination files are equal.')
+
+    def test_receiver2_has_naks(self):
+        """Ensure that sender nak list is empty when all file data is received and that the source and destination files are equal"""
+
+        my_nak_list = []
+        self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
+        for i in range(0, len(self.pdus)):
+            # Only send every other file
+            if i % 2 == 0:
+                self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
+            else:
+                my_nak_list.append((self.pdus[i].segment_offset, self.pdus[i].segment_offset + len(self.pdus[i].data)))
+        self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
+
+        gevent.sleep(5)
+
+        # Assert nak list is 0 because we received everything
+        my_nak_list = sorted(my_nak_list, key=lambda x: x[0])
+        self.assertItemsEqual(my_nak_list, self.receiver.nak_list, 'Receiver NAK list and recorded missed PDUs match');
+
+    def send(self, pdu):
+        """Mock CFDP.send() for below test to catch when the receiver sends the NAK sequence. Then we can mimic the retransmission"""
+        receiver = self._machines[1]
+        full_source_path = receiver._full_source_path
+        print '\n***MOCKING SEND OF NAK PDU***\n'
+        with open(full_source_path, 'rb') as file:
+            for segment in pdu.segment_requests:
+                offset = segment[0]
+                length = segment[1] - segment[0]
+                file.seek(offset)
+                chunk = file.read(length)
+                header = copy.copy(receiver.header)
+                header.pdu_type = Header.FILE_DATA_PDU
+
+                # Calculate pdu data field length for header
+                data_field_length_octets = 4
+                # Get file data size
+                data_field_length_octets += len(chunk)
+                header.pdu_data_field_length = data_field_length_octets
+
+                fd = FileData(
+                    header=header,
+                    segment_offset=offset,
+                    data=chunk)
+                receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=fd)
+
+    @mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send)
+    def test_get_missing_data(self):
+        """Test that receiver appropriate receives the retransmitted missing data"""
+        my_nak_list = []
+        self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
+        for i in range(0, len(self.pdus)):
+            # Only send every other file
+            if i % 2 == 0:
+                self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
+            else:
+                my_nak_list.append((self.pdus[i].segment_offset, self.pdus[i].segment_offset + len(self.pdus[i].data)))
+        self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
+
+        gevent.sleep(20) # sleep to await a few NAK timeouts
+
+        self.assertEqual(len(self.receiver.nak_list), 0)
+        self.assertEqual(filecmp.cmp(self.full_source_path, self.full_dest_path, shallow=True), True, 'Source and destination files are equal.')

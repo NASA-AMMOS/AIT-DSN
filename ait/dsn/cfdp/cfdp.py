@@ -297,6 +297,30 @@ def receiving_handler(instance):
                     else:
                         machine.update_state(Event.E15_RECEIVED_NAK_PDU, pdu=pdu)
 
+                elif pdu.file_directive_code == FileDirective.ACK:
+                    if machine is None:
+                        ait.core.log.info('Ignoring ACK for transaction that doesn\'t exist: {}'
+                                      .format(transaction_num))
+                    elif pdu.directive_code == FileDirective.FINISHED:
+                        if pdu.condition_code == ConditionCode.NO_ERROR:
+                            machine.update_state(Event.E18_RECEIVED_ACK_FIN_NO_ERROR_PDU, pdu=pdu)
+                        elif pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
+                            machine.update_state(Event.E18_RECEIVED_ACK_FIN_CANCEL_PDU, pdu=pdu)
+                    elif pdu.directive_code == FileDirective.EOF:
+                        if pdu.condition_code == ConditionCode.NO_ERROR:
+                            machine.update_state(Event.E14_RECEIVED_ACK_EOF_NO_ERROR_PDU, pdu=pdu)
+                        elif pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
+                            machine.update_state(Event.E14_RECEIVED_ACK_EOF_CANCEL_PDU, pdu=pdu)
+
+                elif pdu.file_directive_code == FileDirective.FINISHED:
+                    if machine is None:
+                        ait.core.log.info('Ignoring Finished for transaction that doesn\'t exist: {}'
+                                      .format(transaction_num))
+                    if pdu.condition_code == ConditionCode.NO_ERROR:
+                        machine.update_state(Event.E16_RECEIVED_FINISHED_NO_ERROR_PDU, pdu=pdu)
+                    elif pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
+                        machine.update_state(Event.E17_RECEIVED_FINISHED_CANCEL_PDU, pdu=pdu)
+
         except gevent.queue.Empty:
             pass
         except Exception as e:
@@ -351,6 +375,7 @@ def sending_handler(instance):
         gevent.sleep(0)
         try:
             pdu = instance.outgoing_pdu_queue.get(block=False)
+            ait.core.log.info('Got PDU from outgoing queue: ' + str(pdu))
             pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
             instance.pdu_counter += 1
             ait.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))

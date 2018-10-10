@@ -13,10 +13,12 @@
 # information to foreign countries or providing access to foreign persons.
 
 import gevent.queue
+import copy
 
 from ait.dsn.cfdp.events import Event
-from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType
+from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType, FileDirective, TransactionStatus
 from ait.dsn.cfdp.timer import Timer
+from ait.dsn.cfdp.pdu import ACK, Header
 from sender1 import Sender1
 
 import ait.core
@@ -41,6 +43,7 @@ class Sender2(Sender1):
         self.ack_timer = Timer()
         self.nak_timer = Timer()
         self.nak_queue = None
+        self.ack_list = gevent.queue.Queue()
 
     def enter_s3_state(self, condition_code=None):
         """S3 : Send EOF, fill any gaps"""
@@ -73,9 +76,21 @@ class Sender2(Sender1):
         else:
             self.enter_s3_state()
 
-    def make_ack_finished_pdu(self):
-        # TODO make ack finished
-        pass
+    def make_ack_finished_pdu(self, condition_code):
+        """
+        :param directive_code: FileDirective type of PDU being ACKed
+        :param condition_code: ConditionCode of the ACKed PDU
+        :return:
+        """
+        header = copy.copy(self.header)
+        header.pdu_type = Header.FILE_DIRECTIVE_PDU
+        directive_subtype_code = 0b0001
+        ack = ACK(directive_code=FileDirective.FINISHED,
+                  directive_subtype_code=directive_subtype_code,
+                  condition_code=condition_code,
+                  transaction_status=TransactionStatus.UNDEFINED,
+                  header=header)
+        self.ack_list.put(ack)
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -155,9 +170,6 @@ class Sender2(Sender1):
             elif event == Event.E4_NOTICE_OF_SUSPENSION:
                 return
 
-            elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-                return
-
             else:
                 ait.core.log.debug("Sender {0}: Ignoring received event {1}".format(self.transaction.entity_id, event))
                 pass
@@ -230,20 +242,20 @@ class Sender2(Sender1):
                 # E16
                 ait.core.log.info("Sender {0}: Received FINISH NO ERROR PDU event".format(self.transaction.entity_id))
                 # transmit Ack Finished
-                self.is_ack_outgoing = True
-                self.make_ack_finished_pdu()
+                self.make_ack_finished_pdu(condition_code=ConditionCode.NO_ERROR)
                 # Issue Transaction finished
                 # shutdown
-                pass
+                self.finish_transaction()
+                self.shutdown()
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
                 # E25
-                # start ack time
+                self.ack_count += 1
                 self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
-                # FIXME if ack limit reached:
-                # self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
-                # self.is_eof_outgoing = True
-                # self.make_eof_pdu(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                if self.ack_count >= self.kernel.mib.ack_limit(self.transaction.entity_id):
+                    self.fault_handler(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                # retransmit retained EOF that we are awaiting ACK
+                self.kernel.send(self.eof)
 
             elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 # E27
@@ -262,7 +274,7 @@ class Sender2(Sender1):
                 # Go through the nak queue to send file data
                 while not self.nak_queue.empty():
                     segment = self.nak_queue.get()
-                    fd = self.make_fd_pdu(offset=segment[0], length=segment[1])
+                    fd = self.make_fd_pdu(offset=segment[0], length=(segment[1] - segment[0]))
                     self.kernel.send(fd)
 
             else:
@@ -286,15 +298,14 @@ class Sender2(Sender1):
 
             elif event == Event.E25_ACK_TIMER_EXPIRED:
                 # E25
-                # start ack time
+                self.ack_count += 1
                 self.ack_timer.start(self.kernel.mib.ack_timeout(self.transaction.entity_id))
-                if True:
-                    # Trigger e2
+                if self.ack_count >= self.kernel.mib.ack_limit(self.transaction.entity_id):
                     self.update_state(Event.E2_ABANDON_TRANSACTION)
                 else:
                     # Tx EOF
-                    self.is_eof_outgoing = True
-                    self.make_eof_pdu(ConditionCode.POSITIVE_ACK_LIMIT_REACHED)
+                    # retransmit retained EOF that we are awaiting ACK
+                    self.kernel.send(self.eof)
 
             elif event == Event.E27_INACTIVITY_TIMER_EXPIRED:
                 # E27
@@ -322,6 +333,10 @@ class Sender2(Sender1):
                 if self.kernel.mib.issue_eof_sent:
                     self.indication_handler(IndicationType.EOF_SENT_INDICATION,
                                             transaction_id=self.transaction.transaction_id)
+
+            elif len(self.ack_list) > 0:
+                self.kernel.send(self.ack_list.get())
+
         elif event == Event.E2_ABANDON_TRANSACTION:
             # E2
             ait.core.log.info("Sender {0}: Received ABANDON event".format(self.transaction.entity_id))
@@ -354,18 +369,15 @@ class Sender2(Sender1):
 
         elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
             # E17
+            ait.core.log.info("Sender {0}: Received FINISH CANCEL PDU event".format(self.transaction.entity_id))
             # FIXME update with correct condition code
             self.transaction.condition_code = ConditionCode.NO_ERROR
+            self.make_ack_finished_pdu(condition_code=ConditionCode.CANCEL_REQUEST_RECEIVED)
             # issue transaction finished
             # shutdown
-
-        elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
-            # E17
-            if self.state == self.S1:
-                return
-            ait.core.log.info("Sender {0}: Received FINISH CANCEL PDU event".format(self.transaction.entity_id))
             self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
             self.finish_transaction()
+            self.shutdown()
 
         elif event == Event.E31_RECEIVED_SUSPEND_REQUEST:
             # E31

@@ -118,17 +118,6 @@ class TransactionStatus(Enum):
     UNRECOGNIZED = 0b11
 
 
-class DirectiveCode(Enum):
-    """Directive code field for ACK, NAK, etc. 00-03 & 0D-FF are reserved"""
-    EOF_PDU = 0x04
-    FINISHED_PDU = 0x05
-    ACK_PDU = 0x06
-    METADATA_PDU = 0x07
-    NAK_PDU = 0x08
-    PROMPT_PDU = 0x09
-    KEEP_ALIVE_PDU = 0x0C
-
-
 class FinishedPduFileStatus(Enum):
     """File Status used in FINISHED pdu"""
     FILE_DISCARDED_DELIBERATELY = 0b00

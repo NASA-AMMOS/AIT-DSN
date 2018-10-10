@@ -100,6 +100,7 @@ class Sender1(Machine):
         return self.eof
 
     def make_fd_pdu(self, offset=None, length=None):
+        # TODO add segmentation control logic
         if self.file is None:
             # TODO error for if file is not open
             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
@@ -110,7 +111,7 @@ class Sender1(Machine):
         if offset is None:
             offset = self.file.tell()
         else:
-            offset = self.file.seek(offset)
+            self.file.seek(offset)
         if length is not None:
             data_chunk = self.file.read(length)
         else:
@@ -130,6 +131,8 @@ class Sender1(Machine):
         data_field_length_octets += len(data_chunk)
         header.pdu_data_field_length = data_field_length_octets
 
+        # ait.core.log.info("Sender {0}: Offset, length {1} {2}"
+        #                    .format(self.transaction.entity_id, offset, length))
         fd = FileData(
             header=header,
             segment_offset=offset,
@@ -224,7 +227,6 @@ class Sender1(Machine):
                     self.kernel.send(self.eof)
                     self.is_eof_outgoing = False
                     self.eof_sent = True
-                    self.machine_finished = True
 
                     if self.kernel.mib.issue_eof_sent:
                         self.indication_handler(IndicationType.EOF_SENT_INDICATION,
@@ -304,7 +306,6 @@ class Sender1(Machine):
                     self.kernel.send(self.eof)
                     self.is_eof_outgoing = False
                     self.eof_sent = True
-                    self.machine_finished = True
                     self.state = self.S1
 
                     if self.kernel.mib.issue_eof_sent:
