@@ -57,9 +57,6 @@ class Sender1Test(unittest.TestCase):
         self.sender = Sender1(self.cfdp, 1)
         self.cfdp._machines[1] = self.sender
 
-        # CREATE PDUS
-        self.pdus = []
-
         # MAKE HEADER
         self.header = Header()
         self.header.direction = Header.TOWARDS_RECEIVER
@@ -87,25 +84,6 @@ class Sender1Test(unittest.TestCase):
             source_path=self.source_path,
             destination_path=self.destination_path,
             file_size=file_size)
-
-        # MAKE FILE DATA PDUS
-        with open(self.full_source_path, 'rb') as file:
-            for chunk in iter(partial(file.read, 1024), ''):
-                offset = file.tell() - len(chunk)
-                header = copy.copy(self.header)
-                header.pdu_type = Header.FILE_DATA_PDU
-
-                # Calculate pdu data field length for header
-                data_field_length_octets = 4
-                # Get file data size
-                data_field_length_octets += len(chunk)
-                header.pdu_data_field_length = data_field_length_octets
-
-                fd = FileData(
-                    header=header,
-                    segment_offset=offset,
-                    data=chunk)
-                self.pdus.append(fd)
 
         # MAKE EOF
         header = copy.copy(self.header)

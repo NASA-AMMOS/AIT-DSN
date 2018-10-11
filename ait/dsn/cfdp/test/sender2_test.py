@@ -64,9 +64,6 @@ class Sender2AckTest(unittest.TestCase):
         self.sender._received_list = []
         self.cfdp._machines[1] = self.sender
 
-        # CREATE PDUS
-        self.pdus = []
-
         # MAKE HEADER
         self.header = Header()
         self.header.direction = Header.TOWARDS_RECEIVER
@@ -94,25 +91,6 @@ class Sender2AckTest(unittest.TestCase):
             source_path=self.source_path,
             destination_path=self.destination_path,
             file_size=file_size)
-
-        # MAKE FILE DATA PDUS
-        with open(self.full_source_path, 'rb') as file:
-            for chunk in iter(partial(file.read, 1024), ''):
-                offset = file.tell() - len(chunk)
-                header = copy.copy(self.header)
-                header.pdu_type = Header.FILE_DATA_PDU
-
-                # Calculate pdu data field length for header
-                data_field_length_octets = 4
-                # Get file data size
-                data_field_length_octets += len(chunk)
-                header.pdu_data_field_length = data_field_length_octets
-
-                fd = FileData(
-                    header=header,
-                    segment_offset=offset,
-                    data=chunk)
-                self.pdus.append(fd)
 
         # MAKE EOF
         header = copy.copy(self.header)
@@ -281,3 +259,102 @@ class Sender2AckTest(unittest.TestCase):
                 # Markers to check that transaction was finished out
                 self.assertTrue(self.sender._ack_timeout_reached)
                 self.assertTrue(self.sender._sent_eof)
+
+    def test_sender2_resends_segment_requests(self):
+        """Ensure that sender received list if complete when simulating re-transmission of FD PDUs when NAK is received"""
+
+        def send(self, pdu):
+            """Mock CFDP.send() to catch the Sender's pdus"""
+            sender = self._machines[1]
+            if type(pdu) == FileData:
+                if sender.state == sender.S2:
+                    # In the initial File Sending state (sending file for the first time)
+                    # skip random file data and mock receipt by adding to _received_list
+                    if randint(0, 9) % 2 == 0:
+                        sender._received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
+                elif sender.state == sender.S3:
+                    # In the second File Sending state (Send EOF and fill gaps after receiving NAK)
+                    # Add them to _received_list to mock receipt of the re-sent pdus
+                    sender._received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
+
+            elif type(pdu) == EOF:
+                # Received EOF, so evaluate the missed PDUs and create a NAK sequence
+                received_list = sorted(sender._received_list, key=lambda x: x.get('offset'))
+                nak_list = []
+                for index, item in enumerate(received_list):
+                    if index == 0 and item.get('offset') != 0:
+                        # Check the first received and figure out if we are missing the first FileData PDU (if offset != 0)
+                        start = 0
+                        end = item.get('offset')
+                        nak_list.append((start, end))
+                    elif index == len(received_list) - 1 and item.get('offset') + item.get(
+                            'length') + 1 < sender.metadata.file_size:
+                        # Check the last received and figure out if we are missing the last FileData PDU (if offset != file size)
+                        start = item.get('offset') + item.get('length')
+                        end = sender.metadata.file_size
+                        nak_list.append((start, end))
+                    else:
+                        # Compare the item to the previous item to figure out if there is a gap between contiguous items
+                        prev_item = received_list[index - 1]
+                        if prev_item.get('offset') + prev_item.get('length') + 1 < item.get('offset'):
+                            start = prev_item.get('offset') + prev_item.get('length')
+                            end = item.get('offset')
+                            nak_list.append((start, end))
+
+                # create the NAK pdu
+                start_scope = 0
+                end_scope = sender.metadata.file_size
+                nak = NAK(header=sender.header, start_of_scope=start_scope, end_of_scope=end_scope,
+                          segment_requests=nak_list)
+                sender.kernel.send(nak)
+
+            elif type(pdu) == NAK:
+                # Catch the sending of the NAK and treat is as if receiving NAK from the receiver. Transmit the missing data
+                sender.update_state(Event.E15_RECEIVED_NAK_PDU, pdu=pdu)
+
+        with mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send):
+            request = create_request_from_type(RequestType.PUT_REQUEST,
+                                               destination_id=2,
+                                               source_path=self.source_path,
+                                               destination_path=self.destination_path,
+                                               transmission_mode=TransmissionMode.ACK)
+            self.sender.update_state(event=Event.E30_RECEIVED_PUT_REQUEST, request=request)
+
+            gevent.sleep(5)
+
+            # Ensure _received_list contains full set of pdus
+            received = sorted(self.sender._received_list, key=lambda x: x.get('offset'))
+            received_length = 0  # pointer to contiguous segment in file
+            for segment in received:
+                if received_length != segment.get('offset'):
+                    self.assertTrue(False, "Received file data are not contiguous")
+                received_length += segment.get('length')
+
+            self.assertEqual(received_length, self.sender.metadata.file_size, 'File size is same as total length of contiguous received data')
+            self.assertEqual(len(self.sender.nak_queue), 0)
+
+    def test_initiate_cancel_sends_eof_cancel(self):
+        """Test sender initiated cancel. When cancel request is received, sender should send an EOF (cancel)"""
+        self.sender._eof_sent = False
+        def send(self, pdu):
+            sender = self._machines[1]
+            if type(pdu) == EOF and pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
+                sender._sent_eof = True
+
+        with mock.patch.object(ait.dsn.cfdp.CFDP, 'send', send):
+            request = create_request_from_type(RequestType.PUT_REQUEST,
+                                               destination_id=2,
+                                               source_path=self.source_path,
+                                               destination_path=self.destination_path,
+                                               transmission_mode=TransmissionMode.ACK)
+            self.sender.update_state(event=Event.E30_RECEIVED_PUT_REQUEST, request=request)
+
+            gevent.sleep(2)
+
+            request = create_request_from_type(RequestType.CANCEL_REQUEST, transaction_id=self.sender.transaction.transaction_id)
+            self.sender.update_state(event=Event.E33_RECEIVED_CANCEL_REQUEST, request=request)
+
+            gevent.sleep(2)
+
+            self.assertEqual(self.sender.state, self.sender.S4)
+            self.assertTrue(self.sender._eof_sent)

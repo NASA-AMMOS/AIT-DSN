@@ -371,8 +371,7 @@ class Sender2(Sender1):
         elif event == Event.E17_RECEIVED_FINISHED_CANCEL_PDU:
             # E17
             ait.core.log.info("Sender {0}: Received FINISH CANCEL PDU event".format(self.transaction.entity_id))
-            # FIXME update with correct condition code
-            self.transaction.condition_code = ConditionCode.NO_ERROR
+            self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED
             self.make_ack_finished_pdu(condition_code=ConditionCode.CANCEL_REQUEST_RECEIVED)
             # issue transaction finished
             # shutdown
