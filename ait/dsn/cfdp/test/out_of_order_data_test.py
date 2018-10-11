@@ -19,22 +19,16 @@ import unittest
 import copy
 from functools import partial
 import filecmp
-import mock
-from random import randint
+import random
 
 import gevent
-import traceback
 
-import ait.core
-import ait.core.log
 from ait.dsn.cfdp import CFDP
 from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.machines import Sender2, Receiver2
 from ait.dsn.cfdp.pdu import FileData, Metadata, EOF, Header
-from ait.dsn.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
-from ait.dsn.cfdp.request import create_request_from_type
-from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
-from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, FileDirective, FinishedPduFileStatus, TransmissionMode, RequestType, DeliveryCode
+from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, calc_checksum
+from ait.dsn.cfdp.primitives import ConditionCode, TransmissionMode
 
 
 TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
@@ -47,7 +41,7 @@ def tearDownModule():
         shutil.rmtree(TEST_DIRECTORY)
 
 
-class DuplicateDataTest(unittest.TestCase):
+class OutOfOrderDataTest(unittest.TestCase):
 
     full_source_path = None
 
@@ -146,13 +140,12 @@ class DuplicateDataTest(unittest.TestCase):
             shutil.rmtree(self.cfdp._data_paths['pdusink'])
             os.makedirs(self.cfdp._data_paths['pdusink'])
 
-    def test_duplicate_file_data_pdus(self):
+    def test_out_of_order_pdus(self):
         """Test that Receiver handles receipt of duplicate data gracefully"""
         self.receiver.update_state(event=Event.E10_RECEIVED_METADATA_PDU, pdu=self.metadata)
-        for i in range(0, len(self.pdus)):
-            # Duplicate send every other file
-            if i % 2 == 0:
-                self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
+        indices = range(0, len(self.pdus))
+        random.shuffle(indices)  # send the pdus in a random order
+        for i in indices:
             self.receiver.update_state(event=Event.E11_RECEIVED_FILEDATA_PDU, pdu=self.pdus[i])
         self.receiver.update_state(event=Event.E12_RECEIVED_EOF_NO_ERROR_PDU, pdu=self.eof)
 
