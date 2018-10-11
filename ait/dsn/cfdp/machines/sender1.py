@@ -221,6 +221,7 @@ class Sender1(Machine):
                 if self.is_md_outgoing is True:
                     self.kernel.send(self.metadata)
                     self.is_md_outgoing = False
+                    self.md_sent = True
 
                 elif self.is_eof_outgoing is True:
                     ait.core.log.info("EOF TYPE: " + str(self.eof.header.pdu_type))
@@ -299,6 +300,7 @@ class Sender1(Machine):
                 if self.is_md_outgoing is True:
                     self.kernel.send(self.metadata)
                     self.is_md_outgoing = False
+                    self.md_sent = True
 
                 elif self.is_eof_outgoing is True:
                     self.make_eof_pdu(self.transaction.condition_code)

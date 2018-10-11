@@ -41,7 +41,6 @@ class Receiver2(Receiver1):
         self.nak_timer = Timer()
         self.last_nak_start_scope = 0
         self.last_nak_end_scope = 0
-        self.received_list = []  # list of received File PDUs offset and length. Used to determine gaps and create NAKs accordingly
         self.nak_list = None
         self.ack_list = gevent.queue.Queue()
         self.finished_list = gevent.queue.Queue()
@@ -122,8 +121,8 @@ class Receiver2(Receiver1):
 
     def transmit_naks(self):
         """
-        Constructs and transmits NAK PDUs based off the contents of `self.received_list`.
-        `self.received_list` contains the offset and length of each FileData PDU received. This procedure
+        Constructs and transmits NAK PDUs based off the contents of `self.received_map`.
+        `self.received_map` contains the offset and length of each FileData PDU received. This procedure
         iterates through and determines the gaps in order to construct the NAK sequence.
 
         The end of scope is the entire length of the file if the EOF PDU has been received. Otherwise, it is the current
@@ -150,7 +149,10 @@ class Receiver2(Receiver1):
 
     def get_nak_list_from_received(self):
         # Sort the list by offset
-        received_list = sorted(self.received_list, key=lambda x: x.get('offset'))
+        received_list = []
+        for offset, length in self.received_map.iteritems():
+            received_list.append({'offset': offset, 'length': length})
+        received_list = sorted(received_list, key=lambda x: x.get('offset'))
 
         self.nak_list = []
         for index, item in enumerate(received_list):
@@ -236,23 +238,6 @@ class Receiver2(Receiver1):
                                            .format(self.transaction.entity_id, self.transaction.recv_file_size,
                                                    pdu.file_size))
                         self.fault_handler(ConditionCode.FILE_SIZE_ERROR)
-
-                    # Check checksum on the temp file before we save it to the actual destination
-                    temp_file_checksum = calc_checksum(self.temp_path)
-                    if temp_file_checksum != pdu.file_checksum:
-                        ait.core.log.error('Receiver {0} -- file checksum fault. Received: {1}; Expected: {2}'
-                                           .format(self.transaction.entity_id, temp_file_checksum,
-                                                   pdu.file_checksum))
-                        self.fault_handler(ConditionCode.FILE_CHECKSUM_FAILURE)
-
-                # Copy temp file to destination path
-                destination_directory_path = os.path.dirname(self.file_path)
-                if not os.path.exists(destination_directory_path):
-                    os.makedirs(destination_directory_path)
-                try:
-                    shutil.copy(self.temp_path, self.file_path)
-                except IOError:
-                    self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
                 if len(self.get_nak_list_from_received()) > 0:
                     self.enter_s2_state()
@@ -478,22 +463,30 @@ class Receiver2(Receiver1):
                 except IOError:
                     ait.core.log.error('Receiver {0} -- could not open file: {1}'
                                        .format(self.transaction.entity_id, self.temp_path))
-                    self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+                    return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
-            ait.core.log.debug('Writing file data: offset {0}, length {1}'.format(pdu.segment_offset, len(pdu.data)))
-            # Seek offset to write in file if provided
-            if pdu.segment_offset is not None:
-                self.temp_file.seek(pdu.segment_offset)
-            self.temp_file.write(pdu.data)
-            # Update file size
-            self.transaction.recv_file_size += len(pdu.data)
-            # Issue file segment received
-            if self.kernel.mib.issue_file_segment_recv:
-                self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
-                                        transaction_id=self.transaction.transaction_id,
-                                        offset=pdu.segment_offset,
-                                        length=len(pdu.data))
-            self.received_list.append({'offset': pdu.segment_offset, 'length': len(pdu.data)})
+            # Process FD if we have not received it yet
+            if pdu.segment_offset not in self.received_map.keys():
+                # Update file size
+                self.transaction.recv_file_size += len(pdu.data)
+                self.received_map[pdu.segment_offset] = len(pdu.data)
+
+                incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'],
+                                                 'fd_' + str(pdu.header.destination_entity_id) + '_{}.pdu'.format(pdu.segment_offset))
+                ait.core.log.debug('Writing FD to path: ' + incoming_pdu_path)
+                write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
+
+                ait.core.log.debug('Writing file data: offset {0}, length {1}'.format(pdu.segment_offset, len(pdu.data)))
+                # Seek offset to write in file if provided
+                if pdu.segment_offset is not None:
+                    self.temp_file.seek(pdu.segment_offset)
+                self.temp_file.write(pdu.data)
+                # Issue file segment received
+                if self.kernel.mib.issue_file_segment_recv:
+                    self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
+                                            transaction_id=self.transaction.transaction_id,
+                                            offset=pdu.segment_offset,
+                                            length=len(pdu.data))
 
         elif event == Event.E13_RECEIVED_EOF_CANCEL_PDU:
             self.transaction.condition_code = ConditionCode.CANCEL_REQUEST_RECEIVED

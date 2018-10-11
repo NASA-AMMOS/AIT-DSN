@@ -41,6 +41,7 @@ class Receiver1(Machine):
         # start up timers
         self.inactivity_timer = Timer()
         self.inactivity_timer.start(self.kernel.mib.inactivity_timeout(0))
+        self.received_map = {}  # list of received File PDUs offset and length
 
     def update_state(self, event=None, pdu=None, request=None):
         """
@@ -199,20 +200,32 @@ class Receiver1(Machine):
                                           .format(self.transaction.entity_id, self.temp_path))
                             return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
 
-                    ait.core.log.info(
-                        'Writing file data to file {0} with offset {1}'.format(self.temp_path, pdu.segment_offset))
-                    # Seek offset to write in file if provided
-                    if pdu.segment_offset is not None and pdu.segment_offset >= 0:
-                        self.temp_file.seek(pdu.segment_offset)
-                    self.temp_file.write(pdu.data)
-                    # Update file size
-                    self.transaction.recv_file_size += len(pdu.data)
-                    # Issue file segment received
-                    if self.kernel.mib.issue_file_segment_recv:
-                        self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
-                                                transaction_id=self.transaction.transaction_id,
-                                                offset=pdu.segment_offset,
-                                                length=len(pdu.data))
+                    # Process FD if we have not received it yet
+                    if pdu.segment_offset not in self.received_map.keys():
+                        # Update file size
+                        self.transaction.recv_file_size += len(pdu.data)
+                        self.received_map[pdu.segment_offset] = len(pdu.data)
+
+                        incoming_pdu_path = os.path.join(self.kernel._data_paths['tempfiles'],
+                                                         'fd_' + str(pdu.header.destination_entity_id) + '_{}.pdu'.format(
+                                                             pdu.segment_offset))
+                        ait.core.log.debug('Writing FD to path: ' + incoming_pdu_path)
+                        write_to_file(incoming_pdu_path, bytearray(pdu.to_bytes()))
+
+                        self.received_map[str(pdu.segment_offset)] = len(pdu.data)
+
+                        ait.core.log.debug(
+                            'Writing file data to file {0} with offset {1}'.format(self.temp_path, pdu.segment_offset))
+                        # Seek offset to write in file if provided
+                        if pdu.segment_offset is not None and pdu.segment_offset >= 0:
+                            self.temp_file.seek(pdu.segment_offset)
+                        self.temp_file.write(pdu.data)
+                        # Issue file segment received
+                        if self.kernel.mib.issue_file_segment_recv:
+                            self.indication_handler(IndicationType.FILE_SEGMENT_RECV_INDICATION,
+                                                    transaction_id=self.transaction.transaction_id,
+                                                    offset=pdu.segment_offset,
+                                                    length=len(pdu.data))
 
             elif event == Event.E12_RECEIVED_EOF_NO_ERROR_PDU:
                 ait.core.log.info("Receiver {0}: Received EOF NO ERROR PDU event".format(self.transaction.entity_id))

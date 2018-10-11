@@ -114,6 +114,7 @@ class Machine(object):
 
         # State machine flags
         self.md_received = False
+        self.md_sent = False
         self.pdu_received = False
         self.put_request_received = False
         self.eof_received = False
