@@ -73,7 +73,6 @@ class Transaction(object):
         self.final_status = None
         self.finished = False
         self.frozen = False
-        self.metadata = None
         self.other_entity_id = None  # entity ID of other end of Tx
         self.start_time = None
         self.suspended = False

@@ -38,8 +38,8 @@ class Sender1(Machine):
         self.header = Header()
         # direction is always towards receiver because we are a sender
         self.header.direction = Header.TOWARDS_RECEIVER
-        self.header.entity_ids_length = ait.config.get('dsn.cfdp.max_entity_id_length', 8) # get default entity id length, 8 bytes
-        self.header.transaction_id_length = ait.config.get('dsn.cfdp.max_transaction_id_length', 8) # get default entity id length, 8 bytes
+        self.header.entity_ids_length = ait.config.get('dsn.cfdp.max_entity_id_length', 1) # get default entity id length, 8 bytes
+        self.header.transaction_id_length = ait.config.get('dsn.cfdp.max_transaction_id_length', 1) # get default entity id length, 8 bytes
         self.header.source_entity_id = self.transaction.entity_id
         self.header.transaction_id = self.transaction.transaction_id
         self.header.destination_entity_id = request.info.get('destination_id')
@@ -131,8 +131,8 @@ class Sender1(Machine):
         data_field_length_octets += len(data_chunk)
         header.pdu_data_field_length = data_field_length_octets
 
-        # ait.core.log.info("Sender {0}: Offset, length {1} {2}"
-        #                    .format(self.transaction.entity_id, offset, length))
+        ait.core.log.debug("Sender {0}: Offset, length {1} {2}"
+                           .format(self.transaction.entity_id, offset, data_field_length_octets))
         fd = FileData(
             header=header,
             segment_offset=offset,

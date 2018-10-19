@@ -34,16 +34,16 @@ default:
                 path: ./mib
             datasink:
                 outgoing:
-                    path: ../ait/dsn/cfdp/datasink/outgoing
+                    path: /CFDP/UPLINK
                 incoming:
                     path: ../ait/dsn/cfdp/datasink/incoming
                 tempfiles:
                     path: ../ait/dsn/cfdp/datasink/tempfiles
                 pdusink:
-                    path: ../ait/dsn/cfdp/datasink/pdusink
+                    path: /CFDP/PDUSINK
             max_file_name_length: 64
-            max_entity_id_length: 8
-            max_transaction_id_length: 8
+            max_entity_id_length: 1
+            max_transaction_id_length: 1
 
     logging:
         name: ait

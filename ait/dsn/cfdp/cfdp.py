@@ -16,6 +16,8 @@ import os
 import socket
 import time
 import traceback
+import SimpleHTTPServer
+import SocketServer
 
 import gevent
 import gevent.queue
@@ -48,12 +50,14 @@ class CFDP(object):
         # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or sender
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
-        self._read_pdu_handler = gevent.spawn(read_pdus, self)
+        self._read_pdu_handler = gevent.spawn(kwargs.get('read_pdus', read_pdus), self)
         # Spawn handlers for incoming and outgoing data
-        self._receiving_handler = gevent.spawn(receiving_handler, self)
-        self._sending_handler = gevent.spawn(sending_handler, self)
+        self._receiving_handler = gevent.spawn(kwargs.get('receiving_handler', receiving_handler), self)
+        self._sending_handler = gevent.spawn(kwargs.get('sending_handler', sending_handler), self)
         # cycle through transactions to progress state machines
-        self._transaction_handler = gevent.spawn(transaction_handler, self)
+        self._transaction_handler = gevent.spawn(kwargs.get('transaction_handler', transaction_handler), self)
+
+        self._server_handler = kwargs.get('server_handler', SimpleHTTPServer.SimpleHTTPRequestHandler)
 
         # set entity id in MIB
         self.mib.load()
@@ -75,23 +79,32 @@ class CFDP(object):
 
     def connect(self, host):
         """Connect with TC here"""
-        self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Connect to localhost:8000 for now
-        connected = False
-        while not connected:
-            try:
-                self._socket.bind(host)
-                ait.core.log.info('Connected to socket...')
-                connected = True
-            except socket.error as e:
-                gevent.sleep(1)
+        host = ('localhost', 9001)
+        handler = SimpleHTTPServer.SimpleHTTPRequestHandler if not self._server_handler else self._server_handler
+        SocketServer.TCPServer.allow_reuse_address = True
+        self._server = SocketServer.TCPServer(host, handler)
+        ait.core.log.info("Servering at {}".format(host))
+        self._server.serve_forever()
+        # self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #
+        # # Connect to localhost:8000 for now
+        # connected = False
+        # while not connected:
+        #     try:
+        #         self._socket.bind(host)
+        #         self._socket.listen(1)
+        #         ait.core.log.info('Started listening on host {}'.format(host))
+        #         connected = True
+        #     except socket.error as e:
+        #         gevent.sleep(1)
 
     def disconnect(self):
         """Disconnect TC here"""
-        # self._socket.close()
+        self._server.shutdown()
         self._receiving_handler.kill()
         self._sending_handler.kill()
+        self._transaction_handler.kill()
+        self._read_pdu_handler.kill()
         self.mib.dump()
 
     def _increment_tx_counter(self):
@@ -144,8 +157,10 @@ class CFDP(object):
                                            destination_path=destination_path,
                                            transmission_mode=transmission_mode)
         if transmission_mode == TransmissionMode.ACK:
+            ait.core.log.info('Starting Class 2 Sender with transaction number {}'.format(transaction_num))
             machine = Sender2(self, transaction_num)
         else:
+            ait.core.log.info('Starting Class 1 Sender with transaction number {}'.format(transaction_num))
             machine = Sender1(self, transaction_num)
         # Send the Put.request `Request` to the newly created machine
         # This is where the rest of the Put request procedures are done
@@ -270,8 +285,12 @@ def receiving_handler(instance):
                     transmission_mode = pdu.header.transmission_mode
                     if machine is None:
                         if transmission_mode == TransmissionMode.ACK:
+                            ait.core.log.info(
+                                'Starting Class 2 Receiver with transaction number {}'.format(transaction_num))
                             machine = Receiver2(instance, transaction_num)
                         else:
+                            ait.core.log.info(
+                                'Starting Class 1 Receiver with transaction number {}'.format(transaction_num))
                             machine = Receiver1(instance, transaction_num)
                         instance._machines[transaction_num] = machine
 

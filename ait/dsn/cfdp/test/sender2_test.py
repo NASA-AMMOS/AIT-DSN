@@ -17,25 +17,20 @@ import glob
 import shutil
 import unittest
 import copy
-from functools import partial
-import filecmp
 import mock
 from random import randint
 
 import gevent
-import traceback
 
 import ait.core
 import ait.core.log
 from ait.dsn.cfdp import CFDP
 from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.machines import Sender2
-from ait.dsn.cfdp.pdu import FileData, Metadata, EOF, NAK, ACK, Finished
-from ait.dsn.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
 from ait.dsn.cfdp.request import create_request_from_type
-from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
+from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, calc_checksum
 from ait.dsn.cfdp.pdu import Header, Metadata, EOF, FileData, ACK, NAK, Finished
-from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, FileDirective, FinishedPduFileStatus, TransmissionMode, RequestType, DeliveryCode
+from ait.dsn.cfdp.primitives import ConditionCode, FinishedPduFileStatus, TransmissionMode, RequestType, DeliveryCode
 
 
 TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
