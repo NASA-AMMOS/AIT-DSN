@@ -46,8 +46,8 @@ class ACK(PDU):
         if not isinstance(pdu_bytes, list):
             raise ValueError('ack body should be a list of bytes represented as integers')
 
-        if len(pdu_bytes) < 3:
-            raise ValueError('ack body should be at least 3 bytes long')
+        if len(pdu_bytes) != 3:
+            raise ValueError('ack body should be 3 bytes long')
 
         if FileDirective(pdu_bytes[0]) != ACK.file_directive_code:
             raise ValueError('file directive code is not type ACK')

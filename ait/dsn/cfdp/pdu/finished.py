@@ -55,7 +55,7 @@ class Finished(PDU):
             raise ValueError('finished body should be a list of bytes represented as integers')
 
         if len(pdu_bytes) < 2:
-            raise ValueError('finished body should be at least 3 bytes long')
+            raise ValueError('finished body should be at least 2 bytes long')
 
         if FileDirective(pdu_bytes[0]) != Finished.file_directive_code:
             raise ValueError('file directive code is not type Finished')

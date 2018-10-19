@@ -85,6 +85,7 @@ class Sender2(Sender1):
         header = copy.copy(self.header)
         header.pdu_type = Header.FILE_DIRECTIVE_PDU
         directive_subtype_code = 0b0001
+        header.pdu_data_field_length = 3  # ACK pdu is 3 octets long
         ack = ACK(directive_code=FileDirective.FINISHED,
                   directive_subtype_code=directive_subtype_code,
                   condition_code=condition_code,

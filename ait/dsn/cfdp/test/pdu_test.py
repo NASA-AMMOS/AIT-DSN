@@ -20,7 +20,7 @@ import unittest
 import ait.core
 from ait.dsn.cfdp.cfdp import read_incoming_pdu, write_outgoing_pdu
 from ait.dsn.cfdp.pdu import Header, Metadata, EOF, FileData, ACK, NAK, Finished
-from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, DirectiveCode, FinishedPduFileStatus
+from ait.dsn.cfdp.primitives import ConditionCode, TransactionStatus, FileDirective, FinishedPduFileStatus
 
 
 TEST_DIRECTORY = os.path.join(os.path.dirname(__file__), '.pdusink')
@@ -226,13 +226,13 @@ class ACKTest(unittest.TestCase):
             'direction': 0,
             'transmission_mode': 1,
             'crc_flag': 0,
-            'pdu_data_field_length': 25,
+            'pdu_data_field_length': 3,
             'source_entity_id': 123,
             'transaction_id': 1,
             'destination_entity_id': 124
         }
         ack = {
-            'directive_code': DirectiveCode.EOF_PDU,
+            'directive_code': FileDirective.EOF,
             'directive_subtype_code': 0000,
             'condition_code': ConditionCode.NO_ERROR,
             'transaction_status': TransactionStatus.ACTIVE,
@@ -344,7 +344,7 @@ class FinishedTest(unittest.TestCase):
             'direction': 0,
             'transmission_mode': 1,
             'crc_flag': 0,
-            'pdu_data_field_length': 25,
+            'pdu_data_field_length': 2,
             'source_entity_id': 123,
             'transaction_id': 1,
             'destination_entity_id': 124

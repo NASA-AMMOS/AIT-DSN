@@ -349,6 +349,7 @@ class Receiver2AckTest(unittest.TestCase):
         header = copy.copy(self.header)
         header.source_entity_id = 2
         header.destination_entity_id = 1
+        header.pdu_data_field_length = 3  # ACK pdu is 3 octets long
         ack_fin = ACK(header=header, directive_code=FileDirective.FINISHED, directive_subtype_code=0b0001, condition_code=ConditionCode.CANCEL_REQUEST_RECEIVED, transaction_status=TransactionStatus.TERMINATED)
         self.cfdp.send(ack_fin)
 

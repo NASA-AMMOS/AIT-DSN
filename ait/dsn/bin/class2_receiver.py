@@ -94,7 +94,6 @@ class CFDPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         if content_length:
             content_length = int(content_length)
             data = json.loads(self.rfile.read(content_length))
-            # self._set_headers()
 
             self.send_response(200)
             self.end_headers()
@@ -103,21 +102,6 @@ class CFDPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             print bytearray(binascii.a2b_base64(pdu_data))
         else:
             self.send_response(400)
-
-
-def read_pdus_from_socket(instance):
-    """Read PDUs that have been written to file (in place of receiving over socket)
-    """
-    while True:
-        gevent.sleep(0)
-        try:
-            # Get files from pdusink directory in order of creation
-            msg = instance._socket.recv(256000)
-            print "RECEIVED", msg
-        except Exception as e:
-            print 'EXCEPTION', e
-            gevent.sleep(4)
-        gevent.sleep(0.2)
 
 
 def sending_handler(instance):
