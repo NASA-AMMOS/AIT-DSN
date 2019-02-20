@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# BLISS SLE documentation build configuration file, created by
+# AIT DSN documentation build configuration file, created by
 # sphinx-quickstart on Fri Oct 20 10:25:50 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -48,9 +48,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'BLISS SLE'
-copyright = u'2017, BLISS Development Team'
-author = u'BLISS Development Team'
+project = u'AIT DSN'
+copyright = u'2017, AIT Development Team'
+author = u'AIT Development Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -123,7 +123,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-#html_title = u'BLISS SLE v0.1.0'
+#html_title = u'AIT DSN v0.1.0'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -205,7 +205,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'BLISSSLEdoc'
+htmlhelp_basename = 'AITDSNdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -227,8 +227,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'BLISSSLE.tex', u'BLISS SLE Documentation',
-     u'BLISS Development Team', 'manual'),
+    (master_doc, 'AITDSN.tex', u'AIT DSN Documentation',
+     u'AIT Development Team', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -257,7 +257,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'blisssle', u'BLISS SLE Documentation',
+    (master_doc, 'aitsle', u'AIT DSN Documentation',
      [author], 1)
 ]
 
@@ -271,8 +271,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'BLISSSLE', u'BLISS SLE Documentation',
-     author, 'BLISSSLE', 'One line description of project.',
+    (master_doc, 'AITDSN', u'AIT DSN Documentation',
+     author, 'AITDSN', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -293,5 +293,5 @@ texinfo_documents = [
 # intersphinx_mapping = {'https://docs.python.org/': None}
 intersphinx_mapping = {
     'python': ('https://docs.python.org/2.7', None),
-    'bliss': ('https://github.jpl.nasa.gov/pages/bliss/bliss-core/', 'ait-core.inv')
+    'ait': ('https://github.com/NASA-AMMOS/AIT-Core', 'ait-core.inv')
 }
