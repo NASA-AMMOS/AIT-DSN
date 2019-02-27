@@ -180,7 +180,7 @@ class RCF(common.SLE):
                 False. Otherwise, master_channel should be True and
                 virtual_channel should be None.
         '''
-        if not master_channel and not virtual_channel:
+        if not master_channel and virtual_channel is None:
             err = (
                 'Transfer start invocation requires a master channel or '
                 'virtual channel from which to receive frames.'
