@@ -168,7 +168,7 @@ class SLE(object):
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
                 ait.core.log.error('Socket connection lost to DSN')
-                s.close()
+                self._socket.close()
             else:
                 ait.core.log.error('Unexpected error encountered when sending data. Aborting ...')
                 raise e
