@@ -472,7 +472,7 @@ class RCF(common.SLE):
         report += 'Subcarrier Lock Status: {}\n'.format(lock_status[pdu['subcarrierLockStatus']])
 
         carrier_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Carrier Lock Status: {}\n'.format(lock_status[pdu['carrierLockStatus']])
+        report += 'Carrier Lock Status: {}\n'.format(carrier_lock_status[pdu['carrierLockStatus']])
 
         production_status = ['Running', 'Interrupted', 'Halted']
         report += 'Production Status: {}'.format(production_status[pdu['productionStatus']])
