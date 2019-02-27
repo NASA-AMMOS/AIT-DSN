@@ -15,4 +15,7 @@
 import binascii
 
 def hexint(b):
-    return int(binascii.hexlify(b), 16)
+    if not b:
+        return int()
+    else:
+        return int(binascii.hexlify(b), 16)
