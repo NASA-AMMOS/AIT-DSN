@@ -310,7 +310,8 @@ class RAF(common.SLE):
 
     def _data_transfer_handler(self, pdu):
         ''''''
-        self._handle_pdu(pdu['rafTransferBuffer'][0])
+        for data in pdu['rafTransferBuffer']:
+            self._handle_pdu(data)
 
     def _transfer_data_invoc_handler(self, pdu):
         ''''''

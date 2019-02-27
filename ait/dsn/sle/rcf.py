@@ -385,7 +385,8 @@ class RCF(common.SLE):
 
     def _data_transfer_handler(self, pdu):
         ''''''
-        self._handle_pdu(pdu['rcfTransferBuffer'][0])
+        for data in pdu['rcfTransferBuffer']:
+            self._handle_pdu(data)
 
     def _transfer_data_invoc_handler(self, pdu):
         ''''''
