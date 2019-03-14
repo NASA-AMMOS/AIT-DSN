@@ -1,6 +1,21 @@
 # Change Log
 
+## [1.1.0_alpha](https://github.com/NASA-AMMOS/AIT-DSN/tree/1.1.0_alpha) (2019-03-14)
+[Full Changelog](https://github.com/NASA-AMMOS/AIT-DSN/compare/1.0.0...1.1.0_alpha)
+
+**Closed issues:**
+
+- Class 2 Receiver NAK procedures [\#48](https://github.com/NASA-AMMOS/AIT-DSN/issues/48)
+- Push DSN build to PyPi [\#12](https://github.com/NASA-AMMOS/AIT-DSN/issues/12)
+
+**Merged pull requests:**
+
+- CFDP Class 2 NAK procedures [\#53](https://github.com/NASA-AMMOS/AIT-DSN/pull/53) ([lorsposto](https://github.com/lorsposto))
+- Issue 83 in AIT-CORE: Baseline example configs across repos [\#51](https://github.com/NASA-AMMOS/AIT-DSN/pull/51) ([aywaldron](https://github.com/aywaldron))
+
 ## [1.0.0](https://github.com/NASA-AMMOS/AIT-DSN/tree/1.0.0) (2018-07-10)
+[Full Changelog](https://github.com/NASA-AMMOS/AIT-DSN/compare/0.0.0...1.0.0)
+
 **Closed issues:**
 
 - Convert README to rst and update setup.py in preparation for PyPi publishing [\#43](https://github.com/NASA-AMMOS/AIT-DSN/issues/43)
