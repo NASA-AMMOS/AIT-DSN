@@ -15,7 +15,6 @@
 # information to foreign countries or providing access to foreign persons.
 
 import ait.dsn.cfdp
-import os
 import gevent
 import traceback
 
