@@ -1,7 +1,7 @@
 AIT DSN Installation
 ======================
 
-This guide will show you how to install AIT DSN. It assumes that you have followed the `AIT Core Installation and Configuration Guide <https://github.jpl.nasa.gov/pages/ait/ait-core/installation.html>`_ and ended up with a working AIT Core install. You can install AIT DSN from a checkout of the code or from PyPi. Having a checkout of the code can be handy if you want to view the source or make changes. Installing from PyPi keeps your system clutter free since you don't have a copy of the code base around. Either choice will work fine!
+This guide will show you how to install AIT DSN. It assumes that you have followed the `AIT Core Installation and Configuration Guide <https://ait-core.readthedocs.io/en/latest/installation.html>`_ and ended up with a working AIT Core install. You can install AIT DSN from a checkout of the code or from PyPi. Having a checkout of the code can be handy if you want to view the source or make changes. Installing from PyPi keeps your system clutter free since you don't have a copy of the code base around. Either choice will work fine!
 
 From Code Checkout
 ------------------
