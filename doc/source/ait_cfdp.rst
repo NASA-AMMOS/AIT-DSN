@@ -21,4 +21,29 @@ If no custom MIB files are found in the specified location, the default MIB cont
 MIB Configuration
 ^^^^^^^^^^^^^^^^^
 
-<document each config field>
+The local and remote configurable MIB fields and their defaults are described below.
+
+#### Local MIB Fields
+
+`'entity_id'`: the local CFDP entity ID; defaults to 1.
+`'issue_eof_sent'`: whether or not to send an end-of-file sent indication to the CFDP user; defaults to True.
+`'issue_eof_recv'`: whether or not to send an end-of-file received indication to the CFDP user; False.
+`'issue_file_segment_recv'`: whether or not to send a file data segment received indication to the CFDP user; defaults to False.
+`'issue_transaction_finished'`: whether or not to send a transaction finished indication to the CFDP user; defaults to False.
+`'issue_suspended'`: whether or not to send a transaction suspended indication to the CFDP user; defaults to True.
+`'issue_resumed'`: whether or not to send a transaction resumed indication to the CFDP user; defaults to True.
+`'fault_handlers'`: fault handler overwritten by the metadata PDU of a transaction; defaults to Ignore.
+
+#### Remote MIB Fields
+
+`'entity_id'`: the remote CFDP entity ID; defaults to None.
+`'ut_address'`: the UT address for transmitting to this remote entity; defaults to None.
+`'ack_limit'`: the positive ACK count limit (number of expirations); defaults to 3.
+`'ack_timeout'`: the ACK timeout time in seconds; defaults to 10.
+`'inactivity_timeout'`: the inactivity time limit for a transaction; defaults to 30.
+`'nak_timeout'`: the time interval for NAK; defaults to 10.
+`'nak_limit'`: the limit on number of NAK expirations; defaults to 3.
+`'maximum_file_segment_length'`: the maximum file segment length in octets; defaults to 4096.
+`'transmission_mode'`: the transmission mode; defaults to NO_ACK.
+`'crc_required_on_transmission'`: whether a CRC is required on each transmission; defaults to False.
+
