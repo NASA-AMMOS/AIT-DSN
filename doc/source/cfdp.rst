@@ -1,21 +1,29 @@
-AIT's CFDP Implementation
-=========================
+Overview of CFDP
+================
 
-The CFDP (`CCSDS <https://public.ccsds.org/default.aspx>`_ File Delivery Protocol) defines a standard for space-to-ground, ground-to-space, and space-to-space file transfer, which may be initiated by the file sending or receiving entity. This documentation of AIT's CFDP implementation assumes some familiarity with the `CFDP standard <https://public.ccsds.org/pubs/727x0b4.pdf>`_. The implementation closely follows the `Implementer's Guide<https://public.ccsds.org/Pubs/720x2g3ec1.pdf>`_.
+The CFDP (`CCSDS <https://public.ccsds.org/default.aspx>`_ File Delivery Protocol) defines a standard for space-to-ground, ground-to-space, and space-to-space file transfer, which may be initiated by a file sending or receiving entity. Using CFDP allows for communication between spacecraft or instruments through files rather than packets, which may simplify Ground Data System and Flight Software processes. Here we provide an overview of the protocol, including terms and concepts that will be helpful to know in using AIT's CFDP implementation.
 
-Transmission Modes
-------------------
-AIT currently provides an implementation of CFDP **Class 1** for *unreliable transfer* with a transmission mode of *unacknowledged*. An implementation of the protocol's **Class 2**, for *reliable transfer* with an *acknowledged* transmission mode, is in the works. Currently the toolkit will use **Class 1** no matter what transmission mode is requested. In the future, either **Class 1** or **Class 2** will be used based on the transmission mode specified in the :ref:`MIB configuration <MIB>`
-
-.. _MIB:
-The MIB
---------
-The MIB, or Management Information Base, is where configurations for the protocol, such as the transmission mode, timeouts and limits, are specified, stored and accessed. The default MIB contents are stored in :mod:`ait.dsn.cfdp.mib`.
-
-Custom MIB Files
-^^^^^^^^^^^^^^^^^
-When a CFDP entity (:mod:`ait.dsn.cfdp.cfdp.CFDP`) is instantiated, it will look for custom MIB files in the directory specified by `dsn.cfdp.mib.path` in the AIT configuration file whose location is indicated by the `AIT_CONFIG` `environment variable<https://ait-core.readthedocs.io/en/master/installation.html#environment-configuration>`_ set during installation. If you have AIT-Core installed, the `AIT_CONFIG` will likely point to `/path/to/ait-core/config/config.yaml`, and if you have not changed `dsn.cfdp.mib.path` in this file, it will likely point to `/path/to/ait-core/config/mib`. If you would like to store your MIB files elsewhere, update this configuration. If `dsn.cfdp.mib.path` is not present in the config.yaml, the MIB location will default to `/tmp/cfdp/mib`.
-
-If no custom MIB files are found in the specified location, the default MIB contents will be used. When an entity is disconnected, it will dump both its local and remote MIB contents to the MIB directory described above.
+Entities & File Delivery Units
+------------------------------
+A **CFDP protocol entity** is a functioning instance of a CFDP implementation, such as AIT's :mod:`ait.dsn.cfdp.cfdp.CFDP`. A **transaction** is the end-to-end transmission of a single **File Delivery Unit (FDU)** between CFDP entities, where a FDU is a functional concatenation of a file and related **metadata**. The metadata is typically either additional application data (e.g. a "message to user") or data to aid the recipient entity in utilizing the file (e.g. file name). It is possible for an FDU to consist of only metadata. A single transaction has a **source** and a **destination** entity, which are also the only **sender** and only **receiver** in the case of a single file copy operation per transaction.
 
 
+Protocol Data Units
+-------------------
+FDUs are usually transmitted in multiple **protocol data units (PDUs)**, which will all by tagged with the same **transaction ID**, which uniquely identifieds a single instance of FDU delivery and contains the ID of the source CFDP entity together with a sequence number specific to that entity. A PDU can be one of three types - a **file data PDU**, a **file directive PDU**, or a **metadata PDU**. A file data PDU contains the contents of the file being delivered, while a file directive PDU contains only metadata and other non-file information for the protocol. A metadata PDU contains the following:
+1. an indication of whether the file contains records with boundaries to be respected when the file is segmented for transmission in file data PDUs;
+2. the size of the file if known;
+3. the source and destination path names of the file;
+4. optional fault handler overrides, messages to user, filestore requests, and/or flow label.
+
+
+Progress of a transaction
+-------------------------
+The **offset** of a given octet of file data is the number of data octets that precede this octet in the file. The **progress** of a given file data PDU is the sume of the offset of the PDU's file data content (i.e., the offset of the content's first octet) and the length of that file data content. The **transmission progress** of a given transaction delivering a file is the maximum progression value over all file data PDUs *sent* so far in the transaction. The **reception progress** of a given transaction is the maximum progress value over all file data PDUs *received* so far in the transaction. If and only if no data are lost in transmission is reception progress equal to the number of file data octets received. If data has been lost, reception progress will be greater than the number of octets received.
+
+
+Configuration & Transmission Modes
+----------------------------------
+The **management information base (MIB)** contains protocol configurations such as default values for user communications requirements and for communication timer settings. It is stored within CFDP entities as system tables. For instructions on configuring AIT's MIB, see MIB_. One of CFDPs configurable settings is the **transmission mode**, which can be either **unacknowledged**, meaning data delivery failures are not reported to the sender and therefore can't be repaired, or **acknowledged**, where the receiver informs the sender of any undelivered file segments of ancillary data, which are then retransmitted, thereby guaranteeing complete file delivery.
+
+AIT currently provides an implementation of CFDP **Class 1** for *unreliable transfer* with a transmission mode of unacknowledged. An implementation of the protocol's **Class 2**, for *reliable transfer* with an acknowledged transmission mode, is in the works.
