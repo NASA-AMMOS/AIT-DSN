@@ -20,8 +20,9 @@ Table of Contents:
    :maxdepth: 2
 
    installation
+   cfdp
+   ait_cfdp
    AIT DSN API Documentation <ait>
-
 
 
 Indices and tables
