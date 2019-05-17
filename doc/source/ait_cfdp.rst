@@ -1,7 +1,26 @@
-AIT's CFDP Implementation
-=========================
+AIT CFDP User Guide
+====================
 
-This documentation of AIT's CFDP implementation assumes some familiarity with the `CFDP standard <https://public.ccsds.org/pubs/727x0b4.pdf>`_. The implementation closely follows the `Implementer's Guide <https://public.ccsds.org/Pubs/720x2g3ec1.pdf>`_.
+This user guide for AIT's CFDP implementation assumes some familiarity with the `CFDP standard <https://public.ccsds.org/pubs/727x0b4.pdf>`_. An overview can be found in the AIT docs `here <https://ait-core.readthedocs.io/en/master/cfdp.html>`_. The implementation closely follows the `Implementer's Guide <https://public.ccsds.org/Pubs/720x2g3ec1.pdf>`_.
+
+Creating a CFDP Entity
+^^^^^^^^^^^^^^^^^^^^^^
+CFDP entities are implemented by the :mod:`ait.dsn.cfdp.cfdp.CFDP` class. CFDP entities must be instantiated with an entity ID. To connect an entity to a socket, call the ``connect`` method of the CFDP object, passing in the a tuple of the host and port to connect to (example below). The ``put`` method can be used to initiate a transaction with destination ID, source path, destination path, and optional transmission mode parameters (example below). More complete examples can be found in **ait/dsn/bin**.
+
+.. code-block:: python
+
+    import ait.dsn.cfdp
+    from ait.dsn.cfdp.primitives import TransmissionMode
+
+    cfdp = ait.dsn.cfdp.CFDP(1)
+
+    cfdp.connect(('127.0.0.1', 9001))
+
+    cfdp.put(2, 'path/to/sourcefile', 'path/to/destfile', transmission_mode=TransmissionMode.NO_ACK)
+
+    cfdp.disconnect()
+
+
 
 Transmission Modes
 ^^^^^^^^^^^^^^^^^^

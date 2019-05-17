@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     cfdp = ait.dsn.cfdp.CFDP(2)
     try:
-        # cfdp.connect(('127.0.0.1', 8002))
-        # # Set the address of the counterpart
+        cfdp.connect(('127.0.0.1', 8002))
+        # Set the address of the counterpart
         # cfdp.mib.set_remote('1', 'ut_address', ('127.0.0.1', 8001))
         while True:
             # ait.core.log.info('Sleeping...')
