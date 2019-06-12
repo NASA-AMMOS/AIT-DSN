@@ -180,7 +180,7 @@ class RCF(common.SLE):
                 False. Otherwise, master_channel should be True and
                 virtual_channel should be None.
         '''
-        if not master_channel and not virtual_channel:
+        if not master_channel and virtual_channel is None:
             err = (
                 'Transfer start invocation requires a master channel or '
                 'virtual channel from which to receive frames.'
@@ -212,11 +212,18 @@ class RCF(common.SLE):
             start_invoc['rcfStartInvocation']['invokerCredentials']['unused'] = None
 
         start_invoc['rcfStartInvocation']['invokeId'] = self.invoke_id
-        start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
-        stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        start_invoc['rcfStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        start_invoc['rcfStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
+        if start_time is None:
+            start_invoc['rcfStartInvocation']['startTime']['undefined'] = None
+        else:
+            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
+            start_invoc['rcfStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
+
+        if end_time is None:
+            start_invoc['rcfStartInvocation']['stopTime']['undefined'] = None
+        else:
+            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
+            start_invoc['rcfStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 
         req_gvcid = GvcId()
         req_gvcid['spacecraftId'] = spacecraft_id
@@ -385,7 +392,8 @@ class RCF(common.SLE):
 
     def _data_transfer_handler(self, pdu):
         ''''''
-        self._handle_pdu(pdu['rcfTransferBuffer'][0])
+        for data in pdu['rcfTransferBuffer']:
+            self._handle_pdu(data)
 
     def _transfer_data_invoc_handler(self, pdu):
         ''''''
@@ -471,7 +479,7 @@ class RCF(common.SLE):
         report += 'Subcarrier Lock Status: {}\n'.format(lock_status[pdu['subcarrierLockStatus']])
 
         carrier_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Carrier Lock Status: {}\n'.format(lock_status[pdu['carrierLockStatus']])
+        report += 'Carrier Lock Status: {}\n'.format(carrier_lock_status[pdu['carrierLockStatus']])
 
         production_status = ['Running', 'Interrupted', 'Halted']
         report += 'Production Status: {}'.format(production_status[pdu['productionStatus']])

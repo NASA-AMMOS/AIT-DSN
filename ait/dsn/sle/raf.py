@@ -163,11 +163,19 @@ class RAF(common.SLE):
             start_invoc['rafStartInvocation']['invokerCredentials']['unused'] = None
 
         start_invoc['rafStartInvocation']['invokeId'] = self.invoke_id
-        start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
-        stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
 
-        start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
-        start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
+        if start_time is None:
+            start_invoc['rafStartInvocation']['startTime']['undefined'] = None
+        else:
+            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
+            start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
+
+        if end_time is None:
+            start_invoc['rafStartInvocation']['stopTime']['undefined'] = None
+        else:
+            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
+            start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
+
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
 
         ait.core.log.info('Sending data start invocation ...')
@@ -310,7 +318,8 @@ class RAF(common.SLE):
 
     def _data_transfer_handler(self, pdu):
         ''''''
-        self._handle_pdu(pdu['rafTransferBuffer'][0])
+        for data in pdu['rafTransferBuffer']:
+            self._handle_pdu(data)
 
     def _transfer_data_invoc_handler(self, pdu):
         ''''''
@@ -395,7 +404,7 @@ class RAF(common.SLE):
         report += 'Subcarrier Lock Status: {}\n'.format(lock_status[pdu['subcarrierLockStatus']])
 
         carrier_lock_status = ['In Lock', 'Out of Lock', 'Unknown']
-        report += 'Carrier Lock Status: {}\n'.format(lock_status[pdu['carrierLockStatus']])
+        report += 'Carrier Lock Status: {}\n'.format(carrier_lock_status[pdu['carrierLockStatus']])
 
         production_status = ['Running', 'Interrupted', 'Halted']
         report += 'Production Status: {}'.format(production_status[pdu['productionStatus']])
