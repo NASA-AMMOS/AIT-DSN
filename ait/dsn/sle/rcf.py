@@ -408,8 +408,10 @@ class RCF(common.SLE):
             )
             ait.core.log.info(err)
             return
-
-        tmf = frames.TMTransFrame(tm_data)
+            
+        tm_frame_class = getattr(frames, self._downlink_frame_type)
+        tmf = tm_frame_class(tm_data)
+        
         ait.core.log.info('Sending {} bytes to telemetry port'.format(len(tmf._data[0])))
         self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
 

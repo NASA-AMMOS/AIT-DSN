@@ -79,11 +79,40 @@ class TMTransFrame(dict):
     def encode(self):
         pass
 
+class AOSTransFrame(dict):
+    def __init__(self, data=None):
+        super(AOSTransFrame, self).__init__()
 
-class AOSTransFrame(object):
-    ''''''
-    # TODO: Implement
-    pass
+        self._data = []
+        self.is_idle = False
+        self.has_no_pkts = False
+        if data:
+            self.decode(data)
+
+    def decode(self, data):
+        ''' Decode data as a AOS Transfer Frame '''
+        self['version'] = hexint(data[0]) & 0xC0 #bits 0:1
+        self['spacecraft_id'] = hexint(data[0:2]) & 0x3FC0 #bits 2:9
+        self['virtual_channel_id'] = hexint(data[1]) & 0x3F #bits 10:15
+        self['virtual_chan_frame_count'] = data[2:5]
+        self['signaling_field'] = data[5] #according to the AOS documentation, this is unused
+        self['first_hdr_ptr'] = data[6:8] & 0x03FF #this comes from the m_pdu_header
+
+        if self['virtual_channel_id'] == b'111111': #according to AOS documentation, 0x3F indicates idle AOS transfer frames
+            self.is_idle = True
+            return
+
+        #offset to first byte of ccsds header (2047 means no data)
+        if self['first_hdr_ptr'] == b'11111111111':
+            self.has_no_pkts = True
+            return
+
+        pkt_data = data[6:(len(data)-2)]
+
+        self._data.append(pkt_data)
+
+    def encode(self):
+        pass
 
 
 class TCTransFrame(object):

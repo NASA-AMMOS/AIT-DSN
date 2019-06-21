@@ -35,6 +35,12 @@ default:
             responder_id: uname
             peer_password: pw
             version: 5
+            downlink_frame_type: TMTransFrame
+            heartbeat: heartbeat
+            deadfactor: deadfactor
+            buffer_size: buffer_size
+            responder_port: responder_port
+            auth_level: auth_level
         cfdp:
             mib:
                 path: ./mib

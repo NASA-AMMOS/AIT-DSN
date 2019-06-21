@@ -166,6 +166,8 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()['cltuStopInvocation']
         super(self.__class__, self).stop(pdu)
 
+    #TODO save_cltu method
+    
     def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
         ''' Upload a CLTU to the service
         

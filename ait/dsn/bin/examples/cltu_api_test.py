@@ -15,34 +15,15 @@
 # information to foreign countries or providing access to foreign persons.
 
 # Usage:
-#   python cltu_api_test.py
-#
-# SSPSim Config:
-# 1. Open "MISSION MANAGERS" >  "Test" > "FCLTU - PLOP1"
-# 2. Open "PRODUCTION" > "TestBaseband2"
-# 3. Activate the production interface by clicking the
-#       green arrow labelled "TC"
-# 4. Activate the Mission Manager interface by clicking the
-#       green arrow labelled "SVC"
-#
-# Run the script per the usage instructions above. You should see
-# logging informing you of the various steps in the script. If all
-# runs as expected you should see confirmations back from the sim
-# indicating which cltu id was last processed. These will also be
-# mirrored in the sim GUI where you'll be informed when a particular
-# cltu id has been successfully radiated.
+#   Move this script to ait/config/script so that it can be accessed within ait-gui
+#   Run this script within the AIT Script Control dashboard
 
 import datetime as dt
 import time
 
 import ait.dsn.sle
 
-cltu_mngr = ait.dsn.sle.CLTU(
-    hostname='atb-ocio-sspsim.jpl.nasa.gov',
-    port=5100,
-    inst_id='sagr=LSE-SSC.spack=Test.fsl-fg=1.cltu=cltu1',
-    auth_level="bind"
-)
+cltu_mngr = ait.dsn.sle.CLTU(hostname="INSERT FCLTU HOSTNAME", port="INSERT FCLTU PORT", inst_id="INSERT FCLTU INST_ID")
 
 cltu_mngr.connect()
 time.sleep(2)

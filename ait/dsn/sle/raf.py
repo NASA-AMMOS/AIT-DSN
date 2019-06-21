@@ -96,7 +96,7 @@ class RAF(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
-        self._version = kwargs.get('version', 5)
+        self._version = kwargs.get('version', 4)
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -333,8 +333,10 @@ class RAF(common.SLE):
             )
             ait.core.log.info(err)
             return
-
-        tmf = frames.TMTransFrame(tm_data)
+        
+        tm_frame_class = getattr(frames, self._downlink_frame_type)
+        tmf = tm_frame_class(tm_data)
+           
         ait.core.log.info('Sending {} bytes to telemetry port'.format(len(tmf._data[0])))
         self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
 

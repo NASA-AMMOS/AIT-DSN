@@ -97,10 +97,10 @@ class SLE(object):
 
     def __init__(self, *args, **kwargs):
         ''''''
-        self._hostname = ait.config.get('dsn.sle.hostname',
-                                          kwargs.get('hostname', None))
-        self._port = ait.config.get('dsn.sle.port',
-                                      kwargs.get('port', None))
+        self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
+                                      kwargs.get('downlink_frame_type', 'TMTransFrame'))
+        self._hostname = kwargs.get('hostname', None)
+        self._port = kwargs.get('port', None)
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
                                            kwargs.get('heartbeat', 25))
         self._deadfactor = ait.config.get('dsn.sle.deadfactor',
@@ -118,7 +118,8 @@ class SLE(object):
                                                kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._inst_id = kwargs.get('inst_id', None)
-        self._auth_level = kwargs.get('auth_level', 'none')
+        self._auth_level = ait.config.get('dsn.sle.auth_level',
+                                               kwargs.get('auth_level', 'none'))
 
         if not self._hostname or not self._port:
             msg = 'Connection configuration missing hostname ({}) or port ({})'
@@ -163,7 +164,7 @@ class SLE(object):
 
     def send(self, data):
         ''' Send supplied data to DSN '''
-        try:
+        try:           
             self._socket.send(data)
         except socket.error as e:
             if e.errno == errno.ECONNRESET:

@@ -65,16 +65,14 @@ def process_pdu(raf_mngr):
 
 
 if __name__ == '__main__':
-    raf_mngr = ait.dsn.sle.RAF(hostname='atb-ocio-sspsim.jpl.nasa.gov', port=5100,
-                             auth_level="bind",
-                             inst_id="sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1")
+    raf_mngr = ait.dsn.sle.RAF(hostname="INSERT RAF HOSTNAME", port="INSERT RAF PORT", inst_id="INSERT RAF_ONLINE_INST_ID")
     raf_mngr.connect()
     time.sleep(1)
 
     raf_mngr.bind()
     time.sleep(1)
 
-    raf_mngr.start(datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
+    raf_mngr.start(datetime.datetime(2019, 1, 1), datetime.datetime(2027, 2, 1)) #start and stop times, respectively
 
     tlm_monitor = gevent.spawn(process_pdu, raf_mngr)
     gevent.sleep(0)
