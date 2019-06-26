@@ -170,7 +170,35 @@ class CLTU(common.SLE):
     
     def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
         ''' Upload a CLTU to the service
-        
+
+        Arguments:
+            tc_data:
+                The data to transfer in the CLTU.
+
+            earliest_time (optional :class:`datetime.datetime`):
+                Specify the earliest time that the provider shall start
+                processing this CLTU.
+
+            latest_time (optional :class:`datetime.datetime`):
+                 Specify the latest time at which the provider shall start
+                 processing this CLTU.
+
+            delay=0:
+                The minimum radiation delay, in microseconds, between the CLTU
+                transferred in this operation and the next CLTU.
+
+            notify (optional boolean):
+                Specify whether the provider shall invoke the CLTU-ASYNCNOTIFY
+                operation upon completion of the radiation of the CLTU.
+        '''
+        pdu = self._prepare_cltu_pdu(tc_data, earliest_time, latest_time, delay, notify)
+
+        ait.core.log.info('Sending TC Data ...')
+        self.send(self.encode_pdu(pdu))
+
+    def _prepare_cltu_pdu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
+        ''' Returns CLTU PDU prepared for upload
+
         Arguments:
             tc_data:
                 The data to transfer in the CLTU.
@@ -222,12 +250,45 @@ class CLTU(common.SLE):
         else:
             pdu['cltuTransferDataInvocation']['slduRadiationNotification'] = 1
 
-        ait.core.log.info('Sending TC Data ...')
-        self.send(self.encode_pdu(pdu))
+        return pdu
+
+    def save_to_file(self, filename, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
+        """
+        Saves CLTU PDU to file.
+
+        Arguments:
+            filename:
+                Full path to save file to.
+
+            tc_data:
+                The data to transfer in the CLTU.
+
+            earliest_time (optional :class:`datetime.datetime`):
+                Specify the earliest time that the provider shall start
+                processing this CLTU.
+
+            latest_time (optional :class:`datetime.datetime`):
+                 Specify the latest time at which the provider shall start
+                 processing this CLTU.
+
+            delay=0:
+                The minimum radiation delay, in microseconds, between the CLTU
+                transferred in this operation and the next CLTU.
+
+            notify (optional boolean):
+                Specify whether the provider shall invoke the CLTU-ASYNCNOTIFY
+                operation upon completion of the radiation of the CLTU.
+        """
+        pdu = self._prepare_cltu_pdu(tc_data, earliest_time, latest_time, delay, notify)
+
+        with open(filename, "wb") as f:
+            f.write(self.encode_pdu(pdu))
+
+        ait.core.log.info('Saved TC Data to {}.'.format(filename))
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
         ''' Send a status report schedule request to the CLTU interface
-        
+
         Arguments:
             report_type (string):
                 The type of report type. One of 'immediately', 'periodically',
