@@ -50,8 +50,8 @@ from pyasn1.codec.der.decoder import decode
 
 from hexdump import hexdump
 
-from bliss.sle.pdu.raf import *
-from bliss.sle.pdu import raf
+from ait.dsn.sle.pdu.raf import *
+from ait.dsn.sle.pdu import raf
 
 TML_CONTEXT_MSG_FORMAT = '!IIbbbbIHH'
 TML_CONTEXT_MSG_TYPE = 0x02000000

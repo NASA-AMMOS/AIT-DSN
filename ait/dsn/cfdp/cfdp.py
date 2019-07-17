@@ -48,7 +48,7 @@ class CFDP(object):
         # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
         self._machines = {}
         # temporary handler for getting pdus from directory and putting into incoming queue
-        self._read_pdu_handler = gevent.spawn(read_pdus, self)
+        self._read_pdu_handler = gevent.spawn(read_pdus_from_socket, self)
         # Spawn handlers for incoming and outgoing data
         self._receiving_handler = gevent.spawn(receiving_handler, self)
         self._sending_handler = gevent.spawn(sending_handler, self)
@@ -81,15 +81,18 @@ class CFDP(object):
         connected = False
         while not connected:
             try:
-                self._socket.bind(host)
-                ait.core.log.info('Connected to socket...')
+                ait.core.log.info('Trying to connect')
+                self._socket.connect(host)
+                ait.core.log.info('Connected to socket')
                 connected = True
+
             except socket.error as e:
+                print(e)
                 gevent.sleep(1)
 
     def disconnect(self):
         """Disconnect TC here"""
-        # self._socket.close()
+        self._socket.close()
         self._receiving_handler.kill()
         self._sending_handler.kill()
         self.mib.dump()
@@ -236,6 +239,21 @@ def read_pdus(instance):
         gevent.sleep(0.2)
 
 
+def read_pdus_from_socket(instance):
+    while True:
+        gevent.sleep(0)
+        try:
+            data, addr = instance._socket.recv(1024)
+            if data:
+                instance.incoming_pdu_queue.put(data)
+            else:
+                break
+        except Exception as e:
+            ait.core.log.warn("EXCEPTION: " + e.message)
+            ait.core.log.warn(traceback.format_exc())
+        gevent.sleep(0.2)
+
+
 def receiving_handler(instance):
     """Receives incoming PDUs on `incoming_pdu_queue` and routes them to the intended state machine instance
     """
@@ -332,6 +350,25 @@ def write_outgoing_pdu(pdu, pdu_filename=None, output_directory=None):
     # https://stackoverflow.com/questions/17349918/python-write-string-of-bytes-to-file
     # pdu_bytes is an array of integers that need to be converted to hex
     write_to_file(pdu_file_path, bytearray(pdu_bytes))
+
+
+def send_to_socket_handler(instance):
+    """ Handler to take PDUs from the outgoing queue and send over socket. """
+    while True:
+        gevent.sleep(0)
+        try:
+            pdu = instance.outgoing_pdu_queue.get(block=False)
+            pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
+            instance.pdu_counter += 1
+            ait.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))
+            instance._socket.send()
+            ait.core.log.debug('PDU transmitted: ' + str(pdu))
+        except gevent.queue.Empty:
+            pass
+        except Exception as e:
+            ait.core.log.warn('Sending handler exception: ' + e.message)
+            ait.core.log.warn(traceback.format_exc())
+        gevent.sleep(0.2)
 
 
 def sending_handler(instance):

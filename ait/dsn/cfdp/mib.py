@@ -146,7 +146,7 @@ class MIB(object):
             yaml.dump(self._local, mib_file, default_flow_style=False)
 
     def load(self, path=None):
-        """Write MIB to yaml"""
+        """Read MIB from yaml"""
         if path is None:
             path = self._path
 
