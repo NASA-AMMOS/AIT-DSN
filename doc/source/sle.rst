@@ -1,6 +1,7 @@
-Overview of SLE (Space Link Extension)
-======================================
+Overview of SLE
+===============
 
+CCSDS Space Link Extension (SLE) defines a standardized set of SLE Transfer Services that enable missions to send forward space link data units to a spacecraft and to receive return space link data units from a spacecraft.
 
 Downlink
 --------
@@ -21,4 +22,4 @@ Uplink
 
 Forward Communications Link Transmission Unit (F-CLTU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The SLE standard for F-CLTU is available online `here <https://public.ccsds.org/Pubs/912x1b4.pdf>`_. The Forward CLTU service is a SLE transfer service that enables a mission to send Communications Link Transmission Units (CLTUs) to a spacecraft. 
+The SLE standard for F-CLTU is available online `here <https://public.ccsds.org/Pubs/912x1b4.pdf>`_. The Forward CLTU service is a SLE transfer service that enables a mission to send Communications Link Transmission Units (CLTU) PDUs to a spacecraft. 
