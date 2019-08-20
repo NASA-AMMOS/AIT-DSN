@@ -6,12 +6,11 @@
 Welcome to AIT DSN's documentation!
 =====================================
 
-AIT DSN provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
-Extension interfaces. AIT DSN supports the following interfaces:
+AIT DSN provides APIs for connecting to the Deep Space Network (DSN) via the Space Link Extension interfaces. AIT DSN supports the following interfaces:
 
 - Return All Frames (RAF) interface
 - Return Channel Frames (RCF) interface
-- Forward Communications Link Transmission Unit (CLTU) interface
+- Forward Communications Link Transmission Unit (F-CLTU) interface
 - CCSDS File Delivery Protocol (CFDP) Class 1 interface
 
 Table of Contents:
@@ -22,7 +21,10 @@ Table of Contents:
    installation
    cfdp
    ait_cfdp
+   sle
+   ait_sle
    AIT DSN API Documentation <ait>
+
 
 
 Indices and tables
