@@ -45,13 +45,22 @@ class CFDP(object):
     incoming_pdu_queue = gevent.queue.Queue()
 
     def __init__(self, entity_id, *args, **kwargs):
+        """ Set kwarg file_sys=True to use file system instead of sockets for PDU transfer
+        """
+
         # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
         self._machines = {}
-        # temporary handler for getting pdus from directory and putting into incoming queue
-        self._read_pdu_handler = gevent.spawn(read_pdus_from_socket, self)
+
+        # set sending and receiving handlers depending on transfer method
+        if 'file_sys' in kwargs and kwargs.get('file_sys'):
+            self._read_pdu_handler = gevent.spawn(read_pdus_from_filesys, self)
+            self._sending_handler = gevent.spawn(send_to_filesys_handler, self)
+        else:
+            self._read_pdu_handler = gevent.spawn(read_pdus_from_socket, self)
+            self._sending_handler = gevent.spawn(send_to_socket_handler, self)
+
         # Spawn handlers for incoming and outgoing data
         self._receiving_handler = gevent.spawn(receiving_handler, self)
-        self._sending_handler = gevent.spawn(sending_handler, self)
         # cycle through transactions to progress state machines
         self._transaction_handler = gevent.spawn(transaction_handler, self)
 
@@ -73,26 +82,30 @@ class CFDP(object):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-    def connect(self, host):
-        """Connect with TC here"""
-        self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def connect(self, send_sock, rcv_sock):
+        """Connect with UDP here"""
+        self.send_sock, self.rcv_sock = send_sock, rcv_sock
+        self._rcvr_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sender_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        # Connect to localhost:8000 for now
+        # Bind to receiver socket (no bind to sender socket)
         connected = False
         while not connected:
+            ait.core.log.info('Attempting socket connection...')
             try:
-                ait.core.log.info('Trying to connect')
-                self._socket.connect(host)
-                ait.core.log.info('Connected to socket')
+                self._rcvr_socket.bind(self.rcv_sock)
                 connected = True
 
             except socket.error as e:
                 print(e)
                 gevent.sleep(1)
 
+        ait.core.log.info('Connected to socket')
+
     def disconnect(self):
         """Disconnect TC here"""
-        self._socket.close()
+        self._rcvr_socket.close()
+        self._sender_socket.close()
         self._receiving_handler.kill()
         self._sending_handler.kill()
         self.mib.dump()
@@ -212,7 +225,7 @@ class CFDP(object):
             machine.update_state(event=Event.RECEIVED_RESUME_REQUEST, request=request)
 
 
-def read_pdus(instance):
+def read_pdus_from_filesys(instance):
     """Read PDUs that have been written to file (in place of receiving over socket)
     """
     while True:
@@ -240,12 +253,19 @@ def read_pdus(instance):
 
 
 def read_pdus_from_socket(instance):
+    """ Read PDUs from a socket over UDP """
     while True:
         gevent.sleep(0)
         try:
-            data, addr = instance._socket.recv(1024)
-            if data:
-                instance.incoming_pdu_queue.put(data)
+            pdu_bytes, addr = instance._rcvr_socket.recvfrom(4096)
+            if pdu_bytes:
+                # create PDU from bytes received
+                pdu = read_incoming_pdu(pdu_bytes)
+                pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
+                # cache file so that we know we read it
+                instance.received_pdu_files.append(pdu_filename)
+                # add to incoming so that receiving handler can deal with it
+                instance.incoming_pdu_queue.put(pdu_bytes)
             else:
                 break
         except Exception as e:
@@ -284,7 +304,7 @@ def receiving_handler(instance):
                     machine.update_state(Event.RECEIVED_FILEDATA_PDU, pdu=pdu)
             elif pdu.header.pdu_type == Header.FILE_DIRECTIVE_PDU:
                 ait.core.log.debug('Received File Directive Pdu: ' + str(pdu.file_directive_code))
-                if pdu.file_directive_code  == FileDirective.METADATA:
+                if pdu.file_directive_code == FileDirective.METADATA:
                     # If machine doesn't exist, create a machine for this transaction
                     transmission_mode = pdu.header.transmission_mode
                     if machine is None:
@@ -296,7 +316,7 @@ def receiving_handler(instance):
                 elif pdu.file_directive_code == FileDirective.EOF:
                     if machine is None:
                         ait.core.log.info('Ignoring EOF for transaction that doesn\'t exist: {}'
-                                            .format(transaction_num))
+                                          .format(transaction_num))
                     else:
                         if pdu.condition_code == ConditionCode.CANCEL_REQUEST_RECEIVED:
                             machine.update_state(Event.RECEIVED_EOF_CANCEL_PDU, pdu=pdu)
@@ -304,7 +324,7 @@ def receiving_handler(instance):
                             ait.core.log.debug('Received EOF with checksum: {}'.format(pdu.file_checksum))
                             machine.update_state(Event.RECEIVED_EOF_NO_ERROR_PDU, pdu=pdu)
                         else:
-                            ait.core.log.warn('Received EOF with strang condition code: {}'.format(pdu.condition_code))
+                            ait.core.log.warn('Received EOF with strange condition code: {}'.format(pdu.condition_code))
         except gevent.queue.Empty:
             pass
         except Exception as e:
@@ -358,10 +378,9 @@ def send_to_socket_handler(instance):
         gevent.sleep(0)
         try:
             pdu = instance.outgoing_pdu_queue.get(block=False)
-            pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
             instance.pdu_counter += 1
             ait.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))
-            instance._socket.send()
+            instance._sender_socket.sendto(bytearray(pdu.to_bytes()), instance.send_sock)
             ait.core.log.debug('PDU transmitted: ' + str(pdu))
         except gevent.queue.Empty:
             pass
@@ -371,7 +390,7 @@ def send_to_socket_handler(instance):
         gevent.sleep(0.2)
 
 
-def sending_handler(instance):
+def send_to_filesys_handler(instance):
     """Handler to take PDUs from the outgoing queue and send. Currently writes PDUs to file.
     """
     while True:
