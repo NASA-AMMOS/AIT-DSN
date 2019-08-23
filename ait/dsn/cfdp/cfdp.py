@@ -82,9 +82,14 @@ class CFDP(object):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-    def connect(self, send_sock, rcv_sock):
+    def connect(self, send_sock, rcv_sock=None):
         """Connect with UDP here"""
-        self.send_sock, self.rcv_sock = send_sock, rcv_sock
+        if rcv_sock:
+            self.send_sock, self.rcv_sock = send_sock, rcv_sock
+        else:
+            # send & receive over same socket
+            self.send_sock, self.rcv_sock = send_sock, send_sock
+
         self._rcvr_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sender_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
