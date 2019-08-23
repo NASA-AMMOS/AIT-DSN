@@ -112,11 +112,12 @@ class CFDP(object):
         try:
             self._rcvr_socket.close()
             self._sender_socket.close()
-            self._receiving_handler.kill()
-            self._sending_handler.kill()
-            self.mib.dump()
         except Exception:
             pass
+
+        self._receiving_handler.kill()
+        self._sending_handler.kill()
+        self.mib.dump()
 
     def _increment_tx_counter(self):
         self.transaction_counter += 1
