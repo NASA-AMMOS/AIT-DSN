@@ -30,17 +30,20 @@ default:
 
     dsn:
         sle:
-            initiator_id: uname
+            initiator_id: LSE
+            # password only matters if we're doing auth and can stay as 'pw'
             password: pw
-            responder_id: uname
+            responder_id: SSE
+            # peer password only matters if we're doing auth and can stay as 'pw'
             peer_password: pw
             version: 5
             downlink_frame_type: TMTransFrame
-            heartbeat: heartbeat
-            deadfactor: deadfactor
-            buffer_size: buffer_size
-            responder_port: responder_port
-            auth_level: auth_level
+            heartbeat: 25
+            deadfactor: 5
+            buffer_size: 256000
+            responder_port: 'default'
+            auth_level: 'none'
+
         cfdp:
             mib:
                 path: ./mib
