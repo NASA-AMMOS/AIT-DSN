@@ -43,6 +43,8 @@ default:
             buffer_size: 256000
             responder_port: 'default'
             auth_level: 'none'
+            hostname: None
+            port: None
 
         cfdp:
             mib:
