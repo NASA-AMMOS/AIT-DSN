@@ -82,16 +82,18 @@ class CFDP(object):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-    def connect(self, send_sock, rcv_sock=None):
-        """Connect with UDP here"""
-        if rcv_sock:
-            self.send_sock, self.rcv_sock = send_sock, rcv_sock
-        else:
-            # send & receive over same socket
-            self.send_sock, self.rcv_sock = send_sock, send_sock
+    def connect(self, rcv_sock, send_sock=None):
+        """Connect with UDP here - only connect to socket for receiving if send socket is
+        no specified. """
 
+        # setup receive socket
+        self.rcv_sock = rcv_sock
         self._rcvr_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sender_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # setup send socket if specified
+        if send_sock:
+            self.send_sock = send_sock
+            self._sender_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # Bind to receiver socket (no bind to sender socket)
         connected = False
@@ -102,10 +104,10 @@ class CFDP(object):
                 connected = True
 
             except socket.error as e:
-                print(e)
+                ait.core.log.error('Error connecting to socket: {}'.format(e))
                 gevent.sleep(1)
 
-        ait.core.log.info('Connected to socket')
+        ait.core.log.info('Connected to receiving socket')
 
     def disconnect(self):
         """Disconnect TC here"""
