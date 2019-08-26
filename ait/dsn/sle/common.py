@@ -99,8 +99,10 @@ class SLE(object):
         ''''''
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                       kwargs.get('downlink_frame_type', 'TMTransFrame'))
-        self._hostname = kwargs.get('hostname', None)
-        self._port = kwargs.get('port', None)
+        self._hostname = ait.config.get('dsn.sle.hostname',
+                                        kwargs.get('hostname', None))
+        self._port = ait.config.get('dsn.sle.port',
+                                        kwargs.get('port', None))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
                                            kwargs.get('heartbeat', 25))
         self._deadfactor = ait.config.get('dsn.sle.deadfactor',
