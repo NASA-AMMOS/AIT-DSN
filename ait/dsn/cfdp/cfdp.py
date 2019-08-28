@@ -45,14 +45,20 @@ class CFDP(object):
     incoming_pdu_queue = gevent.queue.Queue()
 
     def __init__(self, entity_id, *args, **kwargs):
-        """ Set kwarg file_sys=True to use file system instead of sockets for PDU transfer
+        """
+        Initialize CFDP entity with specified entity ID.
+
+        Args
+            entity_id (int): unique entity identifier
+            **file_sys (bool): set to True to use file system instead of sockets for PDU transfer
         """
 
-        # State machines for current transactions (basically just transactions. Can be Class 1 or 2 sender or receiver
+        # State machines for current transactions (basically just transactions).
+        # Can be Class 1 or 2 sender or receiver
         self._machines = {}
 
         # set sending and receiving handlers depending on transfer method
-        if 'file_sys' in kwargs and kwargs.get('file_sys'):
+        if kwargs.get('file_sys', None):
             self._read_pdu_handler = gevent.spawn(read_pdus_from_filesys, self)
             self._sending_handler = gevent.spawn(send_to_filesys_handler, self)
         else:
@@ -82,35 +88,41 @@ class CFDP(object):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-    def connect(self, rcv_sock, send_sock=None):
-        """Connect with UDP here - only connect to socket for receiving if send socket is
-        no specified. """
+    def connect(self, rcv_host, send_host=None):
+        """
+        Connect to UDP sockets for sending and receiving PDUs. Will only connect to socket for
+        receiving if send socket is not specified.
+
+        Args
+            rcv_host (tuple): (hostname, port) to receive PDUs on.
+            send_host (Optional, tuple): (hostname, port) to send PDUs to, defaults to None.
+        """
 
         # setup receive socket
-        self.rcv_sock = rcv_sock
+        self.rcv_host = rcv_host
         self._rcvr_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # setup send socket if specified
-        if send_sock:
-            self.send_sock = send_sock
+        if send_host:
+            self.send_host = send_host
             self._sender_socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # Bind to receiver socket (no bind to sender socket)
         connected = False
         while not connected:
-            ait.core.log.info('Attempting socket connection...')
+            ait.core.log.info('Attempting CFDP socket connection...')
             try:
-                self._rcvr_socket.bind(self.rcv_sock)
+                self._rcvr_socket.bind(self.rcv_host)
                 connected = True
 
             except socket.error as e:
-                ait.core.log.error('Error connecting to socket: {}'.format(e))
+                ait.core.log.error('Error connecting to CFDP receive socket: {}'.format(e))
                 gevent.sleep(1)
 
-        ait.core.log.info('Connected to receiving socket')
+        ait.core.log.info('Connected to CFDP receiving socket')
 
     def disconnect(self):
-        """Disconnect TC here"""
+        """Close sockets, kill handlers, dump MIB"""
         try:
             self._rcvr_socket.close()
             self._sender_socket.close()
@@ -272,7 +284,9 @@ def read_pdus_from_socket(instance):
             if pdu_bytes:
                 # create PDU from bytes received
                 pdu = read_incoming_pdu(pdu_bytes)
-                pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id, pdu.header.transaction_id, instance.pdu_counter)
+                pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id,
+                                                                pdu.header.transaction_id,
+                                                                instance.pdu_counter)
                 # cache file so that we know we read it
                 instance.received_pdu_files.append(pdu_filename)
                 # add to incoming so that receiving handler can deal with it
@@ -391,7 +405,7 @@ def send_to_socket_handler(instance):
             pdu = instance.outgoing_pdu_queue.get(block=False)
             instance.pdu_counter += 1
             ait.core.log.debug('Got PDU from outgoing queue: ' + str(pdu))
-            instance._sender_socket.sendto(bytearray(pdu.to_bytes()), instance.send_sock)
+            instance._sender_socket.sendto(bytearray(pdu.to_bytes()), instance.send_host)
             ait.core.log.debug('PDU transmitted: ' + str(pdu))
         except gevent.queue.Empty:
             pass

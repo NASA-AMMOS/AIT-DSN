@@ -25,7 +25,7 @@ import ait.core.log
 if __name__ == '__main__':
     cfdp = ait.dsn.cfdp.CFDP(1)
     try:
-        cfdp.connect(('localhost', 8003), send_sock=('localhost', 8002))
+        cfdp.connect(('localhost', 8003), send_host=('localhost', 8002))
         # Set address of counterpart
         # cfdp.mib.set_remote('2', 'ut_address', ('127.0.0.1', 9002))
 
