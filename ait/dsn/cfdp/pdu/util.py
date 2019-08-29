@@ -18,6 +18,35 @@ from eof import EOF
 from filedata import FileData
 from header import Header
 from ait.dsn.cfdp.primitives import FileDirective
+import ait.core
+import ait.core.log
+
+
+def split_multiple_pdu_byte_array(pdu_bytes):
+    """
+    Splits single byte array list into list of multiple byte array lists
+    corresponding to individual PDUs.
+    """
+    pdus_list = []
+    pdu_start_index = 0
+    while pdu_bytes:
+        try:
+            # get header, it will ignore extra bytes that do not belong to header
+            header = Header.to_object(pdu_bytes)
+            pdu_length = header.header_length + header.pdu_data_field_length
+            # append list of only relevant bytes
+            pdus_list.append(pdu_bytes[pdu_start_index:pdu_start_index + pdu_length])
+            # set starting point for next PDU
+            pdu_start_index = pdu_start_index + pdu_length
+            # discard already used bytes
+            pdu_bytes = pdu_bytes[pdu_start_index:]
+        except Exception as e:
+            ait.core.log.info('Unexpected error during CFDP PDU decoding. '
+                              'Returning current PDU byte array list. \n {}'.format(e))
+            return pdus_list
+
+    return pdus_list
+
 
 def make_pdu_from_bytes(pdu_bytes):
     """

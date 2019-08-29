@@ -24,7 +24,7 @@ import gevent.socket
 from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.machines import Receiver1, Sender1
 from ait.dsn.cfdp.mib import MIB
-from ait.dsn.cfdp.pdu import make_pdu_from_bytes, Header
+from ait.dsn.cfdp.pdu import make_pdu_from_bytes, split_multiple_pdu_byte_array, Header
 from ait.dsn.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, ConditionCode
 from ait.dsn.cfdp.request import create_request_from_type
 from ait.dsn.cfdp.util import write_to_file
@@ -279,17 +279,19 @@ def read_pdus_from_socket(instance):
     while True:
         gevent.sleep(0)
         try:
-            pdu_bytes, addr = instance._rcvr_socket.recvfrom(4096)
-            if pdu_bytes:
-                # create PDU from bytes received
-                pdu = read_incoming_pdu(pdu_bytes)
-                pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id,
-                                                                pdu.header.transaction_id,
-                                                                instance.pdu_counter)
-                # cache file so that we know we read it
-                instance.received_pdu_files.append(pdu_filename)
-                # add to incoming so that receiving handler can deal with it
-                instance.incoming_pdu_queue.put(pdu_bytes)
+            all_bytes, addr = instance._rcvr_socket.recvfrom(4096)
+            if all_bytes:
+                # create PDUs from bytes received
+                all_bytes = [b for b in bytearray(all_bytes)]
+                for pdu_bytes in split_multiple_pdu_byte_array(all_bytes):
+                    pdu = make_pdu_from_bytes(pdu_bytes)
+                    pdu_filename = 'entity{0}_tx{1}_{2}.pdu'.format(pdu.header.destination_entity_id,
+                                                                    pdu.header.transaction_id,
+                                                                    instance.pdu_counter)
+                    # cache file so that we know we read it
+                    instance.received_pdu_files.append(pdu_filename)
+                    # add to incoming so that receiving handler can deal with it
+                    instance.incoming_pdu_queue.put(pdu_bytes)
             else:
                 break
         except Exception as e:
