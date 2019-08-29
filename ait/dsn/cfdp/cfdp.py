@@ -272,7 +272,6 @@ def read_pdus_from_filesys(instance):
         except Exception as e:
             ait.core.log.warn("EXCEPTION: " + e.message)
             ait.core.log.warn(traceback.format_exc())
-        gevent.sleep(0.2)
 
 
 def read_pdus_from_socket(instance):
@@ -296,7 +295,6 @@ def read_pdus_from_socket(instance):
         except Exception as e:
             ait.core.log.warn("EXCEPTION: " + e.message)
             ait.core.log.warn(traceback.format_exc())
-        gevent.sleep(0.2)
 
 
 def receiving_handler(instance):
