@@ -57,7 +57,7 @@ import time
 import ait.dsn.sle
 
 rcf_mngr = ait.dsn.sle.RCF(
-    hostname='atb-ocio-sspsim.jpl.nasa.gov',
+    hostnames=['atb-ocio-sspsim.jpl.nasa.gov'],
     port=5100,
     inst_id='sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2',
     spacecraft_id=250,

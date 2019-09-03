@@ -23,7 +23,7 @@ import time
 
 import ait.dsn.sle
 
-cltu_mngr = ait.dsn.sle.CLTU(hostname="INSERT FCLTU HOSTNAME", port="INSERT FCLTU PORT", inst_id="INSERT FCLTU INST_ID")
+cltu_mngr = ait.dsn.sle.CLTU(hostnames=["INSERT FCLTU HOSTNAME"], port="INSERT FCLTU PORT", inst_id="INSERT FCLTU INST_ID")
 
 cltu_mngr.connect()
 time.sleep(2)
