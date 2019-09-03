@@ -8,7 +8,7 @@ Configuration
 
 The necessary configuration parameters for all protocols can be added to the **config.yaml**. Optionally, many of them can also be passed in at runtime for greater flexibility. Below is an example configuration which can be used as a reference, in addition to the default configuration available in the repository.
 
-AIT will attempt connection to all of the provided hostnames and use whichver successfully connects first.
+AIT will attempt connection to all of the provided hostnames and use whichever successfully connects first.
 
 .. code-block:: yaml
 
