@@ -43,10 +43,24 @@ default:
             buffer_size: 256000
             responder_port: 'default'
             auth_level: 'none'
-            hostnames:
-                - example.hostname.1
-                - example.hostname.2
-            port: None
+            rcf:
+                inst_id: sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: None
+            raf:
+                inst_id: None
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: None
+            fcltu:
+                inst_id: None
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: None
 
         cfdp:
             mib:

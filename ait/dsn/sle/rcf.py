@@ -95,6 +95,13 @@ class RCF(common.SLE):
     # TODO: Add error checking for actions based on current state
 
     def __init__(self, *args, **kwargs):
+        self._inst_id = ait.config.get('dsn.sle.rcf.inst_id',
+                                       kwargs.get('inst_id', None))
+        self._hostnames = ait.config.get('dsn.sle.rcf.hostnames',
+                                         kwargs.get('hostnames', None))
+        self._port = ait.config.get('dsn.sle.rcf.port',
+                                    kwargs.get('port', None))
+
         super(self.__class__, self).__init__(*args, **kwargs)
         self._service_type = 'rtnChFrames'
         self._version = kwargs.get('version', 5)

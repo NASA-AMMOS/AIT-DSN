@@ -54,7 +54,7 @@ class RAF(common.SLE):
     RafUnbindReturn
         Response back from the provider after a unbind request has been
         sent to the interface.
-        
+
     RafStartReturn
         Response back from the provider after a start data request has been
         sent to the interface.
@@ -93,6 +93,13 @@ class RAF(common.SLE):
     # TODO: Add error checking for actions based on current state
 
     def __init__(self, *args, **kwargs):
+        self._inst_id = ait.config.get('dsn.sle.raf.inst_id',
+                                       kwargs.get('inst_id', None))
+        self._hostnames = ait.config.get('dsn.sle.raf.hostnames',
+                                         kwargs.get('hostnames', None))
+        self._port = ait.config.get('dsn.sle.raf.port',
+                                    kwargs.get('port', None))
+
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'rtnAllFrames'

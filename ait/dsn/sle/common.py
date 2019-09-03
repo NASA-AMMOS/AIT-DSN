@@ -83,6 +83,7 @@ TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
 
 CCSDS_EPOCH = dt.datetime(1958, 1, 1)
 
+
 class SLE(object):
     ''' SLE interface "base" class
 
@@ -98,30 +99,25 @@ class SLE(object):
     def __init__(self, *args, **kwargs):
         ''''''
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
-                                      kwargs.get('downlink_frame_type', 'TMTransFrame'))
-        self._hostnames = ait.config.get('dsn.sle.hostnames',
-                                        kwargs.get('hostnames', None))
-        self._port = ait.config.get('dsn.sle.port',
-                                        kwargs.get('port', None))
+                                                   kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
-                                           kwargs.get('heartbeat', 25))
+                                         kwargs.get('heartbeat', 25))
         self._deadfactor = ait.config.get('dsn.sle.deadfactor',
-                                            kwargs.get('deadfactor', 5))
+                                          kwargs.get('deadfactor', 5))
         self._buffer_size = ait.config.get('dsn.sle.buffer_size',
-                                             kwargs.get('buffer_size', 256000))
+                                           kwargs.get('buffer_size', 256000))
         self._initiator_id = ait.config.get('dsn.sle.initiator_id',
-                                              kwargs.get('initiator_id', 'LSE'))
+                                            kwargs.get('initiator_id', 'LSE'))
         self._responder_id = ait.config.get('dsn.sle.responder_id',
-                                              kwargs.get('responder_id', 'SSE'))
+                                            kwargs.get('responder_id', 'SSE'))
         self._password = ait.config.get('dsn.sle.password', None)
         self._peer_password = ait.config.get('dsn.sle.peer_password',
-                                               kwargs.get('peer_password', None))
+                                             kwargs.get('peer_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
-                                               kwargs.get('responder_port', 'default'))
+                                              kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._inst_id = kwargs.get('inst_id', None)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
-                                               kwargs.get('auth_level', 'none'))
+                                          kwargs.get('auth_level', 'none'))
 
         if not self._hostnames or not self._port:
             msg = 'Connection configuration missing hostnames ({}) or port ({})'

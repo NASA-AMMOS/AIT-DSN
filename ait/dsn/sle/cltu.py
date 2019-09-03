@@ -95,13 +95,21 @@ class CLTU(common.SLE):
         been accepted or rejected, but not if the actions associated with the
         event have been performed successfully. The provider will invoke a
         CLTU-ASYNC-NOTIFY operation to inform the user on the outcome of the
-        actions triggered by the event. 
+        actions triggered by the event.
     '''
     # TODO: Add error checking for actions based on current state
     _cltu_id = 0
     event_invoc_id = 0
 
     def __init__(self, *args, **kwargs):
+        self._inst_id = ait.config.get('dsn.sle.fcltu.inst_id',
+                                       kwargs.get('inst_id', None))
+        self._hostnames = ait.config.get('dsn.sle.fcltu.hostnames',
+                                         kwargs.get('hostnames', None))
+        ait.core.log.info(ait.config.get('dsn.sle.fcltu.port'))
+        self._port = ait.config.get('dsn.sle.fcltu.port',
+                                    kwargs.get('port', None))
+
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'fwdCltu'
