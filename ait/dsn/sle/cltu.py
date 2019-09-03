@@ -106,7 +106,6 @@ class CLTU(common.SLE):
                                        kwargs.get('inst_id', None))
         self._hostnames = ait.config.get('dsn.sle.fcltu.hostnames',
                                          kwargs.get('hostnames', None))
-        ait.core.log.info(ait.config.get('dsn.sle.fcltu.port'))
         self._port = ait.config.get('dsn.sle.fcltu.port',
                                     kwargs.get('port', None))
 
