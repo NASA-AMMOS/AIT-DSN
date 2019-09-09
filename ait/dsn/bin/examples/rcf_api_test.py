@@ -56,6 +56,7 @@ import time
 
 import ait.dsn.sle
 
+# runtime parameters will override config file defaults
 rcf_mngr = ait.dsn.sle.RCF(
     hostname='atb-ocio-sspsim.jpl.nasa.gov',
     port=5100,

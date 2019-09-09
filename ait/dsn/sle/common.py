@@ -83,6 +83,7 @@ TML_CONTEXT_HEARTBEAT_TYPE = 0x03000000
 
 CCSDS_EPOCH = dt.datetime(1958, 1, 1)
 
+
 class SLE(object):
     ''' SLE interface "base" class
 
@@ -98,34 +99,29 @@ class SLE(object):
     def __init__(self, *args, **kwargs):
         ''''''
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
-                                      kwargs.get('downlink_frame_type', 'TMTransFrame'))
-        self._hostname = ait.config.get('dsn.sle.hostname',
-                                        kwargs.get('hostname', None))
-        self._port = ait.config.get('dsn.sle.port',
-                                        kwargs.get('port', None))
+                                                   kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
-                                           kwargs.get('heartbeat', 25))
+                                         kwargs.get('heartbeat', 25))
         self._deadfactor = ait.config.get('dsn.sle.deadfactor',
-                                            kwargs.get('deadfactor', 5))
+                                          kwargs.get('deadfactor', 5))
         self._buffer_size = ait.config.get('dsn.sle.buffer_size',
-                                             kwargs.get('buffer_size', 256000))
+                                           kwargs.get('buffer_size', 256000))
         self._initiator_id = ait.config.get('dsn.sle.initiator_id',
-                                              kwargs.get('initiator_id', 'LSE'))
+                                            kwargs.get('initiator_id', 'LSE'))
         self._responder_id = ait.config.get('dsn.sle.responder_id',
-                                              kwargs.get('responder_id', 'SSE'))
+                                            kwargs.get('responder_id', 'SSE'))
         self._password = ait.config.get('dsn.sle.password', None)
         self._peer_password = ait.config.get('dsn.sle.peer_password',
-                                               kwargs.get('peer_password', None))
+                                             kwargs.get('peer_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
-                                               kwargs.get('responder_port', 'default'))
+                                              kwargs.get('responder_port', 'default'))
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._inst_id = kwargs.get('inst_id', None)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
-                                               kwargs.get('auth_level', 'none'))
+                                          kwargs.get('auth_level', 'none'))
 
-        if not self._hostname or not self._port:
-            msg = 'Connection configuration missing hostname ({}) or port ({})'
-            msg = msg.format(self._hostname, self._port)
+        if not self._hostnames or not self._port:
+            msg = 'Connection configuration missing hostnames ({}) or port ({})'
+            msg = msg.format(self._hostnames, self._port)
             ait.core.log.error(msg)
             raise ValueError(msg)
 
@@ -166,7 +162,7 @@ class SLE(object):
 
     def send(self, data):
         ''' Send supplied data to DSN '''
-        try:           
+        try:
             self._socket.send(data)
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
@@ -271,24 +267,31 @@ class SLE(object):
             pdu['invokerCredentials']['unused'] = None
 
         pdu['unbindReason'] = reason
-              
+
         ait.core.log.info('Sending Unbind request ...')
         self.send(self.encode_pdu(pdu))
 
     def connect(self):
-        ''' Setup connection with DSN 
-        
+        ''' Setup connection with DSN
+
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
         self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        try:
-            self._socket.connect((self._hostname, self._port))
-            ait.core.log.info('Connection to DSN Successful')
-        except socket.error as e:
+        connected = False
+        for hostname in self._hostnames:
+            try:
+                self._socket.connect((hostname, self._port))
+                ait.core.log.info('Connection to DSN successful through {}.'.format(hostname))
+                connected = True
+                break
+            except socket.error as e:
+                ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
+
+        if not connected:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
-            raise e
+            raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         context_msg = struct.pack(
             TML_CONTEXT_MSG_FORMAT,
@@ -300,13 +303,13 @@ class SLE(object):
             self._deadfactor
         )
 
-        ait.core.log.info('Configuring SLE connection')
+        ait.core.log.info('Configuring SLE connection...')
 
         try:
             self.send(context_msg)
-            ait.core.log.info('Connection configuration successful')
+            ait.core.log.info('SLE connection configuration successful')
         except socket.error as e:
-            ait.core.log.error('Connection configuration failed. Aborting ...')
+            ait.core.log.error('SLE connection configuration failed. Aborting ...')
             raise e
 
     def disconnect(self):
@@ -337,7 +340,6 @@ class SLE(object):
 
         ait.core.log.info('Sending data stop invocation ...')
         self.send(self.encode_pdu(pdu))
-    
 
     def _need_heartbeat(self, time_delta):
         ''''''

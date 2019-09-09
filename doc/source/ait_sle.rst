@@ -3,6 +3,48 @@ AIT SLE User Guide
 
 This user guide for AIT's SLE implementation assumes some familiarity with the SLE standards for `RAF <https://public.ccsds.org/Pubs/911x1b4.pdf>`_, `RCF <https://public.ccsds.org/Pubs/911x2b3.pdf>`_, and `F-CLTU <https://public.ccsds.org/Pubs/912x1b4.pdf>`_. An overview of these specs can be found in the AIT docs `here <https://ait-core.readthedocs.io/en/master/sle.html>`_. 
 
+Configuration
+^^^^^^^^^^^^^
+
+The necessary configuration parameters for all protocols can be added to the **config.yaml**. Optionally, many of them can also be passed in at runtime for greater flexibility. Below is an example configuration which can be used as a reference, in addition to the default configuration available in the repository.
+
+AIT will attempt connection to all of the provided hostnames and use whichever successfully connects first.
+
+.. code-block:: yaml
+
+    dsn:
+        sle:
+            initiator_id: LSE
+            password: lse_pw
+            responder_id: SSE
+            peer_password: sse_pw
+            version: 5
+            downlink_frame_type: TMTransFrame
+            heartbeat: 25
+            deadfactor: 5
+            buffer_size: 256000
+            responder_port: 'default'
+            auth_level: 'none'
+            rcf:
+                inst_id: sagr=LSE-SSC.spack=Test.rsl-fg=1.rcf=onlc2
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: 5111
+            raf:
+                inst_id: None
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: None
+            fcltu:
+                inst_id: None
+                hostnames:
+                    - example.hostname.1
+                    - example.hostname.2
+                port: None
+
+
 Downlink (RAF and RCF) 
 ^^^^^^^^^^^^^^^^^^^^^^
 

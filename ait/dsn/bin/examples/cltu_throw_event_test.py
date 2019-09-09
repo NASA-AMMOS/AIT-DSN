@@ -43,7 +43,7 @@ import time
 import ait.dsn.sle
 
 cltu_mngr = ait.dsn.sle.CLTU(
-    hostname='atb-ocio-sspsim.jpl.nasa.gov',
+    hostnames=['atb-ocio-sspsim.jpl.nasa.gov'],
     port=5100,
     inst_id='sagr=LSE-SSC.spack=Test.fsl-fg=1.cltu=cltu1',
     auth_level="none"
