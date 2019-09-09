@@ -81,6 +81,7 @@ class Header(object):
         self.destination_entity_id = kwargs.get('destination_entity_id', None)
         self.entity_ids_length = kwargs.get('entity_ids_length', None)
         self.transaction_id_length = kwargs.get('transaction_id_length', None)
+        self.header_length = kwargs.get('header_length', None)
 
     def __copy__(self):
         newone = type(self)()
@@ -292,10 +293,11 @@ class Header(object):
             direction=direction,
             transmission_mode=transmission_mode,
             crc_flag=crc_flag,
+            header_length=expected_length,
             pdu_data_field_length=pdu_data_length,
             source_entity_id=source_entity_id,
             transaction_id=transaction_id,
             destination_entity_id=destination_entity_id,
-            entity_ids_length = entity_ids_length,
-            transaction_id_length = transaction_id_length
+            entity_ids_length=entity_ids_length,
+            transaction_id_length=transaction_id_length
         )
