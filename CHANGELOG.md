@@ -1,5 +1,51 @@
 # Change Log
 
+## [1.1.0](https://github.com/NASA-AMMOS/AIT-DSN/tree/1.1.0) (2019-10-10)
+[Full Changelog](https://github.com/NASA-AMMOS/AIT-DSN/compare/1.1.0_alpha...1.1.0)
+
+**Closed issues:**
+
+- Default SLE config parameters should be functional / provide sane defaults [\#77](https://github.com/NASA-AMMOS/AIT-DSN/issues/77)
+- Hostname / Port configuration options [\#76](https://github.com/NASA-AMMOS/AIT-DSN/issues/76)
+- Transfer frame instantiation in RAF [\#74](https://github.com/NASA-AMMOS/AIT-DSN/issues/74)
+- Add communication through sockets to CFDP implementation [\#73](https://github.com/NASA-AMMOS/AIT-DSN/issues/73)
+- Add SLE docs [\#71](https://github.com/NASA-AMMOS/AIT-DSN/issues/71)
+- Remove unused configuration files [\#67](https://github.com/NASA-AMMOS/AIT-DSN/issues/67)
+- Add method for saving encoded CLTU to file [\#66](https://github.com/NASA-AMMOS/AIT-DSN/issues/66)
+- Specify multiple DSN hostnames; connect to active one [\#64](https://github.com/NASA-AMMOS/AIT-DSN/issues/64)
+- RCF status report invocation handler is not generating report properly [\#63](https://github.com/NASA-AMMOS/AIT-DSN/issues/63)
+- RAF/RCF start/end times should accept null values per spec [\#62](https://github.com/NASA-AMMOS/AIT-DSN/issues/62)
+- Common SLE class socket close bug [\#61](https://github.com/NASA-AMMOS/AIT-DSN/issues/61)
+- Document and run current CFDP implementation  [\#58](https://github.com/NASA-AMMOS/AIT-DSN/issues/58)
+- CFDP Class 2 Implementation [\#52](https://github.com/NASA-AMMOS/AIT-DSN/issues/52)
+- Move RAF/RCF/CLTU handlers into SLE base class [\#7](https://github.com/NASA-AMMOS/AIT-DSN/issues/7)
+
+**Merged pull requests:**
+
+- Issue \#64 - Attempt SLE connection to multiple hostnames [\#86](https://github.com/NASA-AMMOS/AIT-DSN/pull/86) ([aywaldron](https://github.com/aywaldron))
+- Issue 76 - add option to pull hostname / port from config [\#83](https://github.com/NASA-AMMOS/AIT-DSN/pull/83) ([Futabay](https://github.com/Futabay))
+- Issue \#77 - Update SLE config parameters [\#82](https://github.com/NASA-AMMOS/AIT-DSN/pull/82) ([Futabay](https://github.com/Futabay))
+- Issue \#73 - CFDP send/receive over UDP socket connection [\#81](https://github.com/NASA-AMMOS/AIT-DSN/pull/81) ([aywaldron](https://github.com/aywaldron))
+- Issue \#71 - Add SLE documentation [\#80](https://github.com/NASA-AMMOS/AIT-DSN/pull/80) ([aywaldron](https://github.com/aywaldron))
+- Fix issue \#74 [\#75](https://github.com/NASA-AMMOS/AIT-DSN/pull/75) ([kmarwah](https://github.com/kmarwah))
+- Issue \#58 - CFDP documentation [\#72](https://github.com/NASA-AMMOS/AIT-DSN/pull/72) ([aywaldron](https://github.com/aywaldron))
+- Issue \#66 - Add save-to-file method to CLTU [\#70](https://github.com/NASA-AMMOS/AIT-DSN/pull/70) ([aywaldron](https://github.com/aywaldron))
+- Issue \#67 - Remove unused SLE transfer frame definition yamls [\#68](https://github.com/NASA-AMMOS/AIT-DSN/pull/68) ([aywaldron](https://github.com/aywaldron))
+- Bugfixes [\#55](https://github.com/NASA-AMMOS/AIT-DSN/pull/55) ([FabianBurger](https://github.com/FabianBurger))
+
+## [1.1.0_alpha](https://github.com/NASA-AMMOS/AIT-DSN/tree/1.1.0_alpha) (2019-03-14)
+[Full Changelog](https://github.com/NASA-AMMOS/AIT-DSN/compare/1.0.0...1.1.0_alpha)
+
+**Closed issues:**
+
+- Class 2 Receiver NAK procedures [\#48](https://github.com/NASA-AMMOS/AIT-DSN/issues/48)
+- Push DSN build to PyPi [\#12](https://github.com/NASA-AMMOS/AIT-DSN/issues/12)
+
+**Merged pull requests:**
+
+- CFDP Class 2 NAK procedures [\#53](https://github.com/NASA-AMMOS/AIT-DSN/pull/53) ([lorsposto](https://github.com/lorsposto))
+- Issue 83 in AIT-CORE: Baseline example configs across repos [\#51](https://github.com/NASA-AMMOS/AIT-DSN/pull/51) ([aywaldron](https://github.com/aywaldron))
+
 ## [1.0.0](https://github.com/NASA-AMMOS/AIT-DSN/tree/1.0.0) (2018-07-10)
 **Closed issues:**
 
