@@ -13,8 +13,8 @@
 # information to foreign countries or providing access to foreign persons.
 
 
-from md import Metadata
-from eof import EOF
-from filedata import FileData
-from header import Header
-from util import make_pdu_from_bytes, split_multiple_pdu_byte_array
+from .md import Metadata
+from .eof import EOF
+from .filedata import FileData
+from .header import Header
+from .util import make_pdu_from_bytes, split_multiple_pdu_byte_array

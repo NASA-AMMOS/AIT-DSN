@@ -14,7 +14,7 @@
 
 import os
 import unittest
-import mock
+from unittest import mock
 
 import ait.core
 from ait.dsn.cfdp.cfdp import CFDP

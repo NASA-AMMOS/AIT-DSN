@@ -28,7 +28,7 @@ from ait.dsn.cfdp.pdu import make_pdu_from_bytes, split_multiple_pdu_byte_array,
 from ait.dsn.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, ConditionCode
 from ait.dsn.cfdp.request import create_request_from_type
 from ait.dsn.cfdp.util import write_to_file
-from exceptions import InvalidTransaction
+from .exceptions import InvalidTransaction
 
 import ait.core
 import ait.core.log

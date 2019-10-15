@@ -16,7 +16,7 @@ import os
 import copy
 import yaml
 from collections import defaultdict
-from primitives import HandlerCode, TransmissionMode
+from .primitives import HandlerCode, TransmissionMode
 
 import ait.core
 import ait.core.log

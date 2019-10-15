@@ -20,7 +20,7 @@ from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.primitives import ConditionCode, IndicationType, DeliveryCode
 from ait.dsn.cfdp.timer import Timer
 from ait.dsn.cfdp.util import write_to_file, calc_checksum
-from machine import Machine
+from .machine import Machine
 
 import ait.core
 import ait.core.log
