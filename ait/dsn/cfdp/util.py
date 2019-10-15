@@ -35,6 +35,8 @@ def string_to_bytes(value):
         value:
             string value to be converted to list of bytes
     """
+    if isinstance(value, str):
+        return list(bytearray(value, 'utf-8'))
     return list(bytearray(value))
 
 def bytes_to_string(data_bytes):
@@ -45,7 +47,7 @@ def bytes_to_string(data_bytes):
             list of bytes to be converted to a string
     """
     hex_values = [format(b, '>02x') for b in data_bytes]
-    str_values = [binascii.unhexlify(b) for b in hex_values]
+    str_values = [binascii.unhexlify(b).decode('utf-8') for b in hex_values]
     return ''.join(str_values)
 
 
