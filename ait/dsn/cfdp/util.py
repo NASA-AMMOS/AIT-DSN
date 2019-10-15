@@ -35,10 +35,7 @@ def string_to_bytes(value):
         value:
             string value to be converted to list of bytes
     """
-    value = str(value)
-    bytes_list = [int(binascii.hexlify(c), 16) for c in value]
-    return bytes_list
-
+    return list(bytearray(value))
 
 def bytes_to_string(data_bytes):
     """Converts list of bytes to a string

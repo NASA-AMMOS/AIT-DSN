@@ -156,7 +156,7 @@ class MIB(object):
             return
 
         with open(local_file_path, 'r') as mib_file:
-            self._local = yaml.load(mib_file)
+            self._local = yaml.load(mib_file, Loader=yaml.Loader)
 
         # TODO load to defaultdict
         # remote_file_path = os.path.join(path, 'remote_{}.yaml'.format(self.local_entity_id))

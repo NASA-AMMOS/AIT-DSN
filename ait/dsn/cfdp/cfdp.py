@@ -84,7 +84,7 @@ class CFDP(object):
         self._data_paths['tempfiles'] = ait.config.get('dsn.cfdp.datasink.tempfiles.path')
 
         # create needed paths if they don't exist
-        for name, path in self._data_paths.iteritems():
+        for name, path in self._data_paths.items():
             if not os.path.exists(path):
                 os.makedirs(path)
 
