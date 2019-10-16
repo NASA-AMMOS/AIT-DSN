@@ -295,7 +295,7 @@ def read_pdus_from_socket(instance):
             else:
                 break
         except Exception as e:
-            ait.core.log.warn("EXCEPTION: " + e.message)
+            ait.core.log.warn("EXCEPTION: " + str(e))
             ait.core.log.warn(traceback.format_exc())
 
 

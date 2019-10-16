@@ -113,7 +113,7 @@ class Receiver1(Machine):
                     )
                     self.temp_path = temp_file_path
                     try:
-                        self.temp_file = open(temp_file_path, 'wb')
+                        self.temp_file = open(temp_file_path, 'wt')
                     except IOError:
                         ait.core.log.error('Receiver {0} -- could not open file: {1}'
                                       .format(self.transaction.entity_id, temp_file_path))
@@ -193,7 +193,7 @@ class Receiver1(Machine):
                     # Check that temp file is still open
                     if self.temp_file is None or self.temp_file.closed:
                         try:
-                            self.temp_file = open(self.temp_path, 'wb')
+                            self.temp_file = open(self.temp_path, 'wt')
                         except IOError:
                             ait.core.log.error('Receiver {0} -- could not open file: {1}'
                                           .format(self.transaction.entity_id, self.temp_path))
