@@ -42,6 +42,7 @@ import fcntl
 import os
 import errno
 import time
+import sys
 
 from pyasn1.type import univ, char, namedtype, namedval, tag, constraint, useful
 from pyasn1.codec.ber.encoder import encode
@@ -84,7 +85,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(proxy)
 fcntl.fcntl(s, fcntl.F_SETFL, os.O_NONBLOCK)
 
-print "Sending TML Context Message ..."
+print('Sending TML Context Message ...')
 s.send(TML_CONTEXT_MSG)
 
 ###############################################################################
@@ -122,7 +123,7 @@ TML_SLE_MSG = struct.pack(
         len(en),
 ) + en
 
-print "Sending Bind Invocation PDU ..."
+print('Sending Bind Invocation PDU ...')
 s.send(TML_SLE_MSG)
 
 
@@ -165,16 +166,16 @@ s.send(TML_SLE_MSG)
 while True:
     try:
         msg = s.recv(buffer_size)
-    except socket.error, e:
+    except socket.error as e:
         err = e.args[0]
         if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
             # time.sleep(1)
-            print 'No data available'
+            print('No data available')
             continue
         else:
             # a "real" error occurred
-            print e
+            print(str(e))
             sys.exit(1)
     else:
-        print '--------------'
-        print hexdump(msg)
+        print('--------------')
+        print(hexdump(msg))

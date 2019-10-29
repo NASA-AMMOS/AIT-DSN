@@ -70,25 +70,25 @@ buffer_size = 256000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(proxy)
 time.sleep(5)
-print 'Sending Context Msg'
+print('Sending Context Msg')
 s.send(TML_CONTEXT_MSG)
 
-print "Beginning Heart Beat Iterations"
+print('Beginning Heart Beat Iterations')
 for i in range(50):
-    print '-----------------'
-    print "Iteration: ", i
+    print('-----------------')
+    print('Iteration: ', i)
     # print 'reading'
     # print s.recv(buffer_size)
     # print 'sleeping 1 second'
     time.sleep(1)
-    print 'Sending Heartbeat'
+    print('Sending Heartbeat')
     s.send(TML_CONTEXT_HB_MSG)
 
 
-print 'Sleeping 25 seconds ... (5 second Heartbeat time * 5 Dead Factor == 25 seconds )'
+print('Sleeping 25 seconds ... (5 second Heartbeat time * 5 Dead Factor == 25 seconds )')
 time.sleep(25)
-print "SSPSim should have disconnected you in the logs ..."
-print 'Sleeping 60 seconds'
+print('SSPSim should have disconnected you in the logs ...')
+print('Sleeping 60 seconds')
 time.sleep(60)
-print 'Closing socket'
+print('Closing socket')
 s.close()
