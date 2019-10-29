@@ -70,7 +70,7 @@ import ait.core.log
 from ait.dsn.sle.pdu import service_instance
 from ait.dsn.sle.pdu.service_instance import *
 from ait.dsn.sle.pdu.common import HashInput, ISP1Credentials
-import util
+import ait.dsn.sle.util as util
 
 TML_SLE_FORMAT = '!ii'
 TML_SLE_TYPE = 0x01000000

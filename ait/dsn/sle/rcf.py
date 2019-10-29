@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 
 # Advanced Multi-Mission Operations System (AMMOS) Instrument Toolkit (AIT)
 # Bespoke Link to Instruments and Small Satellites (BLISS)
@@ -27,8 +27,8 @@ import struct
 
 import ait.core.log
 
-import common
-import frames
+import ait.dsn.sle.common as common
+import ait.dsn.sle.frames as frames
 from ait.dsn.sle.pdu.rcf import *
 from ait.dsn.sle.pdu import rcf
 

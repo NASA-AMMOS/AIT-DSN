@@ -25,8 +25,8 @@ import struct
 
 import ait.core.log
 
-import common
-import frames
+import ait.dsn.sle.common as common
+import ait.dsn.sle.frames as frames
 from ait.dsn.sle.pdu.raf import *
 from ait.dsn.sle.pdu import raf
 
