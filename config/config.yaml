@@ -33,7 +33,7 @@ default:
             initiator_id: LSE
             # password only matters if we're doing auth and can stay as 'pw'
             password: pw
-            responder_id: SSE
+            responder_id: SSC
             # peer password only matters if we're doing auth and can stay as 'pw'
             peer_password: pw
             version: 5
@@ -50,7 +50,7 @@ default:
                     - example.hostname.2
                 port: None
             raf:
-                inst_id: None
+                inst_id: sagr=LSE-SSC.spack=Test.rsl-fg=1.raf=onlc1
                 hostnames:
                     - example.hostname.1
                     - example.hostname.2
