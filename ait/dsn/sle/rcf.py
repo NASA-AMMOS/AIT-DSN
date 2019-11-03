@@ -103,10 +103,16 @@ class RCF(common.SLE):
                                     kwargs.get('port', None))
 
         super(self.__class__, self).__init__(*args, **kwargs)
+
         self._service_type = 'rtnChFrames'
-        self._version = kwargs.get('version', 5)
-        self._scid = kwargs.get('spacecraft_id', None)
-        self._tfvn = kwargs.get('trans_frame_ver_num', None)
+        self._version = ait.config.get('dsn.sle.rcf.version',
+                                       kwargs.get('version', 4))
+        self._scid = ait.config.get('dsn.sle.rcf.spacecraft_id',
+                                    kwargs.get('spacecraft_id', None))
+        self._tfvn = ait.config.get('dsn.sle.rcf.trans_frame_ver_num',
+                                    kwargs.get('trans_frame_ver_num', None))
+        self._auth_level = ait.config.get('dsn.sle.rcf.auth_level',
+                                          kwargs.get('auth_level', None))
 
         self._handlers['RcfBindReturn'].append(self._bind_return_handler)
         self._handlers['RcfUnbindReturn'].append(self._unbind_return_handler)
