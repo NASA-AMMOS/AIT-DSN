@@ -115,7 +115,7 @@ class CLTU(common.SLE):
         self._version = ait.config.get('dsn.sle.fcltu.version',
                                        kwargs.get('version', 4))
         self._auth_level = ait.config.get('dsn.sle.fcltu.auth_level',
-                                          kwargs.get('auth_level', None))
+                                          kwargs.get('auth_level', self._auth_level))
 
         self._handlers['CltuBindReturn'].append(self._bind_return_handler)
         self._handlers['CltuUnbindReturn'].append(self._unbind_return_handler)
