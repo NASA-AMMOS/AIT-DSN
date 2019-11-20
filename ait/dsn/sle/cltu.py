@@ -27,7 +27,7 @@ import struct
 import ait.core.log
 import common
 
-if ait.config.get('dsn.sle.version', None) == 4:
+if ait.config.get('dsn.sle.fcltu.version', None) == 4:
     from ait.dsn.sle.pdu.cltu.cltuv4 import *
 else:
     from ait.dsn.sle.pdu.cltu.cltuv5 import *
@@ -112,7 +112,10 @@ class CLTU(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'fwdCltu'
-        self._version = kwargs.get('version', 5)
+        self._version = ait.config.get('dsn.sle.fcltu.version',
+                                       kwargs.get('version', 4))
+        self._auth_level = ait.config.get('dsn.sle.fcltu.auth_level',
+                                          kwargs.get('auth_level', self._auth_level))
 
         self._handlers['CltuBindReturn'].append(self._bind_return_handler)
         self._handlers['CltuUnbindReturn'].append(self._unbind_return_handler)

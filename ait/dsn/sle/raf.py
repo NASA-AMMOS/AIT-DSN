@@ -103,7 +103,10 @@ class RAF(common.SLE):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
-        self._version = kwargs.get('version', 4)
+        self._version = ait.config.get('dsn.sle.raf.version',
+                                       kwargs.get('version', 4))
+        self._auth_level = ait.config.get('dsn.sle.raf.auth_level',
+                                          kwargs.get('auth_level', self._auth_level))
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
