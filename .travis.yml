@@ -10,7 +10,6 @@ env:
     - AIT_CONFIG: ${TRAVIS_BUILD_DIR}/config/config.yaml
 
 install:
-  - pip install -vv ait-core
   - pip install .[tests]
 
 script: python setup.py nosetests
