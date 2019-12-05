@@ -38,7 +38,7 @@ setup(
     namespace_packages = ['ait'],
 
     install_requires = [
-        'ait-core>=1.4.0',
+        'ait-core>=2.0rc1.dev0',
         'pyasn1',
         'enum34==1.1.6'
     ],
