@@ -13,7 +13,7 @@
 # information to foreign countries or providing access to foreign persons.
 
 from collections import namedtuple
-from primitives import RequestType
+from .primitives import RequestType
 
 Request = namedtuple('Request', [
     'type',

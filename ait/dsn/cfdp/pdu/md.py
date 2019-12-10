@@ -13,7 +13,7 @@
 # information to foreign countries or providing access to foreign persons.
 
 
-from pdu import PDU
+from .pdu import PDU
 from ait.dsn.cfdp.primitives import FileDirective
 from ait.dsn.cfdp.util import string_length_in_bytes, string_to_bytes, bytes_to_string
 

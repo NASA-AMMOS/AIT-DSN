@@ -32,8 +32,8 @@ if __name__ == '__main__':
             # ait.core.log.info('Sleeping...')
             gevent.sleep(1)
     except KeyboardInterrupt:
-        print "Disconnecting..."
+        print('Disconnecting...')
     except Exception as e:
-        print traceback.print_exc()
+        print(traceback.print_exc())
     finally:
         cfdp.disconnect()

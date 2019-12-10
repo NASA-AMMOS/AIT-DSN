@@ -73,8 +73,8 @@ time.sleep(2)
 rcf_mngr.bind()
 time.sleep(2)
 
-start = dt.datetime(2017, 01, 01)
-end = dt.datetime(2019, 01, 01)
+start = dt.datetime(2017, 1, 1)
+end = dt.datetime(2019, 1, 1)
 # rcf_mngr.start(start, end, 250, 0, virtual_channel=6)
 rcf_mngr.start(start, end, 250, 0, master_channel=True)
 

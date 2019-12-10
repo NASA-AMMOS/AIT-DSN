@@ -59,7 +59,7 @@ try:
     cltu_mngr.start()
     time.sleep(2)
 
-    junk_data = bytearray('\x00'*129)
+    junk_data = bytearray('\x00'*129, 'utf-8')
     cltu_mngr.throw_event(4, junk_data)
     time.sleep(4)
 finally:

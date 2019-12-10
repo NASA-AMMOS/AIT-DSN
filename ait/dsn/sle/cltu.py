@@ -25,7 +25,7 @@ import binascii
 import struct
 
 import ait.core.log
-import common
+import ait.dsn.sle.common as common
 
 if ait.config.get('dsn.sle.fcltu.version', None) == 4:
     from ait.dsn.sle.pdu.cltu.cltuv4 import *

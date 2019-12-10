@@ -12,7 +12,7 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-from util import *
+from .util import *
 
 class TMTransFrame(dict):
     def __init__(self, data=None):

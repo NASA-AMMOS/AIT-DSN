@@ -18,7 +18,7 @@ from ait.dsn.cfdp.events import Event
 from ait.dsn.cfdp.pdu import Metadata, Header, FileData, EOF
 from ait.dsn.cfdp.primitives import Role, ConditionCode, IndicationType
 from ait.dsn.cfdp.util import string_length_in_bytes, calc_file_size, check_file_structure, calc_checksum
-from machine import Machine
+from .machine import Machine
 
 import ait.core
 import ait.core.log

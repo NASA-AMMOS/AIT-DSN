@@ -14,8 +14,8 @@
 
 from pyasn1.type import univ, char, namedtype, namedval, tag, constraint, useful
 
-from common import *
-from service_instance import *
+from .common import *
+from .service_instance import *
 
 
 class ApplicationIdentifier(univ.Integer):

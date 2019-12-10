@@ -21,9 +21,9 @@ import ait.core
 
 def int_to_byte_list(value):
     value_binary_str = format(value,
-                                       '>0{}b'.format((value.bit_length() / 8 + 1) * 8))
+                                       '>0{}b'.format(int((value.bit_length() / 8) + 1) * 8))
     value_byte_list = []
-    for index in range(len(value_binary_str) / 8):
+    for index in range(int(len(value_binary_str) / 8)):
         value_byte_list.append(int(value_binary_str[index:index + 8], 2))
     return value_byte_list
 
@@ -162,12 +162,12 @@ class Header(object):
             # Get longer entity id length between source and destination
             if isinstance(self.source_entity_id, int):
                 # calculate bit length as bytes. Round up (+1) if it's not a whole number
-                source_entity_id_length = self.source_entity_id.bit_length()/8 + 1
+                source_entity_id_length = int(self.source_entity_id.bit_length()/8) + 1
             else:
                 source_entity_id_length = string_length_in_bytes(str(self.source_entity_id))
 
             if isinstance(self.destination_entity_id, int):
-                dest_entity_id_length = self.destination_entity_id.bit_length()/8 + 1
+                dest_entity_id_length = int(self.destination_entity_id.bit_length()/8) + 1
             else:
                 dest_entity_id_length = string_length_in_bytes(str(self.destination_entity_id))
 
@@ -178,7 +178,7 @@ class Header(object):
 
         # If we were not provided a length before, do the work to calculate it
         if not self.transaction_id_length:
-            trans_seq_num_byte_len = (self.transaction_id.bit_length()/8 + 1)
+            trans_seq_num_byte_len = int(self.transaction_id.bit_length()/8) + 1
             self.transaction_id_length = trans_seq_num_byte_len
 
         # Mask for only right 3 bits and convert to 4 bit binary string (left-most bit should be 0 for  placeholder)
@@ -197,13 +197,13 @@ class Header(object):
             source_id_bytes = string_to_bytes(str(self.source_entity_id))
             len_of_source_id_bytes = len(source_id_bytes)
         else:
-            len_of_source_id_bytes = self.source_entity_id.bit_length()/8 + 1
+            len_of_source_id_bytes = int(self.source_entity_id.bit_length()/8) + 1
             source_id_bytes = int_to_byte_list(self.source_entity_id)
         source_id_bytes = [0] * (self.entity_ids_length - len_of_source_id_bytes) + source_id_bytes
         header_bytes.extend(source_id_bytes)
 
         # Transaction ID is a number. Format as binary with minimum size caluclated above
-        len_of_trans_id = self.transaction_id.bit_length() / 8 + 1
+        len_of_trans_id = int(self.transaction_id.bit_length() / 8) + 1
         transaction_id_bytes = int_to_byte_list(self.transaction_id)
         transaction_id_bytes = [0] * (self.transaction_id_length - len_of_trans_id) + transaction_id_bytes
         header_bytes.extend(transaction_id_bytes)
@@ -212,7 +212,7 @@ class Header(object):
             destination_id_binary = string_to_bytes(str(self.destination_entity_id))
             len_of_destination_id_binary = len(destination_id_binary)
         else:
-            len_of_destination_id_binary = self.destination_entity_id.bit_length()/8 + 1
+            len_of_destination_id_binary = int(self.destination_entity_id.bit_length()/8) + 1
             destination_id_binary = int_to_byte_list(self.destination_entity_id)
         destination_id_binary = [0] * (self.entity_ids_length - len_of_destination_id_binary) + destination_id_binary
         header_bytes.extend(destination_id_binary)

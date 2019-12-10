@@ -12,5 +12,5 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-from sender1 import Sender1
-from receiver1 import Receiver1
+from .sender1 import Sender1
+from .receiver1 import Receiver1

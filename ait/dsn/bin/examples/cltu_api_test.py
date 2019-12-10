@@ -35,7 +35,7 @@ time.sleep(2)
 cltu_mngr.start()
 time.sleep(2)
 
-junk_data = bytearray('\x00'*79)
+junk_data = bytearray('\x00'*79, 'utf-8')
 cltu_mngr.upload_cltu(junk_data)
 time.sleep(4)
 cltu_mngr.upload_cltu(junk_data)

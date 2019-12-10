@@ -28,7 +28,7 @@ from ait.dsn.cfdp.pdu import make_pdu_from_bytes, split_multiple_pdu_byte_array,
 from ait.dsn.cfdp.primitives import RequestType, TransmissionMode, FileDirective, Role, ConditionCode
 from ait.dsn.cfdp.request import create_request_from_type
 from ait.dsn.cfdp.util import write_to_file
-from exceptions import InvalidTransaction
+from .exceptions import InvalidTransaction
 
 import ait.core
 import ait.core.log
@@ -84,7 +84,7 @@ class CFDP(object):
         self._data_paths['tempfiles'] = ait.config.get('dsn.cfdp.datasink.tempfiles.path')
 
         # create needed paths if they don't exist
-        for name, path in self._data_paths.iteritems():
+        for name, path in self._data_paths.items():
             if not os.path.exists(path):
                 os.makedirs(path)
 
@@ -295,7 +295,7 @@ def read_pdus_from_socket(instance):
             else:
                 break
         except Exception as e:
-            ait.core.log.warn("EXCEPTION: " + e.message)
+            ait.core.log.warn("EXCEPTION: " + str(e))
             ait.core.log.warn(traceback.format_exc())
 
 

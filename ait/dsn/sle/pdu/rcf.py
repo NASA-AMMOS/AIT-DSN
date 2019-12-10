@@ -12,8 +12,8 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-from binds import *
-from common import *
+from .binds import *
+from .common import *
 
 from pyasn1.type import univ, char, namedtype, namedval, tag, constraint, useful
 
