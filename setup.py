@@ -39,8 +39,7 @@ setup(
 
     install_requires = [
         'ait-core>=2.0rc1.dev0',
-        'pyasn1',
-        'enum34==1.1.6'
+        'pyasn1'
     ],
 
     extras_require = {

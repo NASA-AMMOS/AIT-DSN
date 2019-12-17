@@ -6,6 +6,7 @@ Subpackages
 
 .. toctree::
 
+    ait.dsn.bch
     ait.dsn.bin
     ait.dsn.cfdp
     ait.dsn.sle
