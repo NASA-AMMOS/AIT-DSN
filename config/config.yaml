@@ -67,7 +67,18 @@ default:
                 port: None
                 version: 4
                 auth_level: 'none'
+            aos:
+                frame_header_error_control_included: false
+                transfer_frame_insert_zone_len: 0
+                operational_control_field_included: false
+                frame_error_control_field_included: false
+                virtual_channels:
+                    1: "b_pdu"
+                    2: "m_pdu"
+                    3: "vca_sdu"
+                    4: "idle"
 
+                    
         cfdp:
             mib:
                 path: ./mib
