@@ -3,7 +3,7 @@
 """
 bch.py provides a BCH (Bose, Chaudhuri, Hocquenghem) code class
  
-Author: Kabir Marwah / ASU
+Author: Tyler O'Brien - Qwaltec
  
 """
 
