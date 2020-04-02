@@ -14,9 +14,17 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
-# Usage:
-#   Move this script to ait/config/script so that it can be accessed within ait-gui
-#   Run this script within the AIT Script Control dashboard
+# SSPSim Config:
+# 1. Open "MISSION MANAGERS" >  "Test" > "RAF ONLC1"
+# 2. Ensure that the Production Id is set to "TestBaseband1"
+# 4. Open "PRODUCTION" > "TestBaseband1"
+# 5. Ensure that Spacecraft Id is set to 250
+# 6. Activate the TC data flow by clicking the green arrow
+#       labelled "TC"
+# 7. Activate the TM simulation data creation by clicking the
+#       green arrow labelled "SIM".
+# 8. Activate the Mission Manager interface by clicking the
+#       green arrow labelled "SVC"
 
 import datetime as dt
 import time
