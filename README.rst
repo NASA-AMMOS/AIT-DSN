@@ -1,6 +1,8 @@
 AMMOS Instrument Toolkit (AIT) Deep Space Network (DSN) Interface
 =================================================================
 
+build test
+
 AIT DSN provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
 Extension interfaces. AIT DSN supports the following interfaces:
 
