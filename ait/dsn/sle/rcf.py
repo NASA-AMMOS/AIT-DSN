@@ -25,6 +25,7 @@ Classes:
 '''
 import struct
 
+import ait
 import ait.core.log
 
 import ait.dsn.sle.common as common
@@ -113,6 +114,10 @@ class RCF(common.SLE):
                                     kwargs.get('trans_frame_ver_num', None))
         self._auth_level = ait.config.get('dsn.sle.rcf.auth_level',
                                           kwargs.get('auth_level', self._auth_level))
+
+        self.frame_output_port = int(ait.config.get('dsn.sle.frame_output_port',
+                                                    kwargs.get('frame_output_port',
+                                                               ait.DEFAULT_FRAME_PORT)))
 
         self._handlers['RcfBindReturn'].append(self._bind_return_handler)
         self._handlers['RcfUnbindReturn'].append(self._unbind_return_handler)
@@ -413,7 +418,6 @@ class RCF(common.SLE):
         frame = pdu.getComponent()
         if 'data' in frame and frame['data'].isValue:
             tm_data = frame['data'].asOctets()
-
         else:
             err = (
                 'RcfTransferBuffer received but data cannot be located. '
@@ -424,9 +428,14 @@ class RCF(common.SLE):
             
         tm_frame_class = getattr(frames, self._downlink_frame_type)
         tmf = tm_frame_class(tm_data)
-        
-        ait.core.log.info('Sending {} bytes to telemetry port'.format(len(tmf._data[0])))
-        self._telem_sock.sendto(tmf._data[0], ('localhost', 3076))
+
+        # Add any frame-based logic/decisions here
+        if tmf.is_idle_frame:
+            ait.core.log.debug('Dropping {} marked as an idle frame'.format(tm_frame_class))
+            return
+
+        ait.core.log.debug('Sending {} with {} bytes to frame port'.format(tm_frame_class, len(tm_data)))
+        self._telem_sock.sendto(tm_data, ('localhost', self.frame_output_port))
 
     def _sync_notify_handler(self, pdu):
         ''''''
