@@ -1,4 +1,12 @@
 #!/usr/bin/python3
+#
+# AOS Deframer contributed by ASU / Patrick Hailey
+#
+# An example AOS Deframer and Packet Processor developed for use by ASU as
+# part of their GDS. This provides a baseline example implementation of the
+# functionality necessary in a frame / packet handler to coerce data received
+# via an SLE interface into telemetry packets for further processing and
+# visualization.
 
 """
 aos_deframer.py processes AOS frames into telemetry packets
