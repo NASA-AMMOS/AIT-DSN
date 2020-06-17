@@ -100,6 +100,11 @@ class RAF(common.SLE):
                                          kwargs.get('hostnames', None))
         self._port = ait.config.get('dsn.sle.raf.port',
                                     kwargs.get('port', None))
+        if not self._hostnames or not self._port:
+            msg = 'Connection configuration missing hostnames ({}) or port ({})'
+            msg = msg.format(self._hostnames, self._port)
+            ait.core.log.error(msg)
+            raise ValueError(msg)
 
         super(self.__class__, self).__init__(*args, **kwargs)
 
