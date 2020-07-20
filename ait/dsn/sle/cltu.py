@@ -27,6 +27,10 @@ import struct
 import ait.core.log
 import ait.dsn.sle.common as common
 
+import ait.dsn.sle.server
+
+import bottle
+
 if ait.config.get('dsn.sle.fcltu.version', None) == 4:
     from ait.dsn.sle.pdu.cltu.cltuv4 import *
 else:
@@ -129,6 +133,7 @@ class CLTU(common.SLE):
         self._handlers['CltuPeerAbortInvocation'].append(self._peer_abort_handler)
         self._handlers['CltuThrowEventReturn'].append(self._throw_event_handler)
 
+    @DSN_server.route('/cltu/bind', method='PUT')
     def bind(self, inst_id=None):
         ''' Bind to a CLTU interface
 
@@ -139,6 +144,7 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()['cltuBindInvocation']
         super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
+    @DSN_server.route('/cltu/unbind', method='PUT')
     def unbind(self, reason=0):
         ''' Unbind from the CLTU interface
         
@@ -151,6 +157,7 @@ class CLTU(common.SLE):
         pdu = CltuUserToProviderPdu()['cltuUnbindInvocation']
         super(self.__class__, self).unbind(pdu, reason=reason)
 
+    @DSN_server.route('/cltu/start', method='PUT')
     def start(self):
         ''' Send a data receive start request to the CLTU interface
 
@@ -171,6 +178,7 @@ class CLTU(common.SLE):
         ait.core.log.info('Sending data start invocation ...')
         self.send(self.encode_pdu(start_invoc))
 
+    @DSN_server.route('/cltu/stop', method='PUT')
     def stop(self):
         ''' Request the provider stop radiation of received CLTUs '''
         pdu = CltuUserToProviderPdu()['cltuStopInvocation']
@@ -178,7 +186,8 @@ class CLTU(common.SLE):
 
     #TODO save_cltu method
     
-    def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
+    @DSN_server.route('/cltu/upload_cltu', method='PUT')
+    def upload_cltu(self, tc_data=None, earliest_time=None, latest_time=None, delay=0, notify=False):
         ''' Upload a CLTU to the service
 
         Arguments:
@@ -201,6 +210,35 @@ class CLTU(common.SLE):
                 Specify whether the provider shall invoke the CLTU-ASYNCNOTIFY
                 operation upon completion of the radiation of the CLTU.
         '''
+
+
+        try:
+            # parse input data
+            try:
+                data = bottle.request.json()
+            except:
+                raise ValueError
+
+            if data is None:
+                raise ValueError
+
+            # extract and validate name
+            try:
+                if namepattern.match(data['tc_data']) is None:
+                    raise ValueError
+                tc_data = data['tc_data']
+            except (TypeError, KeyError):
+                raise ValueError
+
+            # check for existence
+            if name in _names:
+                raise KeyError
+
+        except ValueError:
+            # if bad request data, return 400 Bad Request
+            bottle.response.status = 400
+            return
+
         pdu = self._prepare_cltu_pdu(tc_data, earliest_time, latest_time, delay, notify)
 
         ait.core.log.info('Sending TC Data ...')
