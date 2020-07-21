@@ -109,7 +109,7 @@ class SLE(object):
         self._initiator_id = ait.config.get('dsn.sle.initiator_id',
                                             kwargs.get('initiator_id', 'LSE'))
         self._responder_id = ait.config.get('dsn.sle.responder_id',
-                                            kwargs.get('responder_id', 'SSE'))
+                                            kwargs.get('responder_id', 'SSC'))
         self._password = ait.config.get('dsn.sle.password',
                                         kwargs.get('password', None))
         self._peer_password = ait.config.get('dsn.sle.peer_password',
