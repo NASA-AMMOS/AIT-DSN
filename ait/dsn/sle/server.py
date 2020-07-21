@@ -113,4 +113,5 @@ def disconnect_handler(interface):
         current_interface['connected'] = False
 
 #need to flesh this out
-bottle.run(host='localhost', port=8080)
+if __name__ == '__main__':
+    bottle.run(host = '127.0.0.1', port = 8000)
