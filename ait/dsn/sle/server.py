@@ -113,5 +113,15 @@ def disconnect_handler(interface):
         current_interface['connected'] = False
 
 #need to flesh this out
+Servers = []
 if __name__ == '__main__':
-    bottle.run(host = '127.0.0.1', port = 8000)
+    Servers.append( gevent.pywsgi.WSGIServer(
+    ('0.0.0.0', port),
+    DSN_api,
+    handler_class = geventwebsocket.handler.WebSocketHandler)
+    )
+
+    for s in Servers:
+        s.start()
+
+    #bottle.run(host = '127.0.0.1', port = 8000)
