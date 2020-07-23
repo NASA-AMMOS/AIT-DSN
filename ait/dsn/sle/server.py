@@ -3,6 +3,13 @@ import ait.core.log
 import ait.dsn.sle
 import bottle
 
+'''
+Maybe change this from a nested dictionary to a class? Issues: 
+-passing class instance to the function which is decorated by the bottle endpoints– want to avoid global objects
+-accessing subclasses (interfaces), because the decorator is currently passing the interface name as a string to the handler function
+
+Possibility: make the handler functions members of the main class? Ask Michael. 
+'''
 DSN_harness = {
     'RAF': {
         'instance': ait.dsn.sle.RAF,
