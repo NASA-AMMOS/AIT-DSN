@@ -35,7 +35,7 @@ def connect_handler(interface):
         instance.connect()
         current_interface['connected'] = True
     else:
-        ait.core.log.error("Instance already connected")
+        ait.core.log.error("{} instance already connected".format(interface))
         bottle.response.status = 400
 
 @DSN_api.route('/<interface>/bind', method='PUT')
@@ -44,14 +44,14 @@ def bind_handler(interface):
     instance = current_interface['instance']
     
     if (not current_interface['connected']):
-        ait.core.log.error("Instance is not connected. Unable to bind.")
+        ait.core.log.error("{} instance is not connected. Unable to bind.".format(interface))
         bottle.response.status = 400
     else:
         if (not current_interface['bound']):
             instance.bind()
             current_interface['bound'] = True
         else:
-            ait.core.log.error("Instance already bound")
+            ait.core.log.error("{} instance already bound".format(interface))
             bottle.response.status = 400
 
 @DSN_api.route('/<interface>/start', method='PUT')
@@ -60,18 +60,18 @@ def start_handler(interface):
     instance = current_interface['instance']
     
     if (not current_interface['connected']):
-        ait.core.log.error("Instance is not connected. Unable to start.")
+        ait.core.log.error("{} instance is not connected. Unable to start.".format(interface))
         bottle.response.status = 400
     else:
         if (not current_interface['bound']):
-            ait.core.log.error("Instance is not bound. Unable to start.")
+            ait.core.log.error("{} instance is not bound. Unable to start.".format(interface))
             bottle.response.status = 400
         else:
             if (not current_interface['started']):
                 instance.start()
                 current_interface['started'] = True
             else:
-                ait.core.log.error("Instance already started")
+                ait.core.log.error("{} instance already started".format(interface))
                 bottle.response.status = 400
 
 #Ask Michael if instance must be stopped before unbinding and unbound before disconnecting
@@ -82,7 +82,7 @@ def stop_handler(interface):
     instance = current_interface['instance']
     
     if (not current_interface['started']):
-        ait.core.log.error("Instance is not started. Unable to stop.")
+        ait.core.log.error("{} instance is not started. Unable to stop.".format(interface))
         bottle.response.status = 400
     else:
         instance.stop()
@@ -94,7 +94,7 @@ def unbind_handler(interface):
     instance = current_interface['instance']
     
     if (not current_interface['bound']):
-        ait.core.log.error("Instance is not bound. Unable to unbind.")
+        ait.core.log.error("{} instance is not bound. Unable to unbind.".format(interface))
         bottle.response.status = 400
     else:
         instance.unbind()
@@ -106,7 +106,7 @@ def disconnect_handler(interface):
     instance = current_interface['instance']
     
     if (not current_interface['connected']):
-        ait.core.log.error("Instance is not connected. Unable to disconnect.")
+        ait.core.log.error("{} instance is not connected. Unable to disconnect.".format(interface))
         bottle.response.status = 400
     else:
         instance.disconnect()
