@@ -120,6 +120,8 @@ class SLE(object):
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
 
+        self.connected = False
+
         if not self._hostnames or not self._port:
             msg = 'Connection configuration missing hostnames ({}) or port ({})'
             msg = msg.format(self._hostnames, self._port)
@@ -280,17 +282,16 @@ class SLE(object):
         '''
         self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        connected = False
         for hostname in self._hostnames:
             try:
                 self._socket.connect((hostname, self._port))
                 ait.core.log.info('Connection to DSN successful through {}.'.format(hostname))
-                connected = True
+                self.connected = True
                 break
             except socket.error as e:
                 ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
 
-        if not connected:
+        if not self.connected:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
             raise Exception('Unable to connect to DSN through any provided hostnames.')
 
@@ -439,8 +440,9 @@ def conn_handler(handler):
 
         now = int(time.time())
         if handler._need_heartbeat(now - hb_time):
-            hb_time = now
-            handler._send_heartbeat()
+            if self.connected
+                hb_time = now
+                handler._send_heartbeat()
 
         try:
             msg = msg + handler._socket.recv(handler._buffer_size)
