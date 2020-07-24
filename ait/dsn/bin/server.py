@@ -49,6 +49,7 @@ class DSN_server_class():
 
     def raf_connect_handler(self):
         if (not self.raf_connected):
+            print("raf connecting")
             self.raf_instance.connect()
             self.raf_connected = True
         else:
@@ -117,7 +118,7 @@ class DSN_server_class():
                 bottle.response.status = 400
             else:
                 if (not self.raf_started):
-                    self.raf_instance.start()
+                    self.raf_instance.start() #need to add start and end times
                     self.raf_started = True
                 else:
                     ait.core.log.error("RAF instance already started")
@@ -133,7 +134,7 @@ class DSN_server_class():
                 bottle.response.status = 400
             else:
                 if (not self.rcf_started):
-                    self.rcf_instance.start()
+                    self.rcf_instance.start() #need to add start and end times
                     self.rcf_started = True
                 else:
                     ait.core.log.error("RCF instance already started")
