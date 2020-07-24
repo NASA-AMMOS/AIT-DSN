@@ -440,7 +440,7 @@ def conn_handler(handler):
 
         now = int(time.time())
         if handler._need_heartbeat(now - hb_time):
-            if self.connected
+            if self.connected:
                 hb_time = now
                 handler._send_heartbeat()
 
