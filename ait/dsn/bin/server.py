@@ -27,6 +27,8 @@ class DSN_server_class():
 
         self._route()
 
+        self.testing = True
+
     def _route(self):
         self.DSN_api.route('/connect/RAF', callback=self.raf_connect_handler)
         self.DSN_api.route('/bind/RAF', callback=self.raf_bind_handler)
@@ -50,9 +52,12 @@ class DSN_server_class():
 
     def raf_connect_handler(self):
         if (not self.raf_connected):
-            print("raf connecting")
+            if self.testing:
+                print ("raf connecting\n")
             self.raf_instance.connect()
             self.raf_connected = True
+            if self.testing:
+                print ("raf connected\n")
         else:
             ait.core.log.error("RAF instance already connected")
             bottle.response.status = 400
@@ -230,16 +235,20 @@ class DSN_server_class():
             self.cltu_connected = False
 
     def cltu_upload_handler(self):
-        wsock = bottle.request.environ.get('wsgi.websocket')
-        if not wsock:
-            ait.core.log.error("Expected WebSocket request")
-            bottle.abort(400, 'Expected WebSocket request.')
-        while True:
-            try:
-                tc_data = wsock.receive()
-                self.cltu_instance.upload_cltu(tc_data)
-            except geventwebsocket.WebSocketError:
-                break
+        if (not self.cltu_started):
+            ait.core.log.error("CLTU instance is not started. Unable to upload CLTU.")
+            bottle.response.status = 400
+        else:
+            wsock = bottle.request.environ.get('wsgi.websocket')
+            if not wsock:
+                ait.core.log.error("Expected WebSocket request")
+                bottle.abort(400, 'Expected WebSocket request.')
+            while True:
+                try:
+                    tc_data = wsock.receive()
+                    self.cltu_instance.upload_cltu(tc_data)
+                except geventwebsocket.WebSocketError:
+                    break
 
 
 if __name__ == '__main__':
