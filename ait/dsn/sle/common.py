@@ -136,9 +136,6 @@ class SLE(object):
             'random_number': None
         }
 
-        self._conn_monitor = gevent.spawn(conn_handler, self)
-        self._data_processor = gevent.spawn(data_processor, self)
-
     @property
     def invoke_id(self):
         ''''''
@@ -289,6 +286,9 @@ class SLE(object):
                 break
             except socket.error as e:
                 ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
+
+        self._conn_monitor = gevent.spawn(conn_handler, self)
+        self._data_processor = gevent.spawn(data_processor, self)
 
         if not connected:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
