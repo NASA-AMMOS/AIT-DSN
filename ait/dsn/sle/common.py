@@ -129,9 +129,6 @@ class SLE(object):
             'random_number': None
         }
 
-        self._conn_monitor = gevent.spawn(conn_handler, self)
-        self._data_processor = gevent.spawn(data_processor, self)
-
     @property
     def invoke_id(self):
         ''''''
@@ -286,6 +283,9 @@ class SLE(object):
         if not connected:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
             raise Exception('Unable to connect to DSN through any provided hostnames.')
+
+        self._conn_monitor = gevent.spawn(conn_handler, self)
+        self._data_processor = gevent.spawn(data_processor, self)
 
         context_msg = struct.pack(
             TML_CONTEXT_MSG_FORMAT,
