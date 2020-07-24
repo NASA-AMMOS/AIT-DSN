@@ -119,6 +119,13 @@ class SLE(object):
         self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
+
+        if not self._hostnames or not self._port:
+            msg = 'Connection configuration missing hostnames ({}) or port ({})'
+            msg = msg.format(self._hostnames, self._port)
+            ait.core.log.error(msg)
+            raise ValueError(msg)
+
         if self._auth_level not in ['none', 'bind', 'all']:
             raise ValueError('Authentication level must be one of: "none", "bind", "all"')
 
