@@ -2,7 +2,7 @@ import ait
 import ait.core.log
 import ait.dsn.sle
 import bottle
-import gevent
+import gevent #THIS SCRIPT REQUIRES THE MOST RECENT VERSION OF GEVENT. RUN $pip install gevent --upgrade
 import geventwebsocket
 import atexit
 
