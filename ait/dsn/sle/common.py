@@ -120,8 +120,6 @@ class SLE(object):
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
 
-        self.connected = False
-
         if not self._hostnames or not self._port:
             msg = 'Connection configuration missing hostnames ({}) or port ({})'
             msg = msg.format(self._hostnames, self._port)
@@ -137,9 +135,6 @@ class SLE(object):
             'time': None,
             'random_number': None
         }
-
-        self._conn_monitor = gevent.spawn(conn_handler, self)
-        self._data_processor = gevent.spawn(data_processor, self)
 
     @property
     def invoke_id(self):
@@ -282,18 +277,22 @@ class SLE(object):
         '''
         self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        connected = False
         for hostname in self._hostnames:
             try:
                 self._socket.connect((hostname, self._port))
                 ait.core.log.info('Connection to DSN successful through {}.'.format(hostname))
-                self.connected = True
+                connected = True
                 break
             except socket.error as e:
                 ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
 
-        if not self.connected:
+        if not connected:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
             raise Exception('Unable to connect to DSN through any provided hostnames.')
+
+        self._conn_monitor = gevent.spawn(conn_handler, self)
+        self._data_processor = gevent.spawn(data_processor, self)
 
         context_msg = struct.pack(
             TML_CONTEXT_MSG_FORMAT,
@@ -355,8 +354,7 @@ class SLE(object):
                 0
         )
 
-        if self.connected:
-            self.send(hb)
+        self.send(hb)
 
     def _handle_pdu(self, pdu):
         ''''''
