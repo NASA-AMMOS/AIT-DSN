@@ -354,7 +354,9 @@ class SLE(object):
                 TML_CONTEXT_HEARTBEAT_TYPE,
                 0
         )
-        self.send(hb)
+
+        if self.connected:
+            self.send(hb)
 
     def _handle_pdu(self, pdu):
         ''''''
@@ -440,9 +442,8 @@ def conn_handler(handler):
 
         now = int(time.time())
         if handler._need_heartbeat(now - hb_time):
-            if self.connected:
-                hb_time = now
-                handler._send_heartbeat()
+            hb_time = now
+            handler._send_heartbeat()
 
         try:
             msg = msg + handler._socket.recv(handler._buffer_size)
