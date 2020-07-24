@@ -6,14 +6,6 @@ import gevent
 import geventwebsocket
 import atexit
 
-'''
-Maybe change this from a nested dictionary to a class? Issues: 
--passing class instance to the function which is decorated by the bottle endpoints– want to avoid global objects
--accessing subclasses (interfaces), because the decorator is currently passing the interface name as a string to the handler function
-
-Possibility: make the handler functions members of the main class? Ask Michael.
-'''
-
 class DSN_server_class():
     def __init__(self):
         self.DSN_api = bottle.Bottle()
@@ -263,10 +255,10 @@ if __name__ == '__main__':
     )
 
     for s in Servers:
-        s.start()
+        s.serve_forever()
 
     @atexit.register
-    def cleanup(self):
+    def cleanup():
         
         for s in Servers:
             s.stop()
