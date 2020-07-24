@@ -72,8 +72,8 @@ class DSN_server_class():
 
     def cltu_connect_handler(self):
         if (not self.rcf_connected):
-            self.rcf_instance.connect()
-            self.rcf_connected = True
+            self.cltu_instance.connect()
+            self.cltu_connected = True
         else:
             ait.core.log.error("CLTU instance already connected")
             bottle.response.status = 400
