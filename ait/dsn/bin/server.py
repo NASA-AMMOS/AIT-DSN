@@ -253,6 +253,7 @@ if __name__ == '__main__':
     DSN_server = DSN_server_class()
 
     Servers = []
+    Greenlets = []
 
     Servers.append( gevent.pywsgi.WSGIServer(
     ('127.0.0.1', 7654),
