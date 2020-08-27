@@ -23,14 +23,10 @@ Classes:
 '''
 import binascii
 import struct
+import importlib
 
 import ait.core.log
 import ait.dsn.sle.common as common
-
-if ait.config.get('dsn.sle.fcltu.version', None) == 4:
-    from ait.dsn.sle.pdu.cltu.cltuv4 import *
-else:
-    from ait.dsn.sle.pdu.cltu.cltuv5 import *
 
 
 class CLTU(common.SLE):
@@ -56,7 +52,7 @@ class CLTU(common.SLE):
     CltuUnbindReturn
         Response back from the provider after a unbind request has been
         sent to the interface.
-        
+
     CltuStartReturn
         Response back from the provider after a start data request has been
         sent to the interface.
@@ -129,6 +125,11 @@ class CLTU(common.SLE):
         self._handlers['CltuPeerAbortInvocation'].append(self._peer_abort_handler)
         self._handlers['CltuThrowEventReturn'].append(self._throw_event_handler)
 
+        global cltu_pdu
+        cltu_pdu = importlib.import_module('ait.dsn.sle.pdu.cltu.cltuv4') \
+            if self._version == 4 else importlib.import_module('ait.dsn.sle.pdu.cltu.cltuv5')
+        ait.core.log.info('Using CLTU version {}...'.format(self._version))
+
     def bind(self, inst_id=None):
         ''' Bind to a CLTU interface
 
@@ -136,19 +137,19 @@ class CLTU(common.SLE):
             inst_id:
                 The instance id for the CLTU interface to bind.
         '''
-        pdu = CltuUserToProviderPdu()['cltuBindInvocation']
+        pdu = cltu_pdu.CltuUserToProviderPdu()['cltuBindInvocation']
         super(self.__class__, self).bind(pdu, inst_id=inst_id)
 
     def unbind(self, reason=0):
         ''' Unbind from the CLTU interface
-        
+
         Arguments:
             reason:
                 An optional integer indicating the reason for the unbind. The
                 valid integer values are defined in
                 :class:`ait.dsn.sle.pdu.binds.UnbindReason`
         '''
-        pdu = CltuUserToProviderPdu()['cltuUnbindInvocation']
+        pdu = cltu_pdu.CltuUserToProviderPdu()['cltuUnbindInvocation']
         super(self.__class__, self).unbind(pdu, reason=reason)
 
     def start(self):
@@ -158,7 +159,7 @@ class CLTU(common.SLE):
         the Forward CLTU service provider prepare to receive
         CLTU-TRANSFER-DATA invocations
         '''
-        start_invoc = CltuUserToProviderPdu()
+        start_invoc = cltu_pdu.CltuUserToProviderPdu()
 
         if self._auth_level == 'all':
             start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
@@ -173,7 +174,7 @@ class CLTU(common.SLE):
 
     def stop(self):
         ''' Request the provider stop radiation of received CLTUs '''
-        pdu = CltuUserToProviderPdu()['cltuStopInvocation']
+        pdu = cltu_pdu.CltuUserToProviderPdu()['cltuStopInvocation']
         super(self.__class__, self).stop(pdu)
 
     #TODO save_cltu method
@@ -229,7 +230,7 @@ class CLTU(common.SLE):
                 Specify whether the provider shall invoke the CLTU-ASYNCNOTIFY
                 operation upon completion of the radiation of the CLTU.
         '''
-        pdu = CltuUserToProviderPdu()
+        pdu = cltu_pdu.CltuUserToProviderPdu()
 
         if self._auth_level == 'all':
             pdu['cltuTransferDataInvocation']['invokerCredentials']['used'] = self.make_credentials()
@@ -310,7 +311,7 @@ class CLTU(common.SLE):
                 sent. This value is required if report_type is 'periodically'
                 and ignored otherwise. Valid values are 2 - 600 inclusive.
         '''
-        pdu = CltuUserToProviderPdu()
+        pdu = cltu_pdu.CltuUserToProviderPdu()
 
         if self._auth_level == 'all':
             pdu['cltuScheduleStatusReportInvocation']['invokerCredentials']['used'] = self.make_credentials()
@@ -355,7 +356,7 @@ class CLTU(common.SLE):
                 together with the event. Data may be of length 1-1024 bytes.
 
         '''
-        pdu = CltuUserToProviderPdu()
+        pdu = cltu_pdu.CltuUserToProviderPdu()
 
         if self._auth_level == 'all':
             pdu['cltuThrowEventInvocation']['invokerCredentials']['used'] = self.make_credentials()
@@ -379,7 +380,7 @@ class CLTU(common.SLE):
                 values are defined in
                 :class:`ait.dsn.sle.pdu.common.PeerAbortDiagnostic`
         '''
-        pdu = CltuUserToProviderPdu()
+        pdu = cltu_pdu.CltuUserToProviderPdu()
         pdu['cltuPeerAbortInvocation'] = reason
 
         ait.core.log.info('Sending Peer Abort')
@@ -397,7 +398,7 @@ class CLTU(common.SLE):
             The decoded CLTU PDU as an instance of the
             :class:`ait.dsn.sle.pdu.cltu.CltuProvidertoUserPdu` class.
         '''
-        return super(self.__class__, self).decode(message, CltuProviderToUserPdu())
+        return super(self.__class__, self).decode(message, cltu_pdu.CltuProviderToUserPdu())
 
     def _bind_return_handler(self, pdu):
         ''''''
