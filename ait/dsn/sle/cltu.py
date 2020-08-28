@@ -125,8 +125,7 @@ class CLTU(common.SLE):
         self._handlers['CltuPeerAbortInvocation'].append(self._peer_abort_handler)
         self._handlers['CltuThrowEventReturn'].append(self._throw_event_handler)
 
-        global cltu_pdu
-        cltu_pdu = importlib.import_module('ait.dsn.sle.pdu.cltu.cltuv4') \
+        globals()['cltu_pdu'] = importlib.import_module('ait.dsn.sle.pdu.cltu.cltuv4') \
             if self._version == 4 else importlib.import_module('ait.dsn.sle.pdu.cltu.cltuv5')
         ait.core.log.info('Using CLTU version {}...'.format(self._version))
 
@@ -178,7 +177,7 @@ class CLTU(common.SLE):
         super(self.__class__, self).stop(pdu)
 
     #TODO save_cltu method
-    
+
     def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
         ''' Upload a CLTU to the service
 
@@ -582,7 +581,7 @@ class CLTU(common.SLE):
     def _get_param_return_handler(self, pdu):
         ''''''
         pdu = pdu['cltuGetParameterReturn']
-    
+
     def _peer_abort_handler(self, pdu):
         ''''''
         pdu = pdu['cltuPeerAbortInvocation']
