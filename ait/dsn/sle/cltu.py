@@ -509,7 +509,7 @@ class CLTU(common.SLE):
                 lp = pdu['cltuLastProcessed'].getComponent()
                 t = 'unknown'
                 if 'known' in lp['radiationStartTime']:
-                    t = binascii.hexlify(str(lp['radiationStartTime'].getComponent().getComponent()))
+                    t = binascii.hexlify((lp['radiationStartTime'].getComponent().getComponent()).asOctets())
 
                 msg += 'Last Processed: id: {} | rad start: {} | status: {}\n'.format(
                     lp['cltuIdentification'],
@@ -522,7 +522,7 @@ class CLTU(common.SLE):
                 msg += 'Last Ok: No CLTU Ok\n'
             else:
                 lok = pdu['cltuLastOk'].getComponent()
-                t = binascii.hexlify(str(lok['radiationStopTime'].getComponent()))
+                t = binascii.hexlify((lok['radiationStopTime'].getComponent()).asOctets())
 
                 msg += 'Last Ok: id: {} | end: {}\n'.format(lok['cltuIdentification'], t)
 
