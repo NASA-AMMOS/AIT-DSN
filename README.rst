@@ -1,14 +1,14 @@
 AMMOS Instrument Toolkit (AIT) Deep Space Network (DSN) Interface
 =================================================================
 
-AIT DSN provides APIs for connecting to the Deep Space Network (DSN) via the Space Link
-Extension interfaces. AIT DSN supports the following interfaces:
+AIT DSN provides APIS for connecting to spacecraft communication facilities via Consultative Committee for Space Data Systems (CCSDS) Space Link Extension (SLE) interfaces. AIT DSN supports the following interfaces:
 
-- Return All Frames (RAF) interface
-- Return Channel Frames (RCF) interface
-- Forward Communications Link Transmission Unit (CLTU) interface
+- Return All Frames (RAF) interface (v4 and v5)
+- Return Channel Frames (RCF) interface (v4 and v5)
+- Forward Communications Link Transmission Unit (CLTU) interface (v4 and v5)
 - CCSDS File Delivery Protocol Class 1 interface
 
+Interface specifications are available in the `CCSDS Blue Books <https://public.ccsds.org/publications/BlueBooks.aspx>`__
 
 Getting Started
 ---------------
