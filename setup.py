@@ -38,6 +38,7 @@ setup(
     namespace_packages = ['ait'],
 
     install_requires = [
+        'greenlet==0.4.16',
         'ait-core>=2.0rc1.dev0',
         'pyasn1'
     ],
