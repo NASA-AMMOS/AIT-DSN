@@ -14,25 +14,38 @@
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
 
+# Usage:
+#   python cltu_api_test.py
+#
 # SSPSim Config:
-# 1. Open "MISSION MANAGERS" >  "Test" > "RAF ONLC1"
-# 2. Ensure that the Production Id is set to "TestBaseband1"
-# 4. Open "PRODUCTION" > "TestBaseband1"
-# 5. Ensure that Spacecraft Id is set to 250
-# 6. Activate the TC data flow by clicking the green arrow
-#       labelled "TC"
-# 7. Activate the TM simulation data creation by clicking the
-#       green arrow labelled "SIM".
-# 8. Activate the Mission Manager interface by clicking the
+# 1. Open "MISSION MANAGERS" >  "Test" > "FCLTU - PLOP1"
+# 2. Open "PRODUCTION" > "TestBaseband1" (Check "Production Id" on "FCLTU-POP1" for Baseband #)
+# 3. Activate the production interface by clicking the
+#       green arrow labelled "TC"
+# 4. Activate the Mission Manager interface by clicking the
 #       green arrow labelled "SVC"
+# 5. Set dsn.sle.version in config.yaml to the desire version to test (4 or 5). See note below for expected behavior.
+#
+# Run the script per the usage instructions above. You should see
+# logging informing you of the various steps in the script. If all
+# runs as expected you should see confirmations back from the sim
+# indicating which cltu id was last processed. These will also be
+# mirrored in the sim GUI where you'll be informed when a particular
+# cltu id has been successfully radiated.
+
 
 import datetime as dt
 import time
 
 import ait.dsn.sle
 
-# CLTU pulls parameters from config file by default
-cltu_mngr = ait.dsn.sle.CLTU()
+cltu_mngr = ait.dsn.sle.CLTU(
+    hostnames=['atb-ocio-sspsim.jpl.nasa.gov'],
+    port=5100,
+    inst_id='sagr=LSE-SSC.spack=Test.fsl-fg=1.cltu=cltu1',
+    auth_level="none",
+    version=5,
+)
 
 cltu_mngr.connect()
 time.sleep(2)

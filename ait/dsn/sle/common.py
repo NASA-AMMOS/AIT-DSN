@@ -432,7 +432,7 @@ class SLE(object):
 def conn_handler(handler):
     ''' Handler for processing data received from the DSN into PDUs'''
     hb_time = int(time.time())
-    msg = ''
+    msg = b''
 
     while True:
         gevent.sleep(0)
@@ -451,7 +451,7 @@ def conn_handler(handler):
             hdr, rem = msg[:8], msg[8:]
 
             # PDU Received
-            if binascii.hexlify(hdr[:4]) == '01000000':
+            if binascii.hexlify(hdr[:4]) == b'01000000':
                 # Get length of body and check if the entirety of the
                 # body has been received. If we can, process the message(s)
                 body_len = util.hexint(hdr[4:])
@@ -462,7 +462,7 @@ def conn_handler(handler):
                     handler._data_queue.put(hdr + body)
                     msg = msg[len(hdr) + len(body):]
             # Heartbeat Received
-            elif binascii.hexlify(hdr[:8]) == '0300000000000000':
+            elif binascii.hexlify(hdr[:8]) == b'0300000000000000':
                 msg = rem
             else:
                 err = (
