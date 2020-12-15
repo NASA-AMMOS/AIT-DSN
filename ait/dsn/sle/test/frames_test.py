@@ -56,8 +56,9 @@ class AosTest(unittest.TestCase):
         # M_PDU header: 5 bits reserved, 11 first header pointer: 07FF
         # 00000,000 00001111   00000001 000100011 01000101  01100111
         # Remaining: M_PDU packet zone
-        frame_data_body = "000F01234567"
-        frame_data_body = "07FE01234567"  # 07FE Indicates idle mpdu data
+        MPDU_NO_PARTIAL_HDR = "0000"
+        frame_data_body = "000001234567"
+
 
         # frame data trailer: four and two bytes
         frame_data_trlr = "000003FF0880"
@@ -93,13 +94,13 @@ class AosTest(unittest.TestCase):
         self.assertTrue(has_data)
 
 
-        self.assertEqual(data_field.hex(), '07fe01234567')
+        self.assertEqual(data_field.hex(), '000001234567')
 
         mpdu_data = aos_frame['mpdu_packet_zone']
         self.assertEqual(mpdu_data.hex(), '01234567')
 
         mpdu_data_idle = aos_frame['mpdu_is_idle_data']
-        self.assertTrue(mpdu_data_idle)
+        self.assertFalse(mpdu_data_idle)
 
 
 
