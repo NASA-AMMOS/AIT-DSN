@@ -23,6 +23,8 @@ Table of Contents:
    ait_cfdp
    sle
    ait_sle
+   encryption
+   command_line
    AIT DSN API Documentation <ait>
 
 
