@@ -99,9 +99,6 @@ class EncryptResult():
         )
 
 
-
-
-
 class BaseEncrypter(object):
     ''' Generic enrypter abstraction
 
@@ -145,14 +142,12 @@ class BaseEncrypter(object):
     prop_debug_enabled = 'debug_enabled'
 
     cfg_prefix = "dsn.encryption."
-    cfg_client_name = cfg_prefix + "client.name"
-    cfg_client_name = cfg_prefix + "client.name"
+    cfg_client_name = cfg_prefix+"client.name"
     cfg_client_config = cfg_prefix+"client.config"
 
     def __init__(self):
         self._vcids_filter = None
         self._debug_enabled = False
-
         self._configured = False
 
 
@@ -162,13 +157,13 @@ class BaseEncrypter(object):
         # Check if debug flag is included and set
         self._debug_enabled = kwargs.get(BaseEncrypter.prop_debug_enabled,
                                          ait.config.get(
-                                             f"{BaseEncrypter.cfg_prefix}.{BaseEncrypter.prop_debug_enabled}",
+                                             f"{BaseEncrypter.cfg_prefix}{BaseEncrypter.prop_debug_enabled}",
                                              False))
 
         # Pull in the list of VCID's for which encryption/decryption should be applied
         lcl_vcid_list = kwargs.get(BaseEncrypter.prop_vcid_filter,
                                    ait.config.get(
-                                       f"{BaseEncrypter.cfg_prefix}.{BaseEncrypter.prop_vcid_filter}", None))
+                                       f"{BaseEncrypter.cfg_prefix}{BaseEncrypter.prop_vcid_filter}", None))
 
         # If not None but not a list, so a scalar, then convert to a list
         if lcl_vcid_list is not None and not isinstance(lcl_vcid_list, list):
@@ -187,22 +182,41 @@ class BaseEncrypter(object):
 
     @abstractmethod
     def encrypt(self, input_bytes):
+        ''' Encrypts a byte-array
+
+            :param: input_bytes Original byte-array to be encrypted
+            :returns: EncryptResult object with result or errors
+        '''
         pass
 
     @abstractmethod
     def decrypt(self, input_bytes):
+        ''' Decrypts a byte-array
+
+            :param: input_bytes Original byte-array to be decrypted
+            :returns: EncryptResult object with result or errors
+        '''
         pass
 
     @abstractmethod
     def show_config(self):
+        ''' Returns any configuration information as a str
+
+            :returns: Configuration info string
+        '''
         pass
 
     def vcid_is_supported(self, vcid):
-        '''Returns True if vcid is registered to be encrypted or filter is None'''
+        ''' Returns True if vcid is registered to be encrypted or filter is None
+
+            :param: vcid VCID
+            :returns: True if vcid is supported, False otherwise
+        '''
         return self._vcids_filter is None or vcid in self.supported_vcids
 
     @abstractmethod
     def close(self):
+        '''Connect to a backend's encryption instance, releases resources.'''
         pass
 
     @abstractmethod
@@ -234,6 +248,12 @@ class NullEncrypter(BaseEncrypter):
         self._is_connected = True
 
     def encrypt(self, input_bytes):
+        '''
+            Dummy implementation of encryption
+
+            :param: input_bytes Original byte-array to be encrypted
+            :returns: EncryptResult object with result or errors
+        '''
         if self._is_connected:
             return EncryptResult(mode=EncryptMode.ENCRYPT, input=input_bytes, result=copy.copy(input_bytes))
         else:
@@ -241,6 +261,12 @@ class NullEncrypter(BaseEncrypter):
             return EncryptResult(mode=EncryptMode.ENCRYPT, input=input_bytes, errors=[str(err_msg)])
 
     def decrypt(self, input_bytes):
+        '''
+             Dummy implementation of decryption
+
+             :param: input_bytes Original byte-array to be encrypted
+             :returns: EncryptResult object with result or errors
+        '''
         if self._is_connected:
             return EncryptResult(mode=EncryptMode.DECRYPT, input=input_bytes, result=copy.copy(input_bytes))
         else:
@@ -248,6 +274,11 @@ class NullEncrypter(BaseEncrypter):
             return EncryptResult(mode=EncryptMode.DECRYPT, input=input_bytes, errors=[str(err_msg)])
 
     def show_config(self):
+        '''
+             Returns config info for this instance
+
+             :returns: Config info as string
+        '''
         return "NullEncrypter[no configuration]"
 
     def close(self):
@@ -255,6 +286,11 @@ class NullEncrypter(BaseEncrypter):
         self._is_connected = False
 
     def is_connected(self):
+        '''
+             Returns True if this instance is connected, False otherwise
+
+             :returns: Conencted state
+        '''
         return self._is_connected
 
 
@@ -266,15 +302,16 @@ class EncrypterFactory:
         pass
 
     @staticmethod
-    def get(encrypter_class_name):
+    def get(encrypter_class_name=None):
         '''
-        Returns an instance of an Encrypter, based on kwargs or AIT configuration.
-        If none is specified, then a default implementation that performs no
+        Returns an instance of an Encrypter, based on argument or AIT configuration.
+        If None is specified, then the AIT configuration is queried.
+        If the config results in None, then a default implementation that performs no
         encryption is returned.
 
-        The returned Encryptor has not yet been configured.
+        The returned Encrypter has not yet been configured.
 
-        :param kwargs: Keyword argument map with potential key 'encrypter_class_name'
+        :param: encrypter_class_name Optional encrypter class name
         :return: New instance of Encrypter
         :except: ImportError if specified encryption client is not found
         :except: AitConfigError for errors that occur during configuration
@@ -283,7 +320,7 @@ class EncrypterFactory:
         full_class_name = encrypter_class_name
         lcl_instance = None
         if encrypter_class_name is None:
-            cfg_class_name = ait.config.get('dsn.encryption.client.name', None)
+            cfg_class_name = ait.config.get(BaseEncrypter.cfg_client_name, None)
             if cfg_class_name:
                 full_class_name = cfg_class_name
 
