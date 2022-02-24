@@ -59,7 +59,6 @@ class KmcSdlsEncrypter(BaseEncrypter):
     prop_kmc_properties = 'kmc_properties'
     prop_kmc_property_file = 'kmc_property_file'
 
-
     def __init__(self):
         '''
         Constructor for KmcSdlsEncrypter
@@ -74,6 +73,9 @@ class KmcSdlsEncrypter(BaseEncrypter):
 
         # Newer approach of passing config to client via list
         self._kmc_config_list = []
+
+        # Controls whether missing config file is error or warning (for now the latter)
+        self.abort_on_missing_file = False
 
     def configure(self, **kwargs):
         '''
@@ -116,14 +118,27 @@ class KmcSdlsEncrypter(BaseEncrypter):
             kmc_props_path = Path(expanded_props_file)
             if kmc_props_path.is_file():
                 self._kmc_properties_file = expanded_props_file
+                # KMC isn't accepting files, so we have to parse to config list
+                file_config_list = []
+                with open(self._kmc_properties_file) as props_file:
+                    for line in props_file:
+                        line = line.strip()
+                        if line and (not line.startswith("#")): #skip comments and empty lines
+                            file_config_list.append(line.rstrip())
+
+                self._kmc_config_list = self.format_config_list(file_config_list)
             else:
                 err_mesg = f"KMC Properties File does not exist: {kmc_props_file}"
-                log.error(err_mesg)
-                raise cfg.AitConfigError(err_mesg)
+                if self.abort_on_missing_file:
+                    log.error(err_mesg)
+                    raise cfg.AitConfigError(err_mesg)
+                else:
+                    log.warn(err_mesg)
+                    log.warn(f"Defaulting to the embedded property list for configuration.")
 
         if self._debug_enabled:
-            log.info(f"KmcSdlsEncrypter: KMC property list is: {self._kmc_config_list}")
             log.info(f"KmcSdlsEncrypter: KMC property file is: {self._kmc_properties_file}")
+            log.info(f"KmcSdlsEncrypter: KMC property list is: {self._kmc_config_list}")
 
     def connect(self):
         '''
@@ -143,10 +158,7 @@ class KmcSdlsEncrypter(BaseEncrypter):
             return
 
         try:
-            if self._kmc_properties_file:
-                self._client = KmcSdlsClient(self._kmc_properties_file)
-            else:
-                self._client = KmcSdlsClient(self._kmc_config_list)
+            self._client = KmcSdlsClient(self._kmc_config_list)
         except KMC_Error_Alias as scex:
             log.error(f"SDLS Client Error occurred while instantiating KMC Client: '{scex}'")
             raise scex
@@ -172,7 +184,10 @@ class KmcSdlsEncrypter(BaseEncrypter):
             return EncryptResult(mode=EncryptMode.ENCRYPT, input=input_bytes, errors=[str(sc_ex)])
 
     def decrypt(self, input_bytes):
-        ''' Decrypts a byte-arrauy using the KMC Encryption client
+        ''' Decrypts a byte-array using the KMC Encryption client.
+
+            Per the KMC specification, the result of the successful decryption
+            is only the user-data/payload/PDU portion of the whole Telecommand
 
             :param: input_bytes Original byte-array to be decrypted
             :returns: EncryptResult object with result or errors
@@ -196,6 +211,8 @@ class KmcSdlsEncrypter(BaseEncrypter):
                 tc_err_msg = "Decryption returned with empty result"
                 return EncryptResult(mode=EncryptMode.DECRYPT, input=input_bytes, errors=[tc_err_msg])
             else:
+                if self._debug_enabled:
+                    log.info(f"KmcSdlsEncrypter:decrypt(): Decryption TC result: {tc_result}")
                 output_bytes = tc_result.tc_pdu
                 return EncryptResult(mode=EncryptMode.DECRYPT, input=input_bytes, result=output_bytes)
 
@@ -205,7 +222,7 @@ class KmcSdlsEncrypter(BaseEncrypter):
     def show_config(self):
         '''
         Return encrypter name and associated configuration
-        :return:
+        :return: Configuration information
         '''
         if self._client:
             if self._kmc_properties_file:
@@ -223,13 +240,23 @@ class KmcSdlsEncrypter(BaseEncrypter):
             self._client = None
 
     def is_connected(self):
+        '''
+        Returns True if connected, False otherwise
+        '''
         return self._client is not None
 
     def format_config_list(self, cfg_list):
         '''
-        Applies formatting to the incoming list of configuration properties
+        Applies formatting to the incoming list of configuration properties.
+        Currently, it just expands values for envVars and ~
         :param cfg_list: Input config list
-        :return: Possibly formatted version of config list
+        :return: Formatted version of config list
         '''
-        # As of now, we don't do anything special, but stay tuned...
-        return cfg_list
+        # expand any path values
+        formatted_list = []
+        for cfg_line in cfg_list:
+            if "=" in cfg_line:
+                cfg_pair = cfg_line.split('=', 1)
+                cfg_val = ait.dsn.util.utils.expand_path(cfg_pair[1], False)
+                formatted_list.append(f"{cfg_pair[0]}={cfg_val}")
+        return formatted_list
