@@ -282,3 +282,22 @@ While the AIT Encyryption API handles input/output for encryption and decryption
 
 
 
+	
+EncrypterPlugin
+---------------
+
+The EncrypterPlugin provides a command processing pipeline the ability to encrypt TCTFs.
+The plugin will read and use any configuration specified in the config.yaml.
+
+First, configure the parameters in config.yaml as described above.
+
+Then add the following block to the plugins section of config.yaml
+
+::
+            - plugin:
+                name: ait.dsn.plugins.EncrypterPlugin.Encrypter
+                inputs:
+                    - TCTF_Manager
+
+The EncrypterPlugin will now encrypt the TCTF whenever TCTF_Manager publishes on the PUB/SUB network.
+Set the next pipeline element to receive *Encrypter* as its input in order to continue processing the encrypted TCTF.
