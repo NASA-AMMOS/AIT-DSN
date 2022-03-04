@@ -18,14 +18,15 @@ _ROOT_DIR = os.path.abspath(os.environ.get('AIT_ROOT', os.getcwd()))
 # Why DSN has it's own function when something similar is in AIT-Core?
 # Well, the latter does not expand envVars, which I would like to support.
 
-def expand_path(path):
+def expand_path(path, relative_to_absolute=True):
     '''
     Expands path value to replace home-dir (~), environment variables,
-    and returns an absolute path.  If path is relative, then the parent
+    and optionally, returns an absolute path.
+    When converting relative paths, then the parent
     directory is presumed to be the AIT_ROOT envVar, or if not set,
     the current working directory
     :param path: Path to be expanded
-    :return: Absolute, expanded path
+    :return: Expanded, and possibly absolute, path
     '''
     expanded = path
 
@@ -36,10 +37,11 @@ def expand_path(path):
     # Expand any envvars in the path
     expanded = os.path.expandvars(expanded)
 
-    if expanded[0] != '/':
-        expanded = os.path.join(_ROOT_DIR, expanded)
+    if relative_to_absolute:
+        if expanded[0] != '/':
+            expanded = os.path.join(_ROOT_DIR, expanded)
 
-    # Return the absolute path
-    expanded = os.path.abspath(expanded)
+        # Return the absolute path
+        expanded = os.path.abspath(expanded)
 
     return expanded

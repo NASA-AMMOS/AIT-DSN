@@ -122,7 +122,8 @@ class TestNullEncrypter(unittest.TestCase):
 
 class TestKmcEncrypter(unittest.TestCase):
     '''
-    Unit test assumes we cannot load the KMC Encrypter dependencies
+    Unit test assumes we cannot load the KMC Encrypter dependencies, since
+    they are not available on the standard AIT dev environment
     '''
     def test_kmc_encrypter(self):
         encr_mod_name = 'ait.dsn.encrypt.kmc_encrypter'
