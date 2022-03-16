@@ -41,7 +41,8 @@ setup(
         'greenlet==0.4.16',
         'ait-core>=2.0.0',
         'pyasn1',
-        'bitstring'
+        'bitstring',
+        'graphviz',
     ],
 
     extras_require = {
