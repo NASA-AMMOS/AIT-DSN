@@ -12,7 +12,7 @@
 # information to foreign countries or providing access to foreign persons.
 from typing import Any
 
-from ait.dsn.sle.util import *
+from ait.dsn.sle.utils import *
 from enum import Enum
 import ait
 
@@ -152,8 +152,16 @@ class AOSDataFieldType(Enum):
     B_PDU   = "B_PDU"    # Bitstream Protocol Data Unit
     VCA_SDU = "VCA_SDU"  # Virtual Channel Access Service Data Unit
     IDLE    = "IDLE"     # Idle data
+    NOTHING = None       # No Applicable Type
 
-
+    @classmethod
+    def _missing_(cls, value):
+        value = value.upper()
+        if value in cls.__members__:
+            return cls[value]
+        else:
+            return cls.NOTHING
+        
 class AOSConfig(object):
     '''
     AOS frame configuration class.
@@ -277,15 +285,6 @@ class AOSConfig(object):
 
         self.vc_to_datafield_map = {}
 
-        # Maps property names to associated enum values
-        field_type_name_to_enums = {
-            "m_pdu"   : AOSDataFieldType.M_PDU,
-            "b_pdu"   : AOSDataFieldType.B_PDU,
-            "vca_sdu" : AOSDataFieldType.VCA_SDU,
-            "idle"    : AOSDataFieldType.IDLE
-        }
-
-
         # Load the virtual channel map, mapping VC Ids to type.
         # First check the kwargs, then ait config, then default
         vc_map = kwargs.get('virtual_channels', None)
@@ -303,16 +302,16 @@ class AOSConfig(object):
         # iterate over VC config entries and create dict
         # from VC id to DataField enum type
         for vc_number in vc_map:
-            vc_field_str = vc_map[vc_number].lower()
-            if vc_field_str in field_type_name_to_enums:
-                vc_field_type = field_type_name_to_enums[vc_field_str]
-                self.vc_to_datafield_map[vc_number] = vc_field_type
-            else:
+            vc_field_str = vc_map[vc_number]
+            vc_field_type = AOSDataFieldType(vc_field_str)
+            if vc_field_type is AOSDataFieldType.NOTHING:
                 err = (
                     'Virtual channel '+str(vc_number)+' is mapped to unrecognized type: '+vc_field_str+''
                     'Skipping this configuration entry...'
                 )
-                ait.core.log.info(err)
+                ait.core.log.error(err)
+            else:
+                self.vc_to_datafield_map[vc_number] = vc_field_type
 
         # ---------------------------------------------
 
@@ -320,7 +319,7 @@ class AOSConfig(object):
         ''' Returns the data field type associated with a virtual
             channel id.  If the virtual channel id is undeclared,
             then None is returned.
-        :param vc_number: THe virtual channel id number (int)
+        :param vc_number: The virtual channel id number (int)
         :return: AOSDataFieldType enum value associated with virtual channel id
         '''
         if vc_number in self.vc_to_datafield_map:
@@ -424,6 +423,7 @@ class AOSTransFrame(BaseTransferFrame):
             self.decode(data)
 
 
+
     def decode(self, data):
         ''' Decode data as a AOS Transfer Frame '''
         self['master_channel_id'] = (hexint(data[0:2]) & 0xFFC0) >> 6  #10 bits
@@ -438,6 +438,7 @@ class AOSTransFrame(BaseTransferFrame):
         self['signal_field_reserved'] = (signaling_field & 0x30) >> 4 # 2 bits, should be '00'
         self['virtual_channel_frame_count_cycle'] = (signaling_field & 0x0F)  # 4 bits
 
+        #ait.core.log.error(f"VCID: {self['virtual_channel_id']}")
         # check if frame header error control section is included
         if self.aosConfig.frame_header_error_control_included:
             beg_idx, end_idx = self.aosConfig.get_frame_header_error_control_indices()
@@ -508,6 +509,7 @@ class AOSTransFrame(BaseTransferFrame):
                 'Skipping further processing of this AOS transfer frame data field...'
             )
             ait.core.log.info(err)
+            ait.core.log.error(f"AOTS Faulty Packet=> {datafield}")
             pass
         elif vc_df_type == AOSDataFieldType.M_PDU:
             self.decode_dataField_MPDU(datafield)
@@ -523,6 +525,7 @@ class AOSTransFrame(BaseTransferFrame):
                     'Skipping further processing of this AOS transfer frame data field...'
             )
             ait.core.log.info(err)
+            ait.core.log.error(f"AOTS Faulty Packet 2=> {datafield}")
             pass
 
     def decode_dataField_MPDU(self, datafield):
@@ -582,6 +585,7 @@ class AOSTransFrame(BaseTransferFrame):
         '''
         self['aos_data_field_type'] = AOSDataFieldType.IDLE
         self['idle_data_zone'] = datafield[None:None]
+        #self.is_idle = True
 
     def encode(self):
         pass
