@@ -70,7 +70,7 @@ import ait.core.log
 from ait.dsn.sle.pdu import service_instance
 from ait.dsn.sle.pdu.service_instance import *
 from ait.dsn.sle.pdu.common import HashInput, ISP1Credentials
-from ait.dsn.sle.utils import *
+import ait.dsn.sle.utils as utils
 
 TML_SLE_FORMAT = '!ii'
 TML_SLE_TYPE = 0x01000000
@@ -454,7 +454,7 @@ def conn_handler(handler):
             if binascii.hexlify(hdr[:4]) == b'01000000':
                 # Get length of body and check if the entirety of the
                 # body has been received. If we can, process the message(s)
-                body_len = hexint(hdr[4:])
+                body_len = utils.hexint(hdr[4:])
                 if len(rem) < body_len:
                     break
                 else:
