@@ -15,6 +15,7 @@ from typing import Any
 from ait.dsn.sle.util import *
 from enum import Enum
 import ait
+import ait.dsn.sle.utils as utils
 
 class BaseTransferFrame(dict):
     ''' Transfer Frame interface "base" class
@@ -87,19 +88,19 @@ class TMTransFrame(BaseTransferFrame):
 
     def decode(self, data):
         ''' Decode data as a TM Transfer Frame '''
-        self['master_channel_id'] = (hexint(data[0:2]) & 0xFFF0) >> 4  # 12 bits
-        self['version'] = (hexint(data[0]) & 0xC0) >> 6  # 2 bits
-        self['spacecraft_id'] = (hexint(data[0:2]) & 0x3FF0) >> 4  # 10 bits
-        self['virtual_channel_id'] = (hexint(data[1]) & 0x0E) >> 1  # 1 bit
-        self['ocf_flag'] = hexint(data[1]) & 0x01 # 1 bit
-        self['master_chan_frame_count'] = hexint(data[2])  # 8 bits
-        self['virtual_chan_frame_count'] = hexint(data[3]) # 8 bits
+        self['master_channel_id'] = (utils.hexint(data[0:2]) & 0xFFF0) >> 4  # 12 bits
+        self['version'] = (utils.hexint(data[0]) & 0xC0) >> 6  # 2 bits
+        self['spacecraft_id'] = (utils.hexint(data[0:2]) & 0x3FF0) >> 4  # 10 bits
+        self['virtual_channel_id'] = (utils.hexint(data[1]) & 0x0E) >> 1  # 1 bit
+        self['ocf_flag'] = utils.hexint(data[1]) & 0x01 # 1 bit
+        self['master_chan_frame_count'] = utils.hexint(data[2])  # 8 bits
+        self['virtual_chan_frame_count'] = utils.hexint(data[3]) # 8 bits
 
-        self['sec_header_flag'] = (hexint(data[4:6]) & 0x8000) >> 15 #1 bit
-        self['sync_flag'] = (hexint(data[4:6]) & 0x4000) >> 14  # 1 bit
-        self['pkt_order_flag'] = (hexint(data[4:6]) & 0x2000) >> 13  # 1 bit
-        self['seg_len_id'] = (hexint(data[4:6]) & 0x1800) >> 11   # 2 bits
-        self['first_hdr_ptr'] = hexint(data[4:6]) & 0x07FF
+        self['sec_header_flag'] = (utils.hexint(data[4:6]) & 0x8000) >> 15 #1 bit
+        self['sync_flag'] = (utils.hexint(data[4:6]) & 0x4000) >> 14  # 1 bit
+        self['pkt_order_flag'] = (utils.hexint(data[4:6]) & 0x2000) >> 13  # 1 bit
+        self['seg_len_id'] = (utils.hexint(data[4:6]) & 0x1800) >> 11   # 2 bits
+        self['first_hdr_ptr'] = utils.hexint(data[4:6]) & 0x07FF
 
 
         if str(bin(self['first_hdr_ptr'])) == '0b11111111110':
@@ -112,8 +113,8 @@ class TMTransFrame(BaseTransferFrame):
 
         # Process the secondary header. This hasn't been tested ...
         if self['sec_header_flag']:
-            self['sec_hdr_ver'] = (hexint(data[6]) & 0xC0) >> 6
-            sec_hdr_len = hexint(data[6]) & 0x3F
+            self['sec_hdr_ver'] = (utils.hexint(data[6]) & 0xC0) >> 6
+            sec_hdr_len = utils.hexint(data[6]) & 0x3F
             sec_hdr_data = data[7:7+sec_hdr_len]
             pkt_data = data[8 + sec_hdr_len:]
         else:
@@ -125,7 +126,7 @@ class TMTransFrame(BaseTransferFrame):
             if len(pkt_data) == 0:
                 break
 
-            pkt_data_len = hexint(pkt_data[4:6])
+            pkt_data_len = utils.hexint(pkt_data[4:6])
 
             if pkt_data_len <= len(pkt_data[6:]):
                 self._data.append(pkt_data[6:6 + pkt_data_len])
@@ -426,13 +427,13 @@ class AOSTransFrame(BaseTransferFrame):
 
     def decode(self, data):
         ''' Decode data as a AOS Transfer Frame '''
-        self['master_channel_id'] = (hexint(data[0:2]) & 0xFFC0) >> 6  #10 bits
-        self['version'] = (hexint(data[0]) & 0xC0) >> 6 #bits 0:1
-        self['spacecraft_id'] = (hexint(data[0:2]) & 0x3FC0) >> 6 #bits 2:9
-        self['virtual_channel_id'] = hexint(data[1]) & 0x3F #bits 10:15
+        self['master_channel_id'] = (utils.hexint(data[0:2]) & 0xFFC0) >> 6  #10 bits
+        self['version'] = (utils.hexint(data[0]) & 0xC0) >> 6 #bits 0:1
+        self['spacecraft_id'] = (utils.hexint(data[0:2]) & 0x3FC0) >> 6 #bits 2:9
+        self['virtual_channel_id'] = utils.hexint(data[1]) & 0x3F #bits 10:15
         self['virtual_channel_frame_count'] = data[2:5]
 
-        signaling_field = hexint(data[5])
+        signaling_field = utils.hexint(data[5])
         self['replay_flag'] = (signaling_field & 0x80)  >> 7 # 1 bit
         self['virtual_channel_frame_count_cycle_use_flag'] = (signaling_field & 0x40) >> 6  # 1 bit
         self['signal_field_reserved'] = (signaling_field & 0x30) >> 4 # 2 bits, should be '00'
@@ -534,7 +535,7 @@ class AOSTransFrame(BaseTransferFrame):
 
         # M_PDU header: 5 bits reserved, 11 first header pointer: 07FF
         # Note: If all ones, then datafield does not contain a start of a packet
-        self['mpdu_first_hdr_ptr'] = hexint(datafield[0:2]) & 0x07FF
+        self['mpdu_first_hdr_ptr'] = utils.hexint(datafield[0:2]) & 0x07FF
 
         # Remaining: M_PDU packet zone
         # In general, this may contain a series of CCSDS packets,
@@ -557,7 +558,7 @@ class AOSTransFrame(BaseTransferFrame):
         self['aos_data_field_type'] = AOSDataFieldType.B_PDU
 
         # B_PDU header: 2 bits reserved, 14 bitstream data pointer: 3FFF
-        self['bpdu_bitstream_data_ptr'] = hexint(datafield[0:2]) & 0x3FFF
+        self['bpdu_bitstream_data_ptr'] = utils.hexint(datafield[0:2]) & 0x3FFF
 
         # Remaining: B_PDU bitstream data zone
         self['bpdu_data_zone'] = datafield[2:]
