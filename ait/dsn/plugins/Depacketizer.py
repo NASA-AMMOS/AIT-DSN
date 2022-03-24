@@ -42,6 +42,7 @@ class M_PDU_HEADER():
 
     def get_first_header_pointer(self):
         hptr = (self.data[self.FIRST_HEADER_POINTER_SLICE])
+        log.error(f"{self.data}, {hptr}")
         hptr = int(hptr.bin, 2)
         return hptr
 
@@ -116,6 +117,7 @@ class Space_Packet():
         self.primary_header = self.raw_packet_data.bytes[0:6] #OK
         self.packet_length = self.get_packet_length(self.primary_header) #OK
         self.user_data_field = self.raw_packet_data[6:self.packet_length] #ok
+        self.residue = self.raw_packet_data[self.packet_length:]
 
         self.res = {slice_name.name:
                     self.raw_packet_data[slice_name.value] for
@@ -136,25 +138,6 @@ class Space_Packet():
         # print()
         # exit()
         return
-    
-        # if self.has_secondary_header:
-        #     self.secondary_header = self.raw_packet_data[
-        #         self.Packet_Slices.SECONDARY_HEADER]
-        # else:
-        #     self.secondary_header = {}
-
-    # def adjust_for_secondary_header(self):
-    #     # Adjust if secondary header is present
-    #     if self.raw_packet_data[self.Primary_Packet_Header_Slices.
-    #                             SECONDARY_HEADER_FLAG.value]:
-
-    #         self.Packet_Slices.PACKET_DATA_FIELD.value = slice(
-    #             self.Packet_Slices.PACKET_DATA_FIELD.value.start
-    #             + self.secondary_header_length,
-    #             self.Packet_Slices.PACKET_DATA_FIELD.value.stop)
-
-    #         self.Packet_Slices.SECONDARY_HEADER.value = (
-    #             slice(6 + self.secondary_header_length, None))
 
     def is_idle_packet(self, primary_header):
         primary_header = bitstring.BitArray(primary_header)
@@ -173,8 +156,14 @@ class Space_Packet():
     def decode(self):
         return self.res
 
+    def get_residue(self):
+        return self.residue_user_data_field
+
+    def get_data_field(self):
+        return self.user_data_field
+
     def get_packet_length(self, primary_header):
-        print(primary_header)
+        #print(primary_header)
         index = primary_header[-2]
         return index
 
@@ -182,82 +171,90 @@ class Space_Packet():
         primary_header = bitstring.BitArray(primary_header)
         s = self.Primary_Packet_Header_Slices.PACKET_VERSION_NUMBER.value
         res = primary_header[s]
-        print(res)
+        #print(res)
         return
 
     def get_packet_version_number(self, primary_header):
         primary_header = bitstring.BitArray(primary_header)
         s = self.Primary_Packet_Header_Slices.PACKET_VERSION_NUMBER.value
         res = primary_header[s]
-        print(res)
+        #print(res)
         return
 
 
+class Partial_Payload():
+    def __init__(self, partial, expected_payload_length):
+        self.partial = partial
+        self.expected_payload_length = expected_payload_length
+
+    def merge(self, partial):
+        self.partial += partial
+        if len(self.partial) == self.expected_payload_length:
+        #len(self.partial) == self.expected_payload_length:
+            #print("PARTIAL COMPLETE!")
+            return self.partial
+        else:
+            #print(len(self.partial) - self.expected_payload_length)
+            return
+        
+
+class CCSDS_Depacketizer():
+    def __init__(self, data):
+        self.data = data
+        self.partial = None
+        self.packets = []
+
+    def handle_partial(self, partial, expected_payload_length=None):
+        if expected_payload_length:
+            self.partial = Partial_Payload(partial)
+            self.expected_payload_length = expected_payload_length
+        else:
+            res = self.partial.merge(partial)
+            if res:
+                p = Space_Packet(res)
+                self.packets.append(p)
+                self.partial = None
+        
+    def handle_perfect(self, packet):
+        self.packets.append(packet)
+        
+    def handle_depacket(self, data):
+        p = Space_Packet(data)
+        expected_payload_length = p.get_packet_length()
+        payload = p.get_data_field()
+        res = p.get_residue()
+
+        if len(payload) == expected_payload_length:
+            self.handle_perfect(p)
+        elif len(payload) < expected_payload_length and self.partial:
+            self.handle_partial(payload)
+        elif len(payload) < expected_payload_length and not self.partial:
+            self.handle_partial(payload, expected_payload_length)
+ 
+        if res:
+            self.handle_depacket(res)
+
+        res = self.packets
+        self.packets = []
+        return res
+
+            
 class Depacketizer(Plugin):
 
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
-        self.previous_spanning_data = None
+        self.partial = None
+        self.ccsds_depack = CCSDS_Depacketizer()
 
     def process(self, AOS_Frame, topic=None):
-        data_key = Space_Packet.Packet_Sections.USER_DATA_FIELD.name
-        ccsds_packets = []
-        dat = AOS_Frame.data_field
-        if not dat:
-            return
-        m_pdu_header = M_PDU_HEADER(dat)
 
-        current_spanning_pdu = m_pdu_header.get_spanning_pdu()
-        if current_spanning_pdu and self.previous_spanning_data:
-            # We found a spanning PDU at the front of the PDU zone
-            # Append it to the previous spanning PDU, if we have one.
-            # If we don't have it, we must have missed it and can
-            # Never complete it.
+        fhp = AOS_Frame.get('mpdu_first_hdr_ptr')
+        pduz = AOS_Frame.get('mpdu_packet_zone')
+    
+        payload = pduz[fhp:]
 
-            # If we spot another PDU start in the PDU zone, then
-            # This spanning PDU must be complete.
-            # Otherwise, it must still be spanning past this PDU
-            #log.error(f"DEPACKET: GOT SPAN")
-            # p = self.previous_spanning_data + current_spanning_pdu
-            # p = Space_Packet(p).decode
-            # ccsds_packets.append(p[data_key])
-            pass
-        
-        if m_pdu_header.does_pdu_zone_have_a_packet_start():
-            #log.error(f"DEPACKET: GOT PACKET")
-            # TODO WE NEVER CHECKED IF WE COMPLETED THE PACKET
-            # We  have a packet start
-            # The overflow PDU must be complete
-            self.previous_spanning_data = None
-            pduz = m_pdu_header.get_pdu_zone()
-            pduz_length = len(pduz)
-            p = Space_Packet(pduz).decode()
-            if p:
-                ccsds_packets.append(p)
+        res = self.ccsds_depack(payload)
+        print(res)
 
-                next_index_key = Space_Packet.Primary_Packet_Header_Slices.PACKET_DATA_LENGTH.name
-                processed = len(p[data_key])
-                next_index = p[next_index_key]
-                pduz = pduz[next_index:]
-                while next_ < len(pduz):
-                    print(next_index, len(pduz))
-                    p = Space_Packet(pduz)
-                    p = p.decode()
-                    ccsds_packets.append(p[data_key])
-                    processed += len(p[data_key])
-                    next_index = p[next_index_key]
-                    pduz = pduz[next_index:]
-                print(pduz,len(pduz))
-        else:
-            # The entire PDU zone is an overflow from the last
-            # We can complete it with the next m_pdu
-            ait.log.error("Merging overflow")
-            self.previous_spanning_data += m_pdu_header.get_pdu_zone()
 
-        #ait.core.log.error(f"DEPACKET: {ccsds_packets}")
-        for packet in ccsds_packets:
-            #log.error(f"MOD: {len(packet) % 8}")
-            exit()
-            self.publish(packet)
-            pass
-        # return ccsds_packets
+​

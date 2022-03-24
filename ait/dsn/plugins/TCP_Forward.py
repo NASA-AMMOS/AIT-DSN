@@ -222,7 +222,8 @@ class TCP_Forward(Plugin):
                 print(self.rxs)
         
         self.glet = Greenlet.spawn(self.handle_recv, self.rxs)
-        Greenlet.spawn(self.graffiti)
+
+        #Greenlet.spawn(self.graffiti)
                     
     def handle_recv(self, rxlist):
         while True:
