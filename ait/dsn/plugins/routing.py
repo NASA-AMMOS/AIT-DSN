@@ -9,7 +9,7 @@ class apid_router(Plugin):
 
     def __init__(self, inputs=None, outputs=None, zmq_args=None, routes=None):
         super().__init__(inputs, outputs, zmq_args)
-        log.error(routes)
+        log.debug(routes)
         self.routes = defaultdict(set)
         for r, interval in routes.items():
             low = interval['start']
