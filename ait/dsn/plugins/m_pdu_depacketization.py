@@ -10,9 +10,15 @@ class m_pdu_depacketization(Plugin):
 
     def process(self, input_data, topic=None):
         #input to this plugin should be of format pickle.dumps((m_pdu_hdr_pointer, m_pdu_data_zone))
-        unpickled_input_data = pickle.loads(input_data)
-        first_packet_header_pointer = unpickled_input_data[0]
-        m_pdu_data = unpickled_input_data[1]
+        log.info(input_data)
+        log.info(len(input_data))
+        unpickled_input_data = input_data
+        aos_frame_offset = 6
+        #first_packet_header_pointer = unpickled_input_data[0]
+        first_packet_header_pointer = unpickled_input_data[aos_frame_offset:aos_frame_offset+2]
+        log.info(unpickled_input_data)
+        #m_pdu_data = unpickled_input_data[1]
+        m_pdu_data = unpickled_input_data[aos_frame_offset+2:]
         #print(f"m_pdu_depacketization plugin recieved {unpickled_input_data}")
         #print(f"first packet header pointer is {first_packet_header_pointer} and m_pdu_data_zone is {bytes(m_pdu_data).hex()}")
 
