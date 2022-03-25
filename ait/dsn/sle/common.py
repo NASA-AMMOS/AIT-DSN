@@ -161,7 +161,7 @@ class SLE(object):
     def send(self, data):
         ''' Send supplied data to DSN '''
         try:
-            _, writeable, _ = gevent.select([], [self._socket], [])
+            _, writeable, _ = gevent.select.select([], [self._socket], [])
             for i in writeable:
                 i.sendall(data)
             #self._socket.send(data)
