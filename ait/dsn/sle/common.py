@@ -161,7 +161,10 @@ class SLE(object):
     def send(self, data):
         ''' Send supplied data to DSN '''
         try:
-            self._socket.send(data)
+            _, writeable, _ = gevent.select([], [self._socket], [])
+            for i in writeable:
+                i.sendall(data)
+            #self._socket.send(data)
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
                 ait.core.log.error('Socket connection lost to DSN')
