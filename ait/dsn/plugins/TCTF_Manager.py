@@ -36,7 +36,7 @@ class TCTF_Manager(Plugin):
                 apply_error_correction_field: True
     """
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
-                 command_subscriber=None, managed_parameters=None):
+                 command_subscriber=None, managed_parameters=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
 
         config_prefix = 'dsn.sle.tctf.'
