@@ -1,19 +1,28 @@
 from ait.core.server.plugins import Plugin
 from ait.core import log
-import pickle
+from ait.dsn.sle.frames import AOSTransFrame
 
-class m_pdu_depacketization(Plugin):
+class AOS_to_CCSDS(Plugin):
 
-    def __init__(self, inputs=None, outputs=None, zmq_args=None, command_subscriber=None):
+    def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.bytes_from_previous_frame = None
 
-    def process(self, input_data, topic=None):
-        #input to this plugin should be of format pickle.dumps((m_pdu_hdr_pointer, m_pdu_data_zone))
-        unpickled_input_data = pickle.loads(input_data)
-        first_packet_header_pointer = unpickled_input_data[0]
-        m_pdu_data = unpickled_input_data[1]
-        #print(f"m_pdu_depacketization plugin recieved {unpickled_input_data}")
+    def process(self, data, topic=None):
+        AOS_frame_object = AOSTransFrame(data)
+        if AOS_frame_object.is_idle_frame:
+            log.debug(f"Dropping idle frame!")
+            return
+        else:
+            first_header_pointer = AOS_frame_object.get('mpdu_first_hdr_ptr')
+            mpdu_packet_zone = AOS_frame_object.get('mpdu_packet_zone')
+            mpdu_tuple = (first_header_pointer, mpdu_packet_zone)
+            self.process_m_pdu_tuple(mpdu_tuple)
+    
+    def process_m_pdu_tuple(self, input_tuple):
+        #input to this plugin should be of format (m_pdu_hdr_pointer, m_pdu_data_zone)
+        first_packet_header_pointer = input_tuple[0]
+        m_pdu_data = input_tuple[1]
         #print(f"first packet header pointer is {first_packet_header_pointer} and m_pdu_data_zone is {bytes(m_pdu_data).hex()}")
 
         remaining_bytes_to_send = m_pdu_data
@@ -26,18 +35,15 @@ class m_pdu_depacketization(Plugin):
             remaining_bytes_to_send = remaining_bytes_to_send[first_packet_header_pointer:]
 
         while remaining_bytes_to_send is not None:
-
-            #print(f"starting at top of while loop. Remaining bytes to send has length {len(remaining_bytes_to_send)} and contains {bytes(remaining_bytes_to_send).hex()}")
-
             #check for empty e0 bytes
-            #print(f"Checking for idle bytes. First 3 bytes of remaining_bytes_to_send is {remaining_bytes_to_send[0:3]}.")
+            #TODO handle the case where there are fewer than 3 idle bytes remaining
             if remaining_bytes_to_send[0:3] == bytearray(b'\xe0\xe0\xe0'):
-                #print("Found repeating e0 bytes in remainder of m_pdu_zone")
+                log.debug("Found repeating e0 bytes in remainder of m_pdu_zone")
                 remaining_bytes_to_send = None
                 continue
 
             length_of_next_packet = self.get_packet_length_from_header(remaining_bytes_to_send[0:6])
-            #print(f"Length of next CCSDS packet is {length_of_next_packet}")
+            log.debug(f"Length of next CCSDS packet is {length_of_next_packet}")
             if length_of_next_packet == len(remaining_bytes_to_send):
                 #print("length of remaining bytes in m_pdu_zone is equal to packet length")
                 self.send_ccsds_packet(remaining_bytes_to_send)
@@ -60,7 +66,7 @@ class m_pdu_depacketization(Plugin):
         '''
         send this function a 6 byte header and it'll return the length of the packet as an int
         '''
-        #print(f"get_packet_length function recieved header {bytes(header_bytes).hex()}")
+        log.debug(f"get_packet_length function recieved header {bytes(header_bytes).hex()}")
         length_as_bytes = header_bytes[4:]
         length_as_int = int.from_bytes(length_as_bytes, "big") #double check that this is big endian
         #assuming no secondary header
@@ -69,6 +75,9 @@ class m_pdu_depacketization(Plugin):
         return total_packet_length
     
     def send_ccsds_packet(self, ccsds_packet):
-        #print(f"Sending CCSDS packet with bytes {bytes(ccsds_packet).hex()}")
+        '''
+        publishes a CCSDS packet to the output topic
+        '''
+        log.debug(f"Sending CCSDS packet with bytes {bytes(ccsds_packet).hex()}")
         self.publish(ccsds_packet)
         
