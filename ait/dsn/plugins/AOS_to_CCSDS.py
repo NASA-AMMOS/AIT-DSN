@@ -3,7 +3,9 @@ from ait.core import log
 from ait.dsn.sle.frames import AOSTransFrame
 
 class AOS_to_CCSDS(Plugin):
-
+    '''
+    This plugin expects a stream of whole AOS frames, and outputs CCSDS packets
+    '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.bytes_from_previous_frame = None
@@ -20,7 +22,7 @@ class AOS_to_CCSDS(Plugin):
             self.process_m_pdu_tuple(mpdu_tuple)
     
     def process_m_pdu_tuple(self, input_tuple):
-        #input to this plugin should be of format (m_pdu_hdr_pointer, m_pdu_data_zone)
+        #input to this function should be a tuple of format (m_pdu_hdr_pointer, m_pdu_data_zone)
         first_packet_header_pointer = input_tuple[0]
         m_pdu_data = input_tuple[1]
         #print(f"first packet header pointer is {first_packet_header_pointer} and m_pdu_data_zone is {bytes(m_pdu_data).hex()}")
@@ -68,7 +70,7 @@ class AOS_to_CCSDS(Plugin):
         '''
         log.debug(f"get_packet_length function recieved header {bytes(header_bytes).hex()}")
         length_as_bytes = header_bytes[4:]
-        length_as_int = int.from_bytes(length_as_bytes, "big") #double check that this is big endian
+        length_as_int = int.from_bytes(length_as_bytes, "big")
         #assuming no secondary header
         #length_as_int is the length of the data field + 1. Add 6 bytes for primary header
         total_packet_length = length_as_int + 7
