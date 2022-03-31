@@ -275,24 +275,36 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-        self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket = None
 
-        connected = False
         for hostname in self._hostnames:
             try:
+                # create new socket for each host attempted
+                self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self._socket.connect((hostname, self._port))
-                ait.core.log.info('Connection to DSN successful through {}.'.format(hostname))
-                connected = True
+                ait.core.log.info(f"Connection to DSN successful through {hostname}.")
                 break
             except socket.error as e:
-                ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
+                # Log the connection error to debug
+                ait.core.log.debug(f"Error occurred while connecting to {hostname}:{self._port}: {e}")
+
+                # If socket is set, close it and cleanup before continuing
+                if self._socket:
+                    try:
+                        self._socket.close()
+                    except socket.error as cls_err:
+                        ait.core.log.error(F"Error occurred while closing socket to hostname {hostname}: {cls_err}")
+                    self._socket = None
+
+                # Log general connection failure to info
+                ait.core.log.info(f"Failed to connect to DSN at {hostname}. Trying next hostname.")
+
+        if self._socket is None:
+            ait.core.log.error('Connection failure with DSN. Aborting ...')
+            raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
         self._data_processor = gevent.spawn(data_processor, self)
-
-        if not connected:
-            ait.core.log.error('Connection failure with DSN. Aborting ...')
-            raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         context_msg = struct.pack(
             TML_CONTEXT_MSG_FORMAT,
