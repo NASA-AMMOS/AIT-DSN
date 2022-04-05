@@ -1,27 +1,15 @@
 from ait.core.server.plugins import Plugin
 from ait.core import log
 import pickle
-import datetime
 
 class m_pdu_depacketization(Plugin):
 
     def __init__(self, inputs=None, outputs=None, zmq_args=None, command_subscriber=None):
         super().__init__(inputs, outputs, zmq_args)
         self.bytes_from_previous_frame = None
-        dt = datetime.datetime.now()
-        timestamp = dt.replace(tzinfo=datetime.timezone.utc).timestamp()
-        self.file_name = f"/home/jpluser/products/downlink/frames_out_{timestamp}.out"
-        self.file_out = open(self.file_name, "wb") 
-
-    def __del__(self):
-        try:
-            self.file_out.close()
-        except Exception as e:
-            log.error(e)
 
     def process(self, input_data, topic=None):
         #input to this plugin should be of format pickle.dumps((m_pdu_hdr_pointer, m_pdu_data_zone))
-        self.file_out.write(input_data)
         #log.info(input_data)
         #log.info(len(input_data))
         unpickled_input_data = input_data
