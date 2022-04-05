@@ -9,26 +9,23 @@ class m_pdu_depacketization(Plugin):
         super().__init__(inputs, outputs, zmq_args)
         self.bytes_from_previous_frame = None
         dt = datetime.datetime.now()
-        timestamp = dt.replace(tzinfo=datetime.timezone.utc).timestamp()
+        timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
         self.file_name = f"/home/jpluser/products/downlink/frames_out_{timestamp}.out"
         self.file_out = open(self.file_name, "wb") 
 
     def __del__(self):
-        try:
-            self.file_out.close()
-        except Exception as e:
-            log.error(e)
+        self.file_out.close()
 
     def process(self, input_data, topic=None):
         #input to this plugin should be of format pickle.dumps((m_pdu_hdr_pointer, m_pdu_data_zone))
         self.file_out.write(input_data)
-        #log.info(input_data)
-        #log.info(len(input_data))
+        log.info(input_data)
+        log.info(len(input_data))
         unpickled_input_data = input_data
         aos_frame_offset = 6
         #first_packet_header_pointer = unpickled_input_data[0]
-        first_packet_header_pointer = int.from_bytes(unpickled_input_data[aos_frame_offset:aos_frame_offset+2], 'big')
-        #log.info(unpickled_input_data)
+        first_packet_header_pointer = unpickled_input_data[aos_frame_offset:aos_frame_offset+2]
+        log.info(unpickled_input_data)
         #m_pdu_data = unpickled_input_data[1]
         m_pdu_data = unpickled_input_data[aos_frame_offset+2:]
         #print(f"m_pdu_depacketization plugin recieved {unpickled_input_data}")
