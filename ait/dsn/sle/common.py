@@ -57,6 +57,7 @@ import time
 import gevent
 import gevent.queue
 import gevent.socket
+import gevent.select
 import gevent.monkey; gevent.monkey.patch_all()
 
 import pyasn1.error
@@ -70,7 +71,7 @@ import ait.core.log
 from ait.dsn.sle.pdu import service_instance
 from ait.dsn.sle.pdu.service_instance import *
 from ait.dsn.sle.pdu.common import HashInput, ISP1Credentials
-from ait.dsn.sle.utils import *
+import ait.dsn.sle.utils as utils
 
 TML_SLE_FORMAT = '!ii'
 TML_SLE_TYPE = 0x01000000
@@ -161,7 +162,9 @@ class SLE(object):
     def send(self, data):
         ''' Send supplied data to DSN '''
         try:
-            self._socket.send(data)
+            _, writeable, _ = gevent.select([], [self._socket], [])
+            for i in writeable:
+                i.sendall(data)
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
                 ait.core.log.error('Socket connection lost to DSN')
@@ -275,24 +278,36 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-        self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket = None
 
-        connected = False
         for hostname in self._hostnames:
             try:
+                # create new socket for each host attempted
+                self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self._socket.connect((hostname, self._port))
-                ait.core.log.info('Connection to DSN successful through {}.'.format(hostname))
-                connected = True
+                ait.core.log.info(f"Connection to DSN successful through {hostname}.")
                 break
             except socket.error as e:
-                ait.core.log.info('Failed to connect to DSN at {}. Trying next hostname.'.format(hostname))
+                # Log the connection error to debug
+                ait.core.log.debug(f"Error occurred while connecting to {hostname}:{self._port}: {e}")
+
+                # If socket is set, close it and cleanup before continuing
+                if self._socket:
+                    try:
+                        self._socket.close()
+                    except socket.error as cls_err:
+                        ait.core.log.error(F"Error occurred while closing socket to hostname {hostname}: {cls_err}")
+                    self._socket = None
+
+                # Log general connection failure to info
+                ait.core.log.info(f"Failed to connect to DSN at {hostname}. Trying next hostname.")
+
+        if self._socket is None:
+            ait.core.log.error('Connection failure with DSN. Aborting ...')
+            raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
         self._data_processor = gevent.spawn(data_processor, self)
-
-        if not connected:
-            ait.core.log.error('Connection failure with DSN. Aborting ...')
-            raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         context_msg = struct.pack(
             TML_CONTEXT_MSG_FORMAT,
@@ -454,7 +469,7 @@ def conn_handler(handler):
             if binascii.hexlify(hdr[:4]) == b'01000000':
                 # Get length of body and check if the entirety of the
                 # body has been received. If we can, process the message(s)
-                body_len = hexint(hdr[4:])
+                body_len = utils.hexint(hdr[4:])
                 if len(rem) < body_len:
                     break
                 else:
