@@ -13,9 +13,8 @@ class AOS_to_CCSDS(Plugin):
 
     def process(self, data, topic=None):
         AOS_frame_object = AOSTransFrame(data)
-        if AOS_frame_object.is_idle_frame or
-        not AOS_frame_object.get('aos_data_field_type') ==
-        AOSDataFieldType.M_PDU:
+        if AOS_frame_object.is_idle_frame or \
+           AOS_frame_object.get('aos_data_field_type') is not AOSDataFieldType.M_PDU:
             log.debug(f"Dropping idle frame!")
             return
         else:
