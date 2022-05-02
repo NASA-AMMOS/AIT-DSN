@@ -182,13 +182,21 @@ class RAF(common.SLE):
         if start_time is None:
             start_invoc['rafStartInvocation']['startTime']['undefined'] = None
         else:
-            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
+            days = (start_time - common.CCSDS_EPOCH).days
+            millisecs = (start_time - start_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+            microsecs = int(round(millisecs % 1 * 1000))
+            millisecs = int(millisecs)
+            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, millisecs, microsecs)
             start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
 
         if end_time is None:
             start_invoc['rafStartInvocation']['stopTime']['undefined'] = None
         else:
-            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
+            days = (end_time - common.CCSDS_EPOCH).days
+            millisecs = (end_time - end_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+            microsecs = int(round(millisecs % 1 * 1000))
+            millisecs = int(millisecs)
+            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, millisecs, microsecs)
             start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
