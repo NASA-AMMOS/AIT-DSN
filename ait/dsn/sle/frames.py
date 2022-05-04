@@ -538,12 +538,16 @@ class AOSTransFrame(BaseTransferFrame):
 
         # M_PDU header: 5 bits reserved, 11 first header pointer: 07FF
         # Note: If all ones, then datafield does not contain a start of a packet
+        #ait.core.log.info(f'FRAME PY {datafield[0:2]}')
+        #ait.core.log.info(f'FRAME PY {utils.hexint(datafield[0:2])}')
         self['mpdu_first_hdr_ptr'] = utils.hexint(datafield[0:2]) & 0x07FF
 
         # Remaining: M_PDU packet zone
         # In general, this may contain a series of CCSDS packets,
         # but for now, someone downstream will handle processing it
         self['mpdu_packet_zone'] = datafield[2:]
+        #ait.core.log.info(f'FRAME PY PACKET ZONE SAMPLE {datafield[2:50]}')
+        #ait.core.log.info('--')
 
 
         # AOS Spec 4.1.4.2.3.5 If the M_PDU Packet Zone contains only Idle Data,
