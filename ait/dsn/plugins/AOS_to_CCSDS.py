@@ -104,6 +104,6 @@ class AOS_to_CCSDS(Plugin):
         if len(ccsds_packet) > 1774:
             log.info('sent oversize CCSDS packet')
             log.info(ccsds_packet)
-            log.info(self.bytes_from_previous_frame)
+            log.info(self.bytes_from_previous_frames)
         self.publish(ccsds_packet)
 

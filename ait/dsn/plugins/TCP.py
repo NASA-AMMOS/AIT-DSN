@@ -24,7 +24,7 @@ class Subscription:
     hostname: str = None
     port: int = 0
     timeout_seconds: int = 5
-    receive_size_bytes: int = 1024
+    receive_size_bytes: int = 64000
     ip: str = field(init=False)
     socket: socket = field(init=False)
     log_name: str = field(init=False)
