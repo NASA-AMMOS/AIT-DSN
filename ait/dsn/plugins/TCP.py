@@ -24,7 +24,7 @@ class Subscription:
     hostname: str = None
     port: int = 0
     timeout_seconds: int = 5
-    receive_size_bytes: int = 1024
+    receive_size_bytes: int = 64000
     ip: str = field(init=False)
     socket: socket = field(init=False)
     log_name: str = field(init=False)
@@ -339,9 +339,12 @@ class TCP_Manager(Plugin):
 
         :returns: data from topic
         """
+        #if len(data) == 0:
+        #    log.info('TCP manager got no data')
         subs = self.topic_subscription_map[topic]
         subs = [sub for sub in subs if sub.mode is Mode.TRANSMIT]
         for sub in subs:
             sub.send(data)
+        #log.info('TCP manager publishing')
         self.publish(data)
         return data
