@@ -444,6 +444,13 @@ class SLE(object):
 
         return encode(isp1_creds)
 
+    def _generate_encoded_time(self, datetime_):
+        days = (datetime_ - CCSDS_EPOCH).days
+        millisecs = (datetime_ - datetime_.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+        microsecs = int(round(millisecs % 1 * 1000))
+        millisecs = int(millisecs)
+        return struct.pack('!HIH', (datetime_ - CCSDS_EPOCH).days, millisecs, microsecs)
+
 def conn_handler(handler):
     ''' Handler for processing data received from the DSN into PDUs'''
     hb_time = int(time.time())

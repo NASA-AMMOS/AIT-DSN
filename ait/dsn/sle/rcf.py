@@ -234,21 +234,13 @@ class RCF(common.SLE):
         if start_time is None:
             start_invoc['rcfStartInvocation']['startTime']['undefined'] = None
         else:
-            days = (start_time - common.CCSDS_EPOCH).days
-            millisecs = (start_time - start_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-            microsecs = int(round(millisecs % 1 * 1000))
-            millisecs = int(millisecs)
-            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, millisecs, microsecs)
+            start_time = self._generate_encoded_time(start_time)
             start_invoc['rcfStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
 
         if end_time is None:
             start_invoc['rcfStartInvocation']['stopTime']['undefined'] = None
         else:
-            days = (end_time - common.CCSDS_EPOCH).days
-            millisecs = (end_time - end_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-            microsecs = int(round(millisecs % 1 * 1000))
-            millisecs = int(millisecs)
-            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, millisecs, microsecs)
+            stop_time = self._generate_encoded_time(end_time)
             start_invoc['rcfStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 
         req_gvcid = GvcId()
