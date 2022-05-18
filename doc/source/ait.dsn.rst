@@ -12,6 +12,7 @@ Subpackages
     ait.dsn.encrypt
     ait.dsn.sle
     ait.dsn.util
+    ait.dsn.plugins
 
 Module contents
 ---------------
