@@ -7,6 +7,11 @@ import ait
 from ait.core.server.plugins import Plugin
 from ait.core import log
 
+from collections import defaultdict
+from ait.dsn.sle.frames import AOSTransFrame
+from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
+
+
 class AOSFrameRouter(Plugin):
     '''
     Routes AOS frames by VCID according to a routing table defined by a yaml file.
@@ -43,7 +48,8 @@ class AOSFrameRouter(Plugin):
         - idle_handler:
             - 63
     '''
-    def __init__(self, inputs=None, outputs=None, zmq_args=None, routing_table=None, default_topic=None):
+    def __init__(self, inputs=None, outputs=None, zmq_args=None,
+                 routing_table=None, default_topic=None):
         
         super().__init__(inputs, outputs, zmq_args)
 
@@ -56,19 +62,25 @@ class AOSFrameRouter(Plugin):
             log.error("no path specified for routing table")
         if self.routing_table_object is None:
             log.error("Unable to load routing table .yaml file")
+        self.vcid_counter = defaultdict(int)
 
-    def process(self, input_data):
+    def process(self, tagged_frame:TaggedFrame, topic=None):
         '''
         publishes incoming AOS frames to the routes specified in the routing table
 
         :param input_data: AOS frame as bytes
         :type input_data: bytes, bytearray 
         '''
-        frame_vcid = self.get_frame_vcid(input_data)
+        #frame_vcid = self.get_frame_vcid(input_data)
+        frame_vcid = tagged_frame.vcid
         if frame_vcid in self.routing_table_object:
             topics = self.routing_table_object[frame_vcid]
+            self.vcid_counter[frame_vcid] += 1
+            tagged_frame.vcid_counter = self.vcid_counter[frame_vcid]
+            log.debug(f"{__name__} -> Found routing table: "
+                      f"{topics} for {tagged_frame}")
             for route in topics:
-                self.publish(input_data, route)
+                self.publish(tagged_frame, route)
         else:
             log.error(f"No routes specified for VCID {frame_vcid}")
 
@@ -82,8 +94,7 @@ class AOSFrameRouter(Plugin):
         :returns: frame VCID
         :rtype: int
         '''
-        vcid_bits = bytearray(b1 & b2 for b1, b2 in zip(frame[1], bytearray(b'\x3f')))
-        vcid = int.from_bytes(vcid_bits, byteorder='big')
+        vcid = AOSTransFrame(frame).virtual_channel
         return vcid
 
     def add_topic_to_table(self, routing_table, vcid, topic_name):
