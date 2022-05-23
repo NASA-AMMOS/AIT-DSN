@@ -424,11 +424,7 @@ class SLE(object):
                 The password to use to create the credentials.
         '''
         hash_input = HashInput()
-        days = (current_time - dt.datetime(1958, 1, 1)).days
-        millisecs = (current_time - current_time.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-        microsecs = int(round(millisecs % 1 * 1000))
-        millisecs = int(millisecs)
-        credential_time = struct.pack('!HIH', days, millisecs, microsecs)
+        credential_time = generate_encoded_time(current_time)
 
         hash_input['time'] = credential_time
         hash_input['randomNumber'] = random_number
@@ -445,11 +441,8 @@ class SLE(object):
         return encode(isp1_creds)
 
     def _generate_encoded_time(self, datetime_):
-        days = (datetime_ - CCSDS_EPOCH).days
-        millisecs = (datetime_ - datetime_.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
-        microsecs = int(round(millisecs % 1 * 1000))
-        millisecs = int(millisecs)
-        return struct.pack('!HIH', (datetime_ - CCSDS_EPOCH).days, millisecs, microsecs)
+        return generate_encoded_time(datetime_)
+
 
 def conn_handler(handler):
     ''' Handler for processing data received from the DSN into PDUs'''
@@ -516,3 +509,11 @@ def data_processor(handler):
             continue
 
         handler._handle_pdu(decoded_pdu)
+
+
+def generate_encoded_time(datetime_):
+        days = (datetime_ - CCSDS_EPOCH).days
+        millisecs = (datetime_ - datetime_.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() * 1000
+        microsecs = int(round(millisecs % 1 * 1000))
+        millisecs = int(millisecs)
+        return struct.pack('!HIH', (datetime_ - CCSDS_EPOCH).days, millisecs, microsecs)
