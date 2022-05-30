@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from gevent import Greenlet, socket, select, sleep
 import enum
 import errno
+import ait.dsn.plugins.Graffiti as Graffiti
 
 
 class Mode(enum.Enum):
@@ -261,7 +262,7 @@ class Subscription:
         return data
 
 
-class TCP_Manager(Plugin):
+class TCP_Manager(Plugin, Graffiti.Graphable):
     """
     Customize the template within the config.yaml plugin block:
 
@@ -317,6 +318,8 @@ class TCP_Manager(Plugin):
 
         self.glet = Greenlet.spawn(self.handle_recv, self.rxs)
 
+        Graffiti.Graphable.__init__(self)
+
     def handle_recv(self, rxlist):
         """
         Block until a receiving Subscription's socket has data
@@ -348,3 +351,36 @@ class TCP_Manager(Plugin):
         #log.info('TCP manager publishing')
         self.publish(data)
         return data
+
+    def graffiti(self):
+        nodes = []
+
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "PUB/SUB Message") for i in self.inputs],
+                          outputs=[],
+                          label="",
+                          node_type=Graffiti.Node_Type.PLUGIN)
+
+        nodes.append(n)
+
+        for (topic, subs) in self.topic_subscription_map.items():
+            for sub in subs:
+                if sub.mode is Mode.TRANSMIT:
+                    n = Graffiti.Node(self.self_name,
+                                      inputs=[],
+                                      outputs=[(sub.hostname,
+                                                f"{sub.topic}\n"
+                                                f"Port: {sub.port}")],
+                                      label="Manage TCP Transmit and Receive",
+                                      node_type=Graffiti.Node_Type.TCP_SERVER)
+
+                else:  # sub.mode is Mode.RECEIVE:
+                    n = Graffiti.Node(self.self_name,
+                                      inputs=[(sub.hostname,
+                                               f"{sub.topic}\n"
+                                               f"Port: {sub.port}")],
+                                      outputs=[(sub.topic, "Bytes")],
+                                      label="Manage TCP Transmit and Receive",
+                                      node_type=Graffiti.Node_Type.TCP_CLIENT)
+                nodes.append(n)
+        return nodes

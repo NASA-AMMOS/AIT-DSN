@@ -3,6 +3,7 @@ from ait.core import log
 from ait.dsn.sle.frames import AOSTransFrame, AOSDataFieldType
 from binascii import crc_hqx
 from dataclasses import dataclass
+import ait.dsn.plugins.Graffiti as Graffiti
 
 
 @dataclass
@@ -62,15 +63,24 @@ class AOS_FEC_Check():
         return (corrupt, vcid)
 
 
-class AOS_FEC_Check_Plugin(Plugin):
+class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
     '''
     Check if a AOS frame fails a Forward Error Correction Check
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.checker = AOS_FEC_Check()
+        Graffiti.Graphable.__init__(self)
 
     def process(self, data, topic=None):
         tagged_fec = self.checker.tag_fec(data)
         self.publish(tagged_fec)
         return tagged_fec
+
+    def graffiti(self):
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "Raw AOS Frames") for i in self.inputs],
+                          outputs=[],
+                          label="Check Forward Error Correction Field",
+                          node_type=Graffiti.Node_Type.PLUGIN)
+        return [n]

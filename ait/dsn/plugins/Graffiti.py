@@ -1,25 +1,10 @@
 import graphviz
 import ait.core
 from ait.core.server.plugins import Plugin
-import pprint
 from gevent import Greenlet, sleep
 from enum import Enum
-
-ready = False
-
-
-def wait(callback):
-    Greenlet.spawn(recall, callback)
-    return
-
-
-def recall(callback):
-    if not Graffiti.ready:
-        sleep(1)
-        Graffiti.ready = True
-
-    data = callback.graffiti()
-    callback.publish(data, 'Graffiti')
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 
 class Node_Type(Enum):
@@ -30,21 +15,24 @@ class Node_Type(Enum):
     NONE = 'oval'
 
 
+@dataclass
 class Node():
-    def __init__(self, name=None, inputs=[], outputs=[],
-                 label=None, node_type=Node_Type.NONE):
-        self.name = name
-        self.inputs = inputs
-        self.outputs = outputs
-        self.label = label
-        self.node_type = node_type
+    name: str = ""
+    inputs: list = field(default_factory=list)
+    outputs: list = field(default_factory=list)
+    label: str = ""
+    node_type: Node_Type = Node_Type.NONE
 
 
 class Graffiti(Plugin):
     def __init__(self, inputs=None, outputs=None,
                  zmq_args=None, popup=False, **kwargs):
+        inputs = ["Graffiti"]
+        super().__init__(inputs, outputs, zmq_args)
 
-        self.graph = graphviz.Digraph('data-flow', comment='data-flow')
+        self.graph = graphviz.Digraph('data-flow',
+                                      comment='data-flow',
+                                      strict=True)
 
         self.telem_api_stream = ait.config.get(
              "server.api-telemetry-streams", [])
@@ -100,26 +88,66 @@ class Graffiti(Plugin):
         for name, node in nodes.items():
             self.visit_node(node)
 
-        self.graph.render(directory='data-flow', view=False)
+        self.graph.render(directory='data-flow', view=popup)
 
     def visit_node(self, node):
-        label = pprint.pformat(node.label, width=-1)
+        label = node.label
         self.graph.node(node.name, node.name +
                         "\n\n" + label,
                         shape=node.node_type.value)
 
         for target in node.inputs:
+            if isinstance(target, tuple):
+                target, label = target
+                label = str(label)
+            else:
+                label = None
             target = str(target)
-            self.graph.node(target, target)
-            self.graph.edge(target, node.name)
+            self.graph.edge(target, node.name, label)
 
         for target in node.outputs:
+            if isinstance(target, tuple):
+                target, label = target
+                label = str(label)
+            else:
+                label = None
             target = str(target)
-            self.graph.node(target, target)
-            self.graph.edge(node.name, target)
+            self.graph.edge(node.name, target, label)
 
-    def process(self, data, topic, name, inputs=[], outputs=[],
-                label=None, node_type=Node_Type.NONE):
-        node = Node(name, inputs, outputs, label, node_type)
+    def process(self, node, topic):
         self.visit_node(node)
         self.graph.render(directory='data-flow', view=False)
+
+
+class Graphable(ABC):
+
+    def __init__(self, name="Missing Name!", delay=1, graffiti_object=None):
+        self.self_name = self.__class__.__name__
+        self.graffiti_object = graffiti_object
+        self.delay = delay
+
+        if self.graffiti_object:
+            method = self.graffiti_direct
+        else:
+            method = self.graffiti_via_plugin
+
+        method()
+
+    def graffiti_direct(self):
+        nodes = self.graffiti()
+        for node in nodes:
+            self.graffiti_object.add_node()
+
+    def graffiti_via_plugin(self):
+
+        def recall():
+            sleep(2)
+            node_list = self.graffiti()
+            for node in node_list:
+                self.publish(node, 'Graffiti')
+
+        Greenlet.spawn(recall)
+
+    @abstractmethod
+    def graffiti():
+        pass
