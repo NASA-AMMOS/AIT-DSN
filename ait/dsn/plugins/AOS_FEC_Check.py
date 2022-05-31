@@ -10,8 +10,9 @@ import ait.dsn.plugins.Graffiti as Graffiti
 class TaggedFrame:
     frame: bytearray
     vcid: int = None
-    counter: int = None
+    absolute_counter: int = None
     corrupt_frame: bool = False
+    channel_counter: int = None
 
 
 class AOS_FEC_Check():
@@ -70,12 +71,16 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.checker = AOS_FEC_Check()
+        self.absolute_counter = 0
         Graffiti.Graphable.__init__(self)
 
     def process(self, data, topic=None):
-        tagged_fec = self.checker.tag_fec(data)
-        self.publish(tagged_fec)
-        return tagged_fec
+        tagged_frame = self.checker.tag_fec(data)
+        tagged_frame.absolute_counter = self.absolute_counter
+        self.absolute_counter += 1
+        
+        self.publish(tagged_frame)
+        return tagged_frame
 
     def graffiti(self):
         n = Graffiti.Node(self.self_name,
