@@ -38,9 +38,8 @@ class AOS_to_CCSDS(Plugin):
             remaining_bytes_to_send = remaining_bytes_to_send[first_packet_header_pointer:]
 
         while remaining_bytes_to_send is not None:
-            #check for empty e0 bytes
-            #TODO handle the case where there are fewer than 3 idle bytes remaining
-            if remaining_bytes_to_send[0:3] == bytearray(b'\xe0\xe0\xe0'):
+            #check for repeating e0 bytes
+            if remaining_bytes_to_send == bytearray(b'\xe0' * len(remaining_bytes_to_send)):
                 log.debug("Found repeating e0 bytes in remainder of m_pdu_zone")
                 remaining_bytes_to_send = None
                 continue
