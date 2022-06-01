@@ -31,8 +31,7 @@ class AOS_FEC_Check():
 
         corrupt_frame, vcid = cls.isCorrupt(raw_frame)
         if corrupt_frame:
-            log.error(f"{cls.log_header} FEC NOT OKAY! Dicarding Frame!")
-            log.error(f"{cls.log_header} Discard: {raw_frame}")
+            log.error(f"{cls.log_header} FEC NOT OKAY! {raw_frame}")
             log.debug(f"{cls.log_header} Ok")
         tagged_frame = TaggedFrame(frame=raw_frame,
                                    vcid=vcid,
