@@ -32,6 +32,8 @@ class AOS_FEC_Check():
         corrupt_frame, vcid = cls.isCorrupt(raw_frame)
         if corrupt_frame:
             log.error(f"{cls.log_header} FEC NOT OKAY! {raw_frame}")
+            exit()
+        else:
             log.debug(f"{cls.log_header} Ok")
         tagged_frame = TaggedFrame(frame=raw_frame,
                                    vcid=vcid,
@@ -75,8 +77,8 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
 
     def process(self, data, topic=None):
         tagged_frame = self.checker.tag_fec(data)
-        tagged_frame.absolute_counter = self.absolute_counter
         self.absolute_counter += 1
+        tagged_frame.absolute_counter = self.absolute_counter
         
         self.publish(tagged_frame)
         return tagged_frame
