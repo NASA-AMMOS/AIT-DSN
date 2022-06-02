@@ -2,9 +2,12 @@ from ait.dsn.encrypt.encrypter import EncrypterFactory
 from ait.core.server.plugins import Plugin
 from ait.core import log
 import ait.dsn.plugins.TCTF_Manager as tctf
+import ait.dsn.plugins.Graffiti as Graffiti
 
 
-class Encrypter(Plugin):
+
+class Encrypter(Plugin,
+                Graffiti.Graphable):
     """
     Add the following lines to config.yaml:
 
@@ -38,6 +41,8 @@ class Encrypter(Plugin):
             self.encrypter.configure()
             self.encrypter.connect()
             log.info(f"{self.log_header} Encryption services started.")
+
+        Graffiti.Graphable.__init__(self)
 
     def __del__(self):
         self.encrypter.close()
@@ -95,3 +100,11 @@ class Encrypter(Plugin):
         else:
             # Looks good to publish
             self.publish(crypt_result.result)
+
+    def graffiti(self):
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "TCTF Frame") for i in self.inputs],
+                          outputs=[],
+                          label="Encrypt/Authenticate TCTF",
+                          node_type=Graffiti.Node_Type.PLUGIN)
+        return [n]
