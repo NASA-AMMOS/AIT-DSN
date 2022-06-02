@@ -11,8 +11,9 @@ from collections import defaultdict
 from ait.dsn.sle.frames import AOSTransFrame
 from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
 
+import ait.dsn.plugins.Graffiti as Graffiti
 
-class AOSFrameRouter(Plugin):
+class AOSFrameRouter(Plugin, Graffiti.Graphable):
     '''
     Routes AOS frames by VCID according to a routing table defined by a yaml file.
     Arguments to the range operator are inclusive.
@@ -54,9 +55,12 @@ class AOSFrameRouter(Plugin):
         super().__init__(inputs, outputs, zmq_args)
 
         self.default_topic = default_topic
-
+        if routing_table:
+            self.path = routing_table['path']
+        else:
+            self.path = "No Routing Table Specified"
         if 'path' in routing_table:
-            self.routing_table_object = self.load_table_yaml(routing_table['path'])
+            self.routing_table_object = self.load_table_yaml(self.path)
         else:
             self.routing_table_object = None
             log.error("no path specified for routing table")
@@ -64,6 +68,8 @@ class AOSFrameRouter(Plugin):
             log.error("Unable to load routing table .yaml file")
         self.vcid_counter = defaultdict(int)
 
+        Graffiti.Graphable.__init__(self)
+        
     def process(self, tagged_frame:TaggedFrame, topic=None):
         '''
         publishes incoming AOS frames to the routes specified in the routing table
@@ -83,6 +89,17 @@ class AOSFrameRouter(Plugin):
                 self.publish(tagged_frame, route)
         else:
             log.error(f"No routes specified for VCID {frame_vcid}")
+
+    def graffiti(self):
+        nodes = []
+        for (vcid, routes) in self.routing_table_object.items():
+            for route in routes:
+                nodes.append(Graffiti.Node(self.self_name,
+                                           [(i, "AOS Frames") for i in self.inputs],
+                                           [(route, f"VCID: {vcid}")],
+                                           f"Routing Table: {self.path}",
+                                           Graffiti.Node_Type.PLUGIN))
+        return nodes
 
     def get_frame_vcid(self, frame):
         '''

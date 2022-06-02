@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 from gevent import Greenlet, socket, select, sleep
 import enum
 import errno
+import ait.dsn.plugins.Graffiti as Graffiti
 
+from gevent import monkey
+monkey.patch_all()
 
 class Mode(enum.Enum):
     TRANSMIT = enum.auto()
@@ -16,7 +19,7 @@ class Mode(enum.Enum):
 class Subscription:
     """
     Creates subscription.
-    ip, socket, and log_name are derrived from the mandatory fields.
+    ip, socket, and log_header are derrived from the mandatory fields.
     """
     topic: str
     server_name: str
@@ -27,7 +30,7 @@ class Subscription:
     receive_size_bytes: int = 64000
     ip: str = field(init=False)
     socket: socket = field(init=False)
-    log_name: str = field(init=False)
+    log_header: str = field(init=False)
 
     def __post_init__(self):
         """
@@ -35,7 +38,7 @@ class Subscription:
         Derrives IP from hostname, if provided in config.
         """
         self.ip = None
-        self.log_name = f"TCP -> {self.server_name} =>"
+        self.log_header = f"{__name__} -> {self.server_name} =>"
         if self.hostname:
             self.ip = socket.gethostbyname(self.hostname)
             self.socket = self.setup_client_socket()
@@ -45,9 +48,10 @@ class Subscription:
 
     def __del__(self):
         """
-        Close open socket, if any.
+        Shutdown and close open socket, if any.
         """
         if hasattr(self, "socket") and self.socket:
+            self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
 
     def setup_server_socket(self):
@@ -62,15 +66,13 @@ class Subscription:
             s.bind(('127.0.0.1', self.port))
             s.listen()
 
-            msg = (f"{self.log_name} Started server "
-                   f"for topic {self.topic} on port {self.port}")
-            log.info(msg)
+            log.info((f"{self.log_header} Started server "
+                      f"for topic {self.topic} on port {self.port}"))
 
         except Exception as e:
-            msg = (f"{self.log_name} Could not start "
-                   f"server for topic {self.topic} "
-                   f"on port {self.port}.")
-            log.error(msg)
+            log.error((f"{self.log_header} Could not start "
+                       f"server for topic {self.topic} "
+                       f"on port {self.port}."))
             log.error(e)
         return s
 
@@ -85,7 +87,7 @@ class Subscription:
         address = (self.ip, self.port)
         try:
             s.connect(address)
-            msg = (f"{self.log_name} Connected "
+            msg = (f"{self.log_header} Connected "
                    f"to {self.hostname}:{self.port} "
                    f"subscribed to: {self.topic}")
             log.info(msg)
@@ -97,17 +99,17 @@ class Subscription:
                 # Previous connection attempt still in async progress
                 pass
             else:
-                log.error(f"{self.log_name} Unknown error: {e}")
+                log.error(f"{self.log_name} -> setup_client_socket => "
+                          f"Unknown error: {e}")
         return s
 
-    def error_client_reconnect(self):
+    def client_reconnect(self):
         """
         Attempt to reestablish a client socket that has thrown
         an error.
         """
-        self.error_server_down()
-        msg = f"{self.log_name} Attempting to establish connection."
-        log.info(msg)
+        log.info(f"{self.log_header} {self.topic} Attempting "
+                 "to establish connection.")
         sleep(5)
         self.socket = self.setup_client_socket()
 
@@ -115,10 +117,9 @@ class Subscription:
         """
         Use to log an error when server can not be reached.
         """
-        msg = (f"{self.log_name} Failed to "
-               f"send subscription {self.topic} "
-               f"to {self.hostname}. Is the server down?")
-        log.error(msg)
+        log.error((f"{self.log_header} Failed to "
+                   f"process subscription {self.topic} "
+                   f"to {self.hostname}. Is the server down?"))
 
     def error_timeout(self):
         """
@@ -135,25 +136,16 @@ class Subscription:
         This means the receiving process is unreachable, or
         the connection has been interrupted.
         """
-        msg = (f"{self.log_name} send => We can't wait any longer! "
-               f"{self.server_name} missed their window! "
-               f"Dropping {self.topic} data!")
-        log.info(msg)
-
-    def error_timeout_reconnect(self):
-        """
-        Logs timeout error message and attempts to reestablish a client
-        socket. Some topic data will be lost when this occurs.
-        """
-        self.error_timeout()
-        self.error_client_reconnect()
+        log.info((f"{self.log_header} send => We can't wait any longer! "
+                  f"{self.server_name} missed their window! "
+                  f"Dropping {self.topic} data!"))
 
     def send_as_client(self, data):
         """
         Sends data through a client socket.
 
         Will attempt to reconnect if the connection can not be established.
-        Will attempt to error_timeout_reconnect if the receiving process
+        Will attempt to reconnect if the receiving process
         does not respond before the user defined timeout is reached.
         """
 
@@ -162,15 +154,15 @@ class Subscription:
         if tx:
             try:
                 self.socket.sendall(data)
-                msg = (f"{self.log_name} Sending {self.topic} "
+                msg = (f"{self.log_header} Sending {self.topic} "
                        f"subscription to {self.hostname} {data}")
                 log.debug(msg)
-
             except socket.error as e:
                 if e.errno == errno.ECONNREFUSED:
-                    self.error_client_reconnect()
-        else:
-            self.error_timeout_reconnect()
+                    self.error_timeout()
+                else:
+                    log.error(f"{self.log_header} received error: {e}")
+                    self.client_reconnect()
 
     def send_as_server(self, data):
         """
@@ -179,15 +171,26 @@ class Subscription:
         Will log error_timeout and drop data if the client does not
         connect before the user defined timeout is reached.
         """
-        rx, tx, _ = select.select([self.socket], [self.socket], [],
-                                  self.timeout_seconds)
+        try:
+            rx, tx, _ = select.select([self.socket], [self.socket], [],
+                                      self.timeout_seconds)
+        except ValueError:
+            log.debug(f"{self.log_header} socket was "
+                      "unexpectedly closed elsewhere.")
+            rx = []
+            tx = []
+        except Exception as e:
+            log.error(f"{self.log_header} received exception {e}")
+            rx = []
+            tx = []
+
         if tx or rx:
             sock, socket_info = self.socket.accept()
             sock.sendall(data)
+            sock.shutdown(socket.SHUT_RDWR)
             sock.close()
-            msg = (f"{self.log_name} Pushed topic {self.topic} data "
-                   f"to {socket_info}")
-            log.debug(msg)
+            log.debug((f"{self.log_header} Pushed topic {self.topic} data "
+                       f"to {socket_info}"))
 
         else:
             self.error_timeout()
@@ -218,14 +221,13 @@ class Subscription:
             sock, sock_info = self.socket.accept()
             data = sock.recv(self.receive_size_bytes)
             sock.close()
-            msg = (f"{self.log_name} From client{sock_info}"
-                   f"Pushed data to topic {self.topic}")
-            log.debug(msg)
+            log.debug(f"{self.log_header} From client {sock_info} to "
+                      f"{self.topic}: (len:{len(data)}, data:{data}")
             return data
 
     def recv_as_client(self):
         """
-        Receive data as a server.
+        Receive data as a client.
 
         :returns: data received from server or none
 
@@ -238,14 +240,25 @@ class Subscription:
         if rx:
             try:
                 data = self.socket.recv(self.receive_size_bytes)
-                msg = (f"{self.log_name} Receiving {self.topic} "
-                       f"subscription from {self.hostname} {data}")
-                log.debug(msg)
-                return data
+                if not data:
+                    log.error(f"{self.log_header} received "
+                              f"EOF from {self.hostname}. "
+                              "Closing socket and attempting to reconnect.")
+                    self.socket.shutdown(socket.SHUT_RDWR)
+                    self.socket.close()
+                    self.client_reconnect()
+                else:
+                    log.debug(f"{self.log_header} Receiving {self.topic} "
+                              f"subscription from {self.hostname}: "
+                              f"(len:{len(data)}, data:{data}")
+                    return data
 
             except socket.error as e:
                 if e.errno == errno.ECONNREFUSED:
-                    self.error_client_reconnect()
+                    self.error_server_down()
+                else:
+                    log.error(f"{self.log_header} received error {e}")
+                self.client_reconnect()
 
     def recv(self):
         """
@@ -261,7 +274,7 @@ class Subscription:
         return data
 
 
-class TCP_Manager(Plugin):
+class TCP_Manager(Plugin, Graffiti.Graphable):
     """
     Customize the template within the config.yaml plugin block:
 
@@ -306,6 +319,7 @@ class TCP_Manager(Plugin):
         self.topic_subscription_map = defaultdict(list)
         self.socket_to_sub = {}
         self.rxs = []
+        self.log_header = __name__ + " ->"
 
         for (topic, servers) in subscriptions.items():
             for (server, mode_info) in servers.items():
@@ -313,11 +327,14 @@ class TCP_Manager(Plugin):
                 self.topic_subscription_map[topic].append(sub)
                 self.socket_to_sub[sub.socket] = sub
                 if sub.mode is Mode.RECEIVE:
-                    self.rxs.append(sub.socket)
+                    self.rxs.append(sub)
 
-        self.glet = Greenlet.spawn(self.handle_recv, self.rxs)
+        self.glet = Greenlet.spawn(self.handle_recv)
 
-    def handle_recv(self, rxlist):
+        Graffiti.Graphable.__init__(self)
+
+
+    def handle_recv(self):
         """
         Block until a receiving Subscription's socket has data
         to collect.
@@ -325,9 +342,23 @@ class TCP_Manager(Plugin):
         :returns: data from an external process or none
         """
         while True:
-            rxs, _, _ = select.select(rxlist, [], [])
+            sockets = []
+            socket_to_sub = {}
+            for sub in self.rxs:
+                sockets.append(sub.socket)
+                socket_to_sub[sub.socket] = sub
+            try:
+                rxs, _, _ = select.select(sockets, [], [])
+            except ValueError:
+                log.debug(f"{self.log_header} handle_recv => socket "
+                          "was unexpectedly closed elsewhere.")
+            except Exception as e:
+                log.error(f"{self.log_header} received exception: {e}")
+            finally:
+                rx = []
+
             for rx in rxs:
-                sub = self.socket_to_sub[rx]
+                sub = socket_to_sub[rx]
                 data = sub.recv()
                 if data:
                     self.publish(data, sub.topic)
@@ -339,8 +370,8 @@ class TCP_Manager(Plugin):
 
         :returns: data from topic
         """
-        #if len(data) == 0:
-        #    log.info('TCP manager got no data')
+        if len(data) == 0:
+            log.info('TCP manager received no data')
         subs = self.topic_subscription_map[topic]
         subs = [sub for sub in subs if sub.mode is Mode.TRANSMIT]
         for sub in subs:
@@ -348,3 +379,36 @@ class TCP_Manager(Plugin):
         #log.info('TCP manager publishing')
         self.publish(data)
         return data
+
+    def graffiti(self):
+        nodes = []
+
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "PUB/SUB Message") for i in self.inputs],
+                          outputs=[],
+                          label="",
+                          node_type=Graffiti.Node_Type.PLUGIN)
+
+        nodes.append(n)
+
+        for (topic, subs) in self.topic_subscription_map.items():
+            for sub in subs:
+                if sub.mode is Mode.TRANSMIT:
+                    n = Graffiti.Node(self.self_name,
+                                      inputs=[],
+                                      outputs=[(sub.hostname,
+                                                f"{sub.topic}\n"
+                                                f"Port: {sub.port}")],
+                                      label="Manage TCP Transmit and Receive",
+                                      node_type=Graffiti.Node_Type.TCP_SERVER)
+
+                else:  # sub.mode is Mode.RECEIVE:
+                    n = Graffiti.Node(self.self_name,
+                                      inputs=[(sub.hostname,
+                                               f"{sub.topic}\n"
+                                               f"Port: {sub.port}")],
+                                      outputs=[(sub.topic, "Bytes")],
+                                      label="Manage TCP Transmit and Receive",
+                                      node_type=Graffiti.Node_Type.TCP_CLIENT)
+                nodes.append(n)
+        return nodes
