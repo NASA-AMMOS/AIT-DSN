@@ -92,13 +92,17 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
 
     def graffiti(self):
         nodes = []
+        route_edges = defaultdict(list)
         for (vcid, routes) in self.routing_table_object.items():
             for route in routes:
-                nodes.append(Graffiti.Node(self.self_name,
-                                           [(i, "AOS Frames") for i in self.inputs],
-                                           [(route, f"VCID: {vcid}")],
-                                           f"Routing Table: {self.path}",
-                                           Graffiti.Node_Type.PLUGIN))
+                route_edges[route].append(f"{vcid}")
+
+        for (route, vcids) in route_edges.items():
+            nodes.append(Graffiti.Node(self.self_name,
+                                       [(i, "AOS Frames") for i in self.inputs],
+                                       [(route, f"VCIDs: [{', '.join(vcids)}]")],
+                                       f"Routing Table: {self.path}",
+                                       Graffiti.Node_Type.PLUGIN))
         return nodes
 
     def get_frame_vcid(self, frame):
