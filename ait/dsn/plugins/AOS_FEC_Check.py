@@ -1,9 +1,12 @@
 from ait.core.server.plugins import Plugin
 from ait.core import log
-from ait.dsn.sle.frames import AOSTransFrame, AOSDataFieldType
+from ait.dsn.sle.frames import AOSTransFrame
 from binascii import crc_hqx
 from dataclasses import dataclass
 import ait.dsn.plugins.Graffiti as Graffiti
+
+
+STRICT = False
 
 
 @dataclass
@@ -32,7 +35,8 @@ class AOS_FEC_Check():
         corrupt_frame, vcid = cls.isCorrupt(raw_frame)
         if corrupt_frame:
             log.error(f"{cls.log_header} FEC NOT OKAY! {raw_frame}")
-            exit()
+            if STRICT:
+                exit()
         else:
             log.debug(f"{cls.log_header} Ok")
         tagged_frame = TaggedFrame(frame=raw_frame,
@@ -76,6 +80,9 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
         Graffiti.Graphable.__init__(self)
 
     def process(self, data, topic=None):
+        if not data:
+            log.error(f"{__name__} -> Received no data!")
+            return
         tagged_frame = self.checker.tag_fec(data)
         self.absolute_counter += 1
         tagged_frame.absolute_counter = self.absolute_counter
