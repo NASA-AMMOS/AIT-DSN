@@ -182,13 +182,13 @@ class RAF(common.SLE):
         if start_time is None:
             start_invoc['rafStartInvocation']['startTime']['undefined'] = None
         else:
-            start_time = struct.pack('!HIH', (start_time - common.CCSDS_EPOCH).days, 0, 0)
+            start_time = self._generate_encoded_time(start_time)
             start_invoc['rafStartInvocation']['startTime']['known']['ccsdsFormat'] = start_time
 
         if end_time is None:
             start_invoc['rafStartInvocation']['stopTime']['undefined'] = None
         else:
-            stop_time = struct.pack('!HIH', (end_time - common.CCSDS_EPOCH).days, 0, 0)
+            stop_time = self._generate_encoded_time(end_time)
             start_invoc['rafStartInvocation']['stopTime']['known']['ccsdsFormat'] = stop_time
 
         start_invoc['rafStartInvocation']['requestedFrameQuality'] = frame_quality
