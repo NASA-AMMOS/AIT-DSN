@@ -19,7 +19,7 @@ class TaggedFrame:
 
     def get_map(self):
         res = {'absolute_counter': self.absolute_counter,
-               'channe_counter': self.channel_counter,
+               'channel_counter': self.channel_counter,
                'vcid': self.vcid,
                'corrupt_frame': self.corrupt_frame,
                'frame': self.frame.hex()}
