@@ -13,6 +13,13 @@ class TaggedFrame:
     counter: int = None
     corrupt_frame: bool = False
 
+    def get_map(self):
+        res = {'counter': self.counter,
+               'vcid': self.vcid,
+               'corrupt_frame': self.corrupt_frame,
+               'frame': self.frame.hex()}
+        return res
+
 
 class AOS_FEC_Check():
     crc_func = crc_hqx
