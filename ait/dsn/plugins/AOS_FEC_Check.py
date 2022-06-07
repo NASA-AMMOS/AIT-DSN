@@ -1,17 +1,21 @@
 from ait.core.server.plugins import Plugin
 from ait.core import log
-from ait.dsn.sle.frames import AOSTransFrame, AOSDataFieldType
+from ait.dsn.sle.frames import AOSTransFrame
 from binascii import crc_hqx
 from dataclasses import dataclass
 import ait.dsn.plugins.Graffiti as Graffiti
+
+
+STRICT = False
 
 
 @dataclass
 class TaggedFrame:
     frame: bytearray
     vcid: int = None
-    counter: int = None
+    absolute_counter: int = None
     corrupt_frame: bool = False
+    channel_counter: int = None
 
     def get_map(self):
         res = {'counter': self.counter,
@@ -37,8 +41,10 @@ class AOS_FEC_Check():
 
         corrupt_frame, vcid = cls.isCorrupt(raw_frame)
         if corrupt_frame:
-            log.error(f"{cls.log_header} FEC NOT OKAY! Dicarding Frame!")
-            log.error(f"{cls.log_header} Discard: {raw_frame}")
+            log.error(f"{cls.log_header} FEC NOT OKAY! {raw_frame}")
+            if STRICT:
+                exit()
+        else:
             log.debug(f"{cls.log_header} Ok")
         tagged_frame = TaggedFrame(frame=raw_frame,
                                    vcid=vcid,
@@ -77,12 +83,19 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.checker = AOS_FEC_Check()
+        self.absolute_counter = 0
         Graffiti.Graphable.__init__(self)
 
     def process(self, data, topic=None):
-        tagged_fec = self.checker.tag_fec(data)
-        self.publish(tagged_fec)
-        return tagged_fec
+        if not data:
+            log.error(f"{__name__} -> Received no data!")
+            return
+        tagged_frame = self.checker.tag_fec(data)
+        self.absolute_counter += 1
+        tagged_frame.absolute_counter = self.absolute_counter
+        
+        self.publish(tagged_frame)
+        return tagged_frame
 
     def graffiti(self):
         n = Graffiti.Node(self.self_name,

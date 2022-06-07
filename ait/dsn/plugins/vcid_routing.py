@@ -13,6 +13,7 @@ from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
 
 import ait.dsn.plugins.Graffiti as Graffiti
 
+
 class AOSFrameRouter(Plugin, Graffiti.Graphable):
     '''
     Routes AOS frames by VCID according to a routing table defined by a yaml file.
@@ -70,7 +71,7 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
 
         Graffiti.Graphable.__init__(self)
         
-    def process(self, tagged_frame:TaggedFrame, topic=None):
+    def process(self, tagged_frame: TaggedFrame, topic=None):
         '''
         publishes incoming AOS frames to the routes specified in the routing table
 
@@ -82,7 +83,7 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
         if frame_vcid in self.routing_table_object:
             topics = self.routing_table_object[frame_vcid]
             self.vcid_counter[frame_vcid] += 1
-            tagged_frame.vcid_counter = self.vcid_counter[frame_vcid]
+            tagged_frame.channel_counter = self.vcid_counter[frame_vcid]
             log.debug(f"{__name__} -> Found routing table: "
                       f"{topics} for {tagged_frame}")
             for route in topics:
