@@ -102,15 +102,17 @@ class TCTransFrame():
     """
     DecodedTCTF = namedtuple('DecodedTCTF', ["header_map", "payload", "ecf"])
 
+    @staticmethod
     def decode(data, has_ecf=None):
         if has_ecf:
-            payload = data[5:-2]
-            ecf = data[-2:]
+            payload = data[5:-2].hex()
+            ecf = data[-2:].hex()
         else:
-            payload = data[5:]
+            payload = data[5:].hex()
             ecf = None
 
-        header = BitArray(data[0:5]).bin
+        header_hex = data[0:5]
+        header = BitArray(header_hex).bin
 
         decoded_header = OrderedDict()
         for key in HeaderKeys:
@@ -120,6 +122,7 @@ class TCTransFrame():
             decoded_header[key] = val_eng
             log.debug(f"TCTransFrame => decode -> {key}, {slice}, Val_Bin:{val_bin}, bin_len={len(val_bin)}, decode={val_eng}")
 
+        decoded_header['HEADER_HEX'] = header_hex.hex()
         return TCTransFrame.DecodedTCTF(decoded_header, payload, ecf)
 
     def __init__(self, tf_version_num, bypass, cc, rsvd, scID, vcID,

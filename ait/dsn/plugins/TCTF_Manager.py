@@ -71,8 +71,10 @@ class TCTF_Manager(Plugin,
         self.apply_ecf = ait.config.get(config_prefix+'apply_error_correction_field', None)
         self.expecting_sdls = get_sdls_type()
 
-        if self.expecting_sdls is SDLS_Type.ENC or self.expecting_sdls is SDLS_Type.AUTH:
-            log.info(f"{self.log_header} Expecting to perform AUTH or ENC operations.")
+        if self.expecting_sdls is SDLS_Type.ENC:
+            log.info(f"{self.log_header} Expecting to perform ENCRYPTED operations.")
+        if self.expecting_sdls is SDLS_Type.AUTH:
+            log.info(f"{self.log_header} Expecting to perform AUTH operations.")
         else:
             log.info(f"{self.log_header} Expecting to process CLEAR TCTFs only.")
 
@@ -179,10 +181,11 @@ def check_tctf_size(tctf, sdls_type=None):
         log.error(f"{log_header} {res}. Got size {len(tctf)} but expected <= {maximum} ")
     return res
     
-def get_max_data_field_size(sdls_type=SDLS_Type.ENC):
+def get_max_data_field_size(sdls_type=None):
+    maximum = None
     log_header = __name__  + "-> get_max_data_field_size=>"
     if not isinstance(sdls_type, SDLS_Type):
-        log.error(f"{log_header} Caller error {sdls_type} is not {log_header}.SDLS_Type")
+        sdls_type = get_sdls_type()
     if sdls_type is SDLS_Type.CLEAR:
         maximum = ait.config.get(config_prefix+'max_user_data_field_size_clear_octets', None)
     elif sdls_type is SDLS_Type.AUTH:
