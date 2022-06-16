@@ -4,21 +4,26 @@ import ait.dsn.sle.tctf as tctf
 from ait.core.server.plugins import Plugin
 from ait.core import log
 from enum import Enum, auto
+import ait.dsn.plugins.Graffiti as Graffiti
+
+
+config_prefix = 'dsn.sle.tctf.'
+
 
 class SDLS_Type(Enum):
     CLEAR = auto()
-    ENC = auto() # Authenticated Encryption (SDLS)
-    AUTH = auto() # Authentication Only (SDLS)
+    ENC = auto()  # Authenticated Encryption (SDLS)
+    AUTH = auto()  # Authentication Only (SDLS)
     # FINAL is for internal use.
     # It is treated the same as CLEAR
     # Used by Encrypter to signify that TCTF size check
     # should be done against final TCTF size instead of
     # the KMC hand off size that it must necessarily violate.
-    FINAL = auto() 
+    FINAL = auto()
 
-config_prefix = 'dsn.sle.tctf.'
 
-class TCTF_Manager(Plugin):
+class TCTF_Manager(Plugin,
+                   Graffiti.Graphable):
     """
     Data Processing Pipeline that encodes payloads in TCTF protocol as described by CCSDS standards.
     https://public.ccsds.org/Pubs/232x0b4.pdf
@@ -71,6 +76,8 @@ class TCTF_Manager(Plugin):
         else:
             log.info(f"{self.log_header} Expecting to process CLEAR TCTFs only.")
 
+        Graffiti.Graphable.__init__(self)
+
     def process(self, data_field_byte_array, topic=None):
         if not data_field_byte_array:
             log.error(f"{self.log_header} Received no data from {topic}")
@@ -97,6 +104,15 @@ class TCTF_Manager(Plugin):
         self.publish(encoded_frame) 
         self.frame_seq_num = (self.frame_seq_num + 1) % 255
         return encoded_frame
+
+    def graffiti(self):
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "Command Packets") for i in self.inputs],
+                          outputs=[],
+                          label="Encapsulate Commands in TCTF",
+                          node_type=Graffiti.Node_Type.PLUGIN)
+        return [n]
+
 
 def get_sdls_type():
     """
