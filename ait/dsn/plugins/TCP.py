@@ -38,7 +38,7 @@ class Subscription:
         Derrives IP from hostname, if provided in config.
         """
         self.ip = None
-        self.log_header = f"{__name__} -> {self.server_name} =>"
+        self.log_header = f":-> {self.server_name} :=>"
         if self.hostname:
             self.ip = socket.gethostbyname(self.hostname)
             self.socket = self.setup_client_socket()
@@ -319,7 +319,6 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
         self.topic_subscription_map = defaultdict(list)
         self.socket_to_sub = {}
         self.rxs = []
-        self.log_header = __name__ + " ->"
 
         for (topic, servers) in subscriptions.items():
             for (server, mode_info) in servers.items():
@@ -350,10 +349,9 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
             try:
                 rxs, _, _ = select.select(sockets, [], [])
             except ValueError:
-                log.debug(f"{self.log_header} handle_recv => socket "
-                          "was unexpectedly closed elsewhere.")
+                log.debug(f"socket was unexpectedly closed elsewhere.")
             except Exception as e:
-                log.error(f"{self.log_header} received exception: {e}")
+                log.error(f"received exception: {e}")
             finally:
                 rx = []
 
@@ -362,7 +360,7 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                 data = sub.recv()
                 if data:
                     self.publish(data, sub.topic)
-                    log.debug(f"TCP=> Sending data to {sub.topic}")
+                    log.debug(f"Sending data to {sub.topic}")
 
     def process(self, data, topic=None):
         """
@@ -371,7 +369,7 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
         :returns: data from topic
         """
         if len(data) == 0:
-            log.info('TCP manager received no data')
+            log.info('received no data')
         subs = self.topic_subscription_map[topic]
         subs = [sub for sub in subs if sub.mode is Mode.TRANSMIT]
         for sub in subs:

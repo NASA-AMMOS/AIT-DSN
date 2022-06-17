@@ -84,7 +84,7 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             topics = self.routing_table_object[frame_vcid]
             self.vcid_counter[frame_vcid] += 1
             tagged_frame.channel_counter = self.vcid_counter[frame_vcid]
-            log.debug(f"{__name__} -> Found routing table: "
+            log.debug(f"Found routing table: "
                       f"{topics} for {tagged_frame}")
             for route in topics:
                 self.publish(tagged_frame, route)

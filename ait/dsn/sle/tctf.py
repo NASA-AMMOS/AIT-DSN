@@ -120,7 +120,7 @@ class TCTransFrame():
             val_bin = header[slice]
             val_eng = int(val_bin, 2)
             decoded_header[key] = val_eng
-            log.debug(f"TCTransFrame => decode -> {key}, {slice}, Val_Bin:{val_bin}, bin_len={len(val_bin)}, decode={val_eng}")
+            log.debug(f"{key}, {slice}, Val_Bin:{val_bin}, bin_len={len(val_bin)}, decode={val_eng}")
 
         decoded_header['HEADER_HEX'] = header_hex.hex()
         return TCTransFrame.DecodedTCTF(decoded_header, payload, ecf)
@@ -199,8 +199,7 @@ class TCTransFrame():
         """
         # Finalize frame size
         frame_len = int(self.size_frame_bin / 8)-1
-        log.debug((f"TCTransFrame => set_primary_header -> "
-                   f"FRAMELENGTH: {frame_len}"))
+        log.debug(f"FRAMELENGTH: {frame_len}")
 
         # Insertion order is critical. Must match ICD order.
         self.primary_header[HeaderKeys.TRANSFER_FRAME_VERSION_NUM] = tf_version_num
@@ -222,13 +221,11 @@ class TCTransFrame():
             padded_segment = format(header_data, f'0{size}b')
             segment = BitArray(bin=padded_segment)
             new_header.append(segment)
-            log.debug((f"TCTransFrame => encode_primary_header -> "
-                       f"{header_field} ::=> "
+            log.debug((f"{header_field} ::=> "
                        f"Encoding: {segment},  "
                        f"Length: {len(segment)}"))
         self.encoded_primary_header = new_header.bytes
-        log.debug((f"TCTransFrame => encode_primary_header -> "
-                   f"Header= {new_header}, "
+        log.debug((f"Header= {new_header}, "
                    f"Size= {len(new_header)}"))
         return self.primary_header
 
@@ -243,6 +240,6 @@ class TCTransFrame():
                                                 byteorder="big")
         else:
             self.encoded_crc = bytes()
-        log.debug((f"TCTransFrame => encode_ecg -> Encoded CRC: "
+        log.debug((f"Encoded CRC: "
                    f"{self.encoded_crc}"))
         return self.encoded_crc
