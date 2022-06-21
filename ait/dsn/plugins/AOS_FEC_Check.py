@@ -28,7 +28,6 @@ class TaggedFrame:
 
 class AOS_FEC_Check():
     crc_func = crc_hqx
-    log_header = "AOS_FEC_CHECK =>"
     vcid_counter = {}
 
     def __init__(self):
@@ -37,16 +36,16 @@ class AOS_FEC_Check():
     @classmethod
     def tag_fec(cls, raw_frame):
         if not raw_frame:
-            log.error(f"{cls.log_header} I was sent no data!")
+            log.error(f"I was sent no data!")
             return
 
         corrupt_frame, vcid = cls.isCorrupt(raw_frame)
         if corrupt_frame:
-            log.error(f"{cls.log_header} FEC NOT OKAY! {raw_frame}")
+            log.error(f"FEC NOT OKAY! {raw_frame}")
             if STRICT:
                 exit()
         else:
-            log.debug(f"{cls.log_header} Ok")
+            log.debug(f"Ok")
         tagged_frame = TaggedFrame(frame=raw_frame,
                                    vcid=vcid,
                                    corrupt_frame=corrupt_frame)
@@ -59,8 +58,8 @@ class AOS_FEC_Check():
             vcid = AOS_frame_object.virtual_channel
             data_field_end_index = AOS_frame_object.defaultConfig.data_field_endIndex
         except Exception as e:
-            log.error(f"{cls.log_header} Could not decode AOS Frame!: {e}")
-            log.error(f"{cls.log_header} Assuming frame is corrupted.")
+            log.error(f"Could not decode AOS Frame!: {e}")
+            log.error(f"Assuming frame is corrupted.")
             vcid = None
             corrupt = True
             return (corrupt, vcid)
@@ -71,7 +70,7 @@ class AOS_FEC_Check():
         corrupt = actual_ecf != expected_ecf
 
         if corrupt:
-            log.error(f"{cls.log_header} "
+            log.error(f""
                       f"Expected ECF {expected_ecf} did not match "
                       f"actual ecf {actual_ecf}")
         return (corrupt, vcid)
@@ -89,7 +88,7 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
 
     def process(self, data, topic=None):
         if not data:
-            log.error(f"{__name__} -> Received no data!")
+            log.error(f"received no data!")
             return
         tagged_frame = self.checker.tag_fec(data)
         self.absolute_counter += 1

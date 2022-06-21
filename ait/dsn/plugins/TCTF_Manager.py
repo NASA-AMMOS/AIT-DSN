@@ -5,21 +5,21 @@ from ait.core.server.plugins import Plugin
 from ait.core import log
 from enum import Enum, auto
 import ait.dsn.plugins.Graffiti as Graffiti
-
+from ait.core.sdls_utils import SDLS_Type, get_sdls_type
 
 config_prefix = 'dsn.sle.tctf.'
 
 
-class SDLS_Type(Enum):
-    CLEAR = auto()
-    ENC = auto()  # Authenticated Encryption (SDLS)
-    AUTH = auto()  # Authentication Only (SDLS)
-    # FINAL is for internal use.
-    # It is treated the same as CLEAR
-    # Used by Encrypter to signify that TCTF size check
-    # should be done against final TCTF size instead of
-    # the KMC hand off size that it must necessarily violate.
-    FINAL = auto()
+# class SDLS_Type(Enum):
+#     CLEAR = auto()
+#     ENC = auto()  # Authenticated Encryption (SDLS)
+#     AUTH = auto()  # Authentication Only (SDLS)
+#     # FINAL is for internal use.
+#     # It is treated the same as CLEAR
+#     # Used by Encrypter to signify that TCTF size check
+#     # should be done against final TCTF size instead of
+#     # the KMC hand off size that it must necessarily violate.
+#     FINAL = auto()
 
 
 class TCTF_Manager(Plugin,
@@ -59,7 +59,6 @@ class TCTF_Manager(Plugin,
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
                  command_subscriber=None, managed_parameters=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
-        self.log_header = __name__ + "->"
 
         self.tf_version_num = ait.config.get(config_prefix+'transfer_frame_version_number', None)
         self.bypass = ait.config.get(config_prefix+'bypass_flag', None)
@@ -71,20 +70,22 @@ class TCTF_Manager(Plugin,
         self.apply_ecf = ait.config.get(config_prefix+'apply_error_correction_field', None)
         self.expecting_sdls = get_sdls_type()
 
-        if self.expecting_sdls is SDLS_Type.ENC or self.expecting_sdls is SDLS_Type.AUTH:
-            log.info(f"{self.log_header} Expecting to perform AUTH or ENC operations.")
+        if self.expecting_sdls is SDLS_Type.ENC:
+            log.info(f"expecting to perform ENCRYPTED operations.")
+        if self.expecting_sdls is SDLS_Type.AUTH:
+            log.info(f"expecting to perform AUTH operations.")
         else:
-            log.info(f"{self.log_header} Expecting to process CLEAR TCTFs only.")
+            log.info(f"expecting to process CLEAR TCTFs only.")
 
         Graffiti.Graphable.__init__(self)
 
     def process(self, data_field_byte_array, topic=None):
         if not data_field_byte_array:
-            log.error(f"{self.log_header} Received no data from {topic}")
+            log.error(f"Received no data from {topic}")
         if not check_data_field_size(data_field_byte_array):
-            log.error(f"{self.log_header} Failed payload check from {topic}")
+            log.error(f"Failed payload check from {topic}")
         else:
-            log.debug(f"{self.log_header} Passed payload check")
+            log.debug(f"Passed payload check")
         frame = tctf.TCTransFrame(tf_version_num=self.tf_version_num,
                                   bypass=self.bypass, cc=self.cc,
                                   rsvd=self.rsvd, scID=self.scID,
@@ -94,12 +95,12 @@ class TCTF_Manager(Plugin,
                                   apply_ecf=self.apply_ecf)
 
         encoded_frame = frame.encode()
-        log.debug(f"{self.log_header} {encoded_frame}")
+        log.debug(f"{encoded_frame}")
 
         if check_tctf_size(encoded_frame):
-            log.debug(f"{self.log_header} TCTF passed size check.")
+            log.debug(f"TCTF passed size check.")
         else:
-            log.info(f"{self.log_header} Failed TCTF size check.")
+            log.info(f"Failed TCTF size check.")
         
         self.publish(encoded_frame) 
         self.frame_seq_num = (self.frame_seq_num + 1) % 255
@@ -114,30 +115,10 @@ class TCTF_Manager(Plugin,
         return [n]
 
 
-def get_sdls_type():
-    """
-    Return SDLS type from config.yaml
-    """
-    log_header = __name__ + "-> get_sdls_type=>"
-    log.debug(f" {log_header} Finding default SDLS_Type")
-    try:
-        sdls_type_str = ait.config.get(config_prefix+'expected_sdls_type', None)
-        sdls_type = SDLS_Type[sdls_type_str]
-    except:
-        sdls_type = None
-        log.debug(f"{log_header} Got None. {ait.config.get('dsn.sle.tctf.expected_sdls_type')}")
-    if not sdls_type: 
-        log.warn(f"{log_header} {config_prefix}expected_sdls_type parameter "
-                 "was not found on config.yaml <CLEAR|AUTH|ENC>. "
-                 "Assuming ENC.")
-        sdls_type = SDLS_Type.ENC
-
-    return sdls_type
-
 def get_tctf_size(sdls_type=SDLS_Type.ENC):
     log_header = __name__ + "-> get_tctf_size=>"
     if not isinstance(sdls_type, SDLS_Type):
-        log.error(f"{log_header} Caller error {sdls_type} is not {log_header}.SDLS_Type")
+        log.error(f"caller error {sdls_type} is not {log_header}.SDLS_Type")
     if sdls_type is SDLS_Type.CLEAR or sdls_type is SDLS_Type.FINAL:
         maximum = ait.config.get(config_prefix+'max_tctf_size_final_octets', None)
     elif sdls_type is SDLS_Type.AUTH:
@@ -148,19 +129,18 @@ def get_tctf_size(sdls_type=SDLS_Type.ENC):
     # Error check maximum
     if not maximum:
         maximum = tctf.ICD.Sizes.MAX_FRAME_OCTETS.value
-        log.error(f"{log_header} Parameter maximum TCTF Size for max_tctf_size_octets_"
+        log.error(f"parameter maximum TCTF Size for max_tctf_size_octets_"
                   f"{str(sdls_type)} was not found. Assuming maximum of {maximum} octets.")
         
     if maximum <= 0:
         maximum = tctf.ICD.Sizes.MAX_FRAME_OCTETS.value
-        log.error(f"{log_header} Parameter maximum TCTF Size for max_tctf_size_octets_"
+        log.error(f"parameter maximum TCTF Size for max_tctf_size_octets_"
                   f"{str(sdls_type)}: {maximum} must be a positive integer of octets. "
                   "Assuming maximum of {maximum} octets.")
 
     return maximum
 
 def check_tctf_size(tctf, sdls_type=None):
-    log_header = __name__ + "-> check_tctf_size=>"
     if not sdls_type: # Caller deferring SDLS type to config.yaml
         sdls_type = get_sdls_type()
 
@@ -168,21 +148,21 @@ def check_tctf_size(tctf, sdls_type=None):
         sdls_type = SDLS_Type(sdls_type)
         
     if not isinstance(sdls_type, SDLS_Type): # Caller didn't provide a valid type
-        log.error(f"{log_header} SDLS Type {sdls_type} is not TCTF_Manager.SDLS_Type.")
+        log.error(f"SDLS Type {sdls_type} is not TCTF_Manager.SDLS_Type.")
 
     maximum = get_tctf_size(sdls_type)
 
     res = len(tctf)  <= maximum
     if res:
-        log.debug(f"{log_header} {res}. TCTF passed size check.")
+        log.debug(f"{res}. TCTF passed size check.")
     else:
-        log.error(f"{log_header} {res}. Got size {len(tctf)} but expected <= {maximum} ")
+        log.error(f"{res}. Got size {len(tctf)} but expected <= {maximum} ")
     return res
     
-def get_max_data_field_size(sdls_type=SDLS_Type.ENC):
-    log_header = __name__  + "-> get_max_data_field_size=>"
+def get_max_data_field_size(sdls_type=None):
+    maximum = None
     if not isinstance(sdls_type, SDLS_Type):
-        log.error(f"{log_header} Caller error {sdls_type} is not {log_header}.SDLS_Type")
+        sdls_type = get_sdls_type()
     if sdls_type is SDLS_Type.CLEAR:
         maximum = ait.config.get(config_prefix+'max_user_data_field_size_clear_octets', None)
     elif sdls_type is SDLS_Type.AUTH:
@@ -194,12 +174,12 @@ def get_max_data_field_size(sdls_type=SDLS_Type.ENC):
     
     if not maximum: # Couldn't find a value in config
         fault = True
-        log.error(f"{log_header}  Parameter maximum max_user_data_field_size_"
+        log.error(f"Parameter maximum max_user_data_field_size_"
                   f"{str(sdls_type)}_octets was not found.")
         maximum = 0
 
     if maximum <= 0: 
-        log.error(f"{log_header} Parameter maximum max_user_data_field_size_"
+        log.error(f"Parameter maximum max_user_data_field_size_"
                   f"{str(sdls_type)}_octets: {maximum} must be a positive integer of octets. "
                   f"Assuming maximum of {maximum} octets.")
         fault = True
@@ -208,7 +188,7 @@ def get_max_data_field_size(sdls_type=SDLS_Type.ENC):
         use_ecf = ait.config.get(config_prefix+'apply_error_correction_field', None)
 
         if use_ecf is None:
-            log.error(f"{log_header} Could not find parameter apply_error_correction_field."
+            log.error(f"Could not find parameter apply_error_correction_field."
                       "Assuming true.")
             use_ecf = True
         if use_ecf:
@@ -218,17 +198,16 @@ def get_max_data_field_size(sdls_type=SDLS_Type.ENC):
     return maximum
 
 def check_data_field_size(user_data_field, sdls_type=None):
-    log_header = __name__ + "-> check_data_field_size=>"
     if not sdls_type: # Caller deferring SDLS type to config.yaml
         sdls_type = get_sdls_type()
     else:
         sdls_type = SDLS_Type(sdls_type)
     
     if not isinstance(sdls_type, SDLS_Type): # Caller didn't provide a valid type
-        log.error(f"{log_header} SDLS Type {sdls_type} is not {log_header}.SDLS_Type.")
+        log.error(f"SDLS Type {sdls_type} is not an SDLS_Type.")
     maximum = get_max_data_field_size(sdls_type)
 
     res = len(user_data_field) <= maximum
     if not res:
-        log.error(f"{log_header} {res}. Got size {len(user_data_field)} but expected <= {maximum} ")
+        log.error(f"{res}. Got size {len(user_data_field)} but expected <= {maximum} ")
     return res
