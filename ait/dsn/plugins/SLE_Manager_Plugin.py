@@ -1,8 +1,9 @@
+from gevent import time, Greenlet, monkey
+monkey.patch_all()
 import ait.core
 import ait.dsn.sle
 from ait.core.server.plugins import Plugin
 from ait.core import log
-from gevent import time, Greenlet
 
 class SLE_Manager_Plugin(Plugin):
     def __init__(self, inputs=None, outputs=None,
@@ -13,7 +14,7 @@ class SLE_Manager_Plugin(Plugin):
         self.supervisor = Greenlet.spawn(self.supervisor_tree)
 
     def connect(self):
-        log.info(f"{__name__} -> Starting SLE interface.")
+        log.info(f"Starting SLE interface.")
         try:
             self.SLE_manager = ait.dsn.sle.RAF()
 
@@ -24,22 +25,24 @@ class SLE_Manager_Plugin(Plugin):
             time.sleep(2)
 
             self.SLE_manager.start(None, None)
+            
+            log.info("SLE Interface is up!")
 
         except Exception as e:
-            log.error(f"{__name__} -> Encountered exception {e}.")
+            log.error(f"Encountered exception {e}.")
             self.handle_restart()
 
     def handle_restart(self):
-            log.error(f"{__name__} -> Restarting SLE Interface in {self.restart_delay_s} seconds.")
+            log.error(f"Restarting SLE Interface in {self.restart_delay_s} seconds.")
             time.sleep(self.restart_delay_s)
             self.connect()
 
     def supervisor_tree(self):
         self.connect()
         while True:
+            time.sleep(self.restart_delay_s)
             if self.SLE_manager._state == 'active':
-                log.debug(f"{__name__} -> SLE OK!")
-                time.sleep(0)
+                log.debug(f"SLE OK!")
             else:
                 self.handle_restart()
 
@@ -55,7 +58,7 @@ class SLE_Manager_Plugin(Plugin):
             time.sleep(2)
 
         except:
-            log.error(f"{__name__} Encountered exception {e} while killing SLE manager")
+            log.error(f"Encountered exception {e} while killing SLE manager")
 
     def process(self):
         try:
@@ -63,7 +66,7 @@ class SLE_Manager_Plugin(Plugin):
                 time.sleep(0)
 
         except Exception as e:
-            log.error(f"{__name__} -> Encountered exception {e}.")
+            log.error(f"Encountered exception {e}.")
             self.handle_restart()
 
         finally:
