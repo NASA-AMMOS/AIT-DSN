@@ -400,7 +400,7 @@ class SLE(object):
 
     def _check_return_credentials(self, responder_performer_credentials, username, password):
         decoded_credentials = decode(responder_performer_credentials.asOctets(), ISP1Credentials())[0]
-        days, ms, us = struct.unpack('!HIH', str(bytearray(decoded_credentials['time'].asNumbers())))
+        days, ms, us = struct.unpack('!HIH', bytearray(decoded_credentials['time'].asNumbers()))
         time_delta = dt.timedelta(days=days, milliseconds=ms, microseconds=us)
         cred_time = time_delta + dt.datetime(1958, 1, 1)
         random_number = decoded_credentials['randomNumber']
