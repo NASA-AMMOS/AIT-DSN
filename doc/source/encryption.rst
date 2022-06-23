@@ -228,22 +228,22 @@ An *example* of a configuration that uses the KMC SDLS encrypter for Spacecraft 
                         - cryptolib.tc.vcid_bitmask=0x07
                         - cryptolib.apply_tc.create_ecf=true
                         - cryptolib.process_tc.check_fecf=false
-                        - cryptolib.tc.44.0.has_segmentation_header=false
-                        - cryptolib.tc.44.0.has_pus_header=false
-                        - cryptolib.tc.44.0.has_ecf=true
-                        - cryptolib.tc.44.0.max_frame_length=1024
-                        - cryptolib.tc.44.1.has_segmentation_header=false
-                        - cryptolib.tc.44.1.has_pus_header=false
-                        - cryptolib.tc.44.1.has_ecf=true
-                        - cryptolib.tc.44.1.max_frame_length=1024
-                        - cryptolib.tc.44.2.has_segmentation_header=false
-                        - cryptolib.tc.44.2.has_pus_header=false
-                        - cryptolib.tc.44.2.has_ecf=true
-                        - cryptolib.tc.44.2.max_frame_length=1024
-                        - cryptolib.tc.44.3.has_segmentation_header=false
-                        - cryptolib.tc.44.3.has_pus_header=false
-                        - cryptolib.tc.44.3.has_ecf=true
-                        - cryptolib.tc.44.3.max_frame_length=1024
+                        - cryptolib.tc.44.0.0.has_segmentation_header=false
+                        - cryptolib.tc.44.0.0.has_pus_header=false
+                        - cryptolib.tc.44.0.0.has_ecf=true
+                        - cryptolib.tc.44.0.0.max_frame_length=1024
+                        - cryptolib.tc.44.1.0.has_segmentation_header=false
+                        - cryptolib.tc.44.1.0.has_pus_header=false
+                        - cryptolib.tc.44.1.0.has_ecf=true
+                        - cryptolib.tc.44.1.0.max_frame_length=1024
+                        - cryptolib.tc.44.2.0.has_segmentation_header=false
+                        - cryptolib.tc.44.2.0.has_pus_header=false
+                        - cryptolib.tc.44.2.0.has_ecf=true
+                        - cryptolib.tc.44.2.0.max_frame_length=1024
+                        - cryptolib.tc.44.3.0.has_segmentation_header=false
+                        - cryptolib.tc.44.3.0.has_pus_header=false
+                        - cryptolib.tc.44.3.0.has_ecf=true
+                        - cryptolib.tc.44.3.0.max_frame_length=1024
                     kmc_property_file: None
 
 
