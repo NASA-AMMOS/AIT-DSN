@@ -1,6 +1,8 @@
 '''
 Implements a plugin which routes AOS frames by VCID
 '''
+from gevent import time, Greenlet, monkey
+monkey.patch_all()
 import os
 import yaml
 import ait
@@ -51,10 +53,11 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             - 63
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
-                 routing_table=None, default_topic=None):
+                 routing_table=None, default_topic=None, report_time_s=0):
         
         super().__init__(inputs, outputs, zmq_args)
 
+        self.report_time_s = report_time_s
         self.default_topic = default_topic
         if routing_table:
             self.path = routing_table['path']
@@ -70,6 +73,14 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
         self.vcid_counter = defaultdict(int)
 
         Graffiti.Graphable.__init__(self)
+        if self.report_time_s:
+            self.supervisor_glet =  Greenlet.spawn(self.supervisor_tree, self.report_time_s)
+
+    def supervisor_tree(self, report_time_s=5):
+        while True:
+            time.sleep(report_time_s)
+            log.info(self.vcid_counter)
+            self.publish(self.vcid_counter, "monitor_vcid")
         
     def process(self, tagged_frame: TaggedFrame, topic=None):
         '''
