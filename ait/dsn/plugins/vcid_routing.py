@@ -12,6 +12,7 @@ from ait.core import log
 from collections import defaultdict
 from ait.dsn.sle.frames import AOSTransFrame
 from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
+from ait.core.message_types import MessageType
 
 import ait.dsn.plugins.Graffiti as Graffiti
 
@@ -81,6 +82,8 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             time.sleep(report_time_s)
             log.info(self.vcid_counter)
             self.publish(self.vcid_counter, "monitor_vcid")
+            msg_type = MessageType.VCID_COUNT
+            self.publish((msg_type, self.vcid_counter), msg_type.name)
         
     def process(self, tagged_frame: TaggedFrame, topic=None):
         '''

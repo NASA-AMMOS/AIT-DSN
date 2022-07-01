@@ -99,6 +99,9 @@ class SLE(object):
 
     def __init__(self, *args, **kwargs):
         ''''''
+        self.send_counter = 0
+        self.receive_counter = 0
+        self.last_status_report_pdu = None
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                                    kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
@@ -165,6 +168,7 @@ class SLE(object):
             _, writeable, _ = gevent.select.select([], [self._socket], [])
             for i in writeable:
                 i.sendall(data)
+                self.send_counter += 1
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
                 ait.core.log.error('Socket connection lost to DSN')

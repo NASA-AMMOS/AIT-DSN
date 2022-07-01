@@ -3,6 +3,7 @@ monkey.patch_all()
 import ait.core
 import ait.dsn.sle
 from ait.core.server.plugins import Plugin
+from ait.core.message_types import MessageType
 from ait.core import log
 
 class SLE_Manager_Plugin(Plugin):
@@ -45,19 +46,25 @@ class SLE_Manager_Plugin(Plugin):
     def supervisor_tree(self, msg=None):
 
         def periodic_report(report_time=5):
-            pass
+            while True:
+                time.sleep(report_time)
+                msg_type = MessageType.RAF_STATUS
+                msg = {'state': self.sle_manager._state, 'report'=self.SLE_manager.last_status_report_pdu}
+                self.publish((msg_type, msg), msg_type.name)
 
         def high_priority(msg):
             self.publish(msg, "monitor_high_priority_raf")
 
         def monitor(restart_delay_s=5):
             self.connect()
+            time.sleep(restart_delay_s)
             while True:
                 time.sleep(restart_delay_s)
-                if self.SLE_manager._state == 'active':
+                self.SLE_manager.schedule_status_report()
+                if self.SLE_manager._state == 'active' or self.SLE_manager._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
-                    self.publish("RAF SLE Interface is not active!",'monitor_high_priority_cltu')
+                    self.publish(f"RAF SLE Interface is not active! ",'monitor_high_priority_cltu')
                     self.handle_restart()
 
         if msg:
@@ -85,14 +92,7 @@ class SLE_Manager_Plugin(Plugin):
     def process(self, topic=None):
         try:
             pass
-            #  The frames get sent to UDP, because side effects are cool.
-            # while True:
-            #     time.sleep(0)
 
         except Exception as e:
             log.error(f"Encountered exception {e}.")
-            self.handle_restart()
-
-        finally:
-            self.handle_kill()
             self.handle_restart()
