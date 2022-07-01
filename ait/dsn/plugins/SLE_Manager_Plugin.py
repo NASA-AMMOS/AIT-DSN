@@ -49,7 +49,8 @@ class SLE_Manager_Plugin(Plugin):
             while True:
                 time.sleep(report_time)
                 msg_type = MessageType.RAF_STATUS
-                msg = {'state': self.sle_manager._state, 'report'=self.SLE_manager.last_status_report_pdu}
+                msg = {'state': self.SLE_manager._state,
+                       'report': self.SLE_manager.last_status_report_pdu}
                 self.publish((msg_type, msg), msg_type.name)
 
         def high_priority(msg):
