@@ -62,7 +62,7 @@ class Subscription:
         m = {'topic': self.topic,
              'host': self.hostname, 
              'port': self.port,
-             'mode': self.mode, 
+             'mode': self.mode.name, 
              'Tx_Count': self.sent_counter,
              'Rx_Count': self.receive_counter}
         return m
@@ -425,10 +425,17 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                                       inputs=[(sub.hostname,
                                                f"{sub.topic}\n"
                                                f"Port: {sub.port}")],
-                                      outputs=[(sub.topic, "Bytes")],
+                                      outputs=[(sub.topic, "Bytes"),],
                                       label="Manage TCP Transmit and Receive",
                                       node_type=Graffiti.Node_Type.TCP_CLIENT)
                 nodes.append(n)
+                
+        n = Graffiti.Node(self.self_name,
+                          inputs=[],
+                          outputs=[(MessageType.TCP_STATUS, "Connection Status")],
+                          label="Manage TCP Transmit and Receive",
+                          node_type=Graffiti.Node_Type.TCP_CLIENT)
+        nodes.append(n)
         return nodes
     
     def supervisor_tree(self, msg=None):
@@ -440,8 +447,8 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                 msg = []
                 for sub_list in self.topic_subscription_map.values():
                     msg += [i.status_map() for i in sub_list]
-                self.publish((msg_type, msg), msg_type.name)
                 log.info(msg)
+                self.publish((msg_type, msg), msg_type.name)
 
         def high_priority(msg):
             # self.publish(msg, "monitor_high_priority_cltu")

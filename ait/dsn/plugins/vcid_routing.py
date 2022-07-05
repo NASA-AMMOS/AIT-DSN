@@ -115,7 +115,8 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
         for (route, vcids) in route_edges.items():
             nodes.append(Graffiti.Node(self.self_name,
                                        [(i, "AOS Frames") for i in self.inputs],
-                                       [(route, f"VCIDs: [{', '.join(vcids)}]")],
+                                       [(route, f"VCIDs: [{', '.join(vcids)}]"),
+                                        (MessageType.VCID_COUNT.name, MessageType.VCID_COUNT.value)],
                                        f"Routing Table: {self.path}",
                                        Graffiti.Node_Type.PLUGIN))
         return nodes
