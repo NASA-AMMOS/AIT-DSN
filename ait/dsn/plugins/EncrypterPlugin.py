@@ -111,7 +111,8 @@ class Encrypter(Plugin,
     def graffiti(self):
         n = Graffiti.Node(self.self_name,
                           inputs=[(i, "TCTF Frame") for i in self.inputs],
-                          outputs=[],
+                          outputs=[(MessageType.KMC_STATUS.name,
+                                    MessageType.KMC_STATUS.value)],
                           label="Encrypt/Authenticate TCTF",
                           node_type=Graffiti.Node_Type.PLUGIN)
         return [n]
