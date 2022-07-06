@@ -1,14 +1,16 @@
+from gevent import monkey
+monkey.patch_all()
+
 from ait.core.server.plugins import Plugin
 from ait.core import log
 from collections import defaultdict
 from dataclasses import dataclass, field
-from gevent import Greenlet, socket, select, sleep
+from gevent import Greenlet, socket, select, sleep, time
 import enum
 import errno
 import ait.dsn.plugins.Graffiti as Graffiti
+from ait.core.message_types import MessageType
 
-from gevent import monkey
-monkey.patch_all()
 
 class Mode(enum.Enum):
     TRANSMIT = enum.auto()
@@ -45,6 +47,8 @@ class Subscription:
         else:
             self.socket = self.setup_server_socket()
         self.mode = Mode[self.mode]
+        self.sent_counter = 0
+        self.receive_counter = 0
 
     def __del__(self):
         """
@@ -53,6 +57,15 @@ class Subscription:
         if hasattr(self, "socket") and self.socket:
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
+
+    def status_map(self):
+        m = {'topic': self.topic,
+             'host': self.hostname, 
+             'port': self.port,
+             'mode': self.mode.name, 
+             'Tx_Count': self.sent_counter,
+             'Rx_Count': self.receive_counter}
+        return m
 
     def setup_server_socket(self):
         """
@@ -206,6 +219,7 @@ class Subscription:
             self.send_as_client(data)
         else:
             self.send_as_server(data)
+        self.sent_counter += 1
 
     def recv_as_server(self):
         """
@@ -271,6 +285,7 @@ class Subscription:
             data = self.recv_as_client()
         else:
             data = self.recv_as_server()
+        self.receive_counter += 1
         return data
 
 
@@ -309,16 +324,18 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
     """
 
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
-                 subscriptions={}, *kwargs):
+                 subscriptions={}, report_time_s=0, *kwargs):
         """
         Create Subscriptions based on config.yaml entries.
         Forks a process to handle receiving subscriptions.
         Creates auxillary socket maps and lists.
         """
         super().__init__(inputs, outputs, zmq_args)
+        self.report_time_s = report_time_s
         self.topic_subscription_map = defaultdict(list)
         self.socket_to_sub = {}
         self.rxs = []
+        self.txs = []
 
         for (topic, servers) in subscriptions.items():
             for (server, mode_info) in servers.items():
@@ -327,8 +344,11 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                 self.socket_to_sub[sub.socket] = sub
                 if sub.mode is Mode.RECEIVE:
                     self.rxs.append(sub)
+                if sub.mode is Mode.TRANSMIT:
+                    self.txs.append(sub)
 
         self.glet = Greenlet.spawn(self.handle_recv)
+        self.supervisor_tree = Greenlet.spawn(self.supervisor_tree)
 
         Graffiti.Graphable.__init__(self)
 
@@ -405,8 +425,52 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                                       inputs=[(sub.hostname,
                                                f"{sub.topic}\n"
                                                f"Port: {sub.port}")],
-                                      outputs=[(sub.topic, "Bytes")],
+                                      outputs=[(sub.topic, "Bytes"),],
                                       label="Manage TCP Transmit and Receive",
                                       node_type=Graffiti.Node_Type.TCP_CLIENT)
                 nodes.append(n)
+                
+        n = Graffiti.Node(self.self_name,
+                          inputs=[],
+                          outputs=[(MessageType.TCP_STATUS.name,
+                                    MessageType.TCP_STATUS.value)],
+                          label="Manage TCP Transmit and Receive",
+                          node_type=Graffiti.Node_Type.TCP_CLIENT)
+        nodes.append(n)
         return nodes
+    
+    def supervisor_tree(self, msg=None):
+        
+        def periodic_report(report_time=5):
+            while True:
+                time.sleep(report_time)   
+                msg_type = MessageType.TCP_STATUS
+                msg = []
+                for sub_list in self.topic_subscription_map.values():
+                    msg += [i.status_map() for i in sub_list]
+                log.info(msg)
+                self.publish((msg_type, msg), msg_type.name)
+
+        def high_priority(msg):
+            # self.publish(msg, "monitor_high_priority_cltu")
+            pass
+        
+        def monitor(restart_delay_s=5):
+            # self.connect()
+            # while True:
+            #     time.sleep(restart_delay_s)
+            #     if self.CLTU_Manager._state == 'active':
+            #         log.debug(f"SLE OK!")
+            #     else:
+            #         self.publish("CLTU SLE Interface is not active!", "monitor_high_priority_cltu")
+            #         self.handle_restart()
+            pass
+
+        if msg:
+            high_priority(msg)
+            return
+           
+        if self.report_time_s:
+            reporter = Greenlet.spawn(periodic_report, self.report_time_s)
+        #mon = Greenlet.spawn(monitor, self.restart_delay_s)
+     

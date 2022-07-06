@@ -3,9 +3,11 @@ monkey.patch_all()
 import ait.core
 import ait.dsn.sle
 from ait.core.server.plugins import Plugin
+from ait.core.message_types import MessageType
 from ait.core import log
+import ait.dsn.plugins.Graffiti as Graffiti
 
-class SLE_Manager_Plugin(Plugin):
+class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
                  zmq_args=None, report_time_s=0, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
@@ -13,6 +15,7 @@ class SLE_Manager_Plugin(Plugin):
         self.SLE_manager = None
         self.supervisor = Greenlet.spawn(self.supervisor_tree)
         self.report_time_s = report_time_s
+        Graffiti.Graphable.__init__(self)
 
     def connect(self):
         log.info(f"Starting SLE interface.")
@@ -45,19 +48,29 @@ class SLE_Manager_Plugin(Plugin):
     def supervisor_tree(self, msg=None):
 
         def periodic_report(report_time=5):
-            pass
+            while True:
+                time.sleep(report_time)
+                msg_type = MessageType.RAF_STATUS
+                msg = {'state': self.SLE_manager._state,
+                       'report': self.SLE_manager.last_status_report_pdu,
+                       'total_received': self.SLE_manager.receive_counter}
+                self.publish((msg_type, msg), msg_type.name)
+                log.info(f"{msg}")
 
         def high_priority(msg):
-            self.publish(msg, "monitor_high_priority_raf")
+            msg_type = MessageType.HIGH_PRIORITY_RAF_STATUS
+            self.publish((msg_type, msg), msg_type.name)
 
         def monitor(restart_delay_s=5):
             self.connect()
+            time.sleep(restart_delay_s)
             while True:
                 time.sleep(restart_delay_s)
-                if self.SLE_manager._state == 'active':
+                self.SLE_manager.schedule_status_report()
+                if self.SLE_manager._state == 'active' or self.SLE_manager._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
-                    self.publish("RAF SLE Interface is not active!",'monitor_high_priority_cltu')
+                    high_priority(f"RAF SLE Interface is {self.SLE_manager._state}!")
                     self.handle_restart()
 
         if msg:
@@ -85,14 +98,18 @@ class SLE_Manager_Plugin(Plugin):
     def process(self, topic=None):
         try:
             pass
-            #  The frames get sent to UDP, because side effects are cool.
-            # while True:
-            #     time.sleep(0)
 
         except Exception as e:
             log.error(f"Encountered exception {e}.")
             self.handle_restart()
 
-        finally:
-            self.handle_kill()
-            self.handle_restart()
+    def graffiti(self):
+        n = Graffiti.Node(self.self_name,
+                          inputs=[(i, "AOS Telemetry Frame")
+                                  for i in self.inputs],
+                          outputs=[(MessageType.RAF_DATA.name, MessageType.RAF_DATA.value),
+                                   (MessageType.RAF_STATUS.name, MessageType.RAF_STATUS.value),
+                                   (MessageType.HIGH_PRIORITY_RAF_STATUS.name, MessageType.HIGH_PRIORITY_RAF_STATUS.value)],
+                          label=("Forwards AOS Frames from SLE interface"),
+                          node_type=Graffiti.Node_Type.PLUGIN)
+        return [n]
