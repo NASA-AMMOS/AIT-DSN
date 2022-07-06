@@ -72,7 +72,7 @@ class TCTF_Manager(Plugin,
 
         if self.expecting_sdls is SDLS_Type.ENC:
             log.info(f"expecting to perform ENCRYPTED operations.")
-        if self.expecting_sdls is SDLS_Type.AUTH:
+        elif self.expecting_sdls is SDLS_Type.AUTH:
             log.info(f"expecting to perform AUTH operations.")
         else:
             log.info(f"expecting to process CLEAR TCTFs only.")
