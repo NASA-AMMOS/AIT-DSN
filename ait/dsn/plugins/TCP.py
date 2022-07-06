@@ -432,7 +432,8 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                 
         n = Graffiti.Node(self.self_name,
                           inputs=[],
-                          outputs=[(MessageType.TCP_STATUS, "Connection Status")],
+                          outputs=[(MessageType.TCP_STATUS.name,
+                                    MessageType.TCP_STATUS.value)],
                           label="Manage TCP Transmit and Receive",
                           node_type=Graffiti.Node_Type.TCP_CLIENT)
         nodes.append(n)
