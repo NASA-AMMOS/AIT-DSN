@@ -94,7 +94,13 @@ class TCTF_Manager(Plugin,
                                   data_field=data_field_byte_array,
                                   apply_ecf=self.apply_ecf)
 
-        encoded_frame = frame.encode()
+        try:
+            encoded_frame = frame.encode()
+        except Exception as e:
+            log.error(e)
+            log.error("Abandoning frame")
+            return
+        
         log.debug(f"{encoded_frame}")
 
         if check_tctf_size(encoded_frame):
