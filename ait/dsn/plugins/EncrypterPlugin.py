@@ -125,7 +125,7 @@ class Encrypter(Plugin,
                 msg_type = MessageType.KMC_STATUS
                 msg = {'state': self.encrypter.is_connected()}
                 self.publish((msg_type, msg), msg_type.name)
-                log.info(msg)
+                log.debug(msg)
 
         def high_priority(msg):
             #self.publish(msg, "monitor_high_priority_raf")

@@ -80,7 +80,7 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
     def supervisor_tree(self, report_time_s=5):
         while True:
             time.sleep(report_time_s)
-            log.info(self.vcid_counter)
+            log.debug(self.vcid_counter)
             self.publish(self.vcid_counter, "monitor_vcid")
             msg_type = MessageType.VCID_COUNT
             self.publish((msg_type, self.vcid_counter), msg_type.name)

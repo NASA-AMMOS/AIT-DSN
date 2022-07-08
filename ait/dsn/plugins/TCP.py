@@ -448,7 +448,7 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
                 msg = []
                 for sub_list in self.topic_subscription_map.values():
                     msg += [i.status_map() for i in sub_list]
-                log.info(msg)
+                log.debug(msg)
                 self.publish((msg_type, msg), msg_type.name)
 
         def high_priority(msg):
