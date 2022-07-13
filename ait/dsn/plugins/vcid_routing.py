@@ -1,6 +1,8 @@
 '''
 Implements a plugin which routes AOS frames by VCID
 '''
+from gevent import time, Greenlet, monkey
+monkey.patch_all()
 import os
 import yaml
 import ait
@@ -10,6 +12,7 @@ from ait.core import log
 from collections import defaultdict
 from ait.dsn.sle.frames import AOSTransFrame
 from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
+from ait.core.message_types import MessageType
 
 import ait.dsn.plugins.Graffiti as Graffiti
 
@@ -51,10 +54,11 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             - 63
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
-                 routing_table=None, default_topic=None):
+                 routing_table=None, default_topic=None, report_time_s=0):
         
         super().__init__(inputs, outputs, zmq_args)
 
+        self.report_time_s = report_time_s
         self.default_topic = default_topic
         if routing_table:
             self.path = routing_table['path']
@@ -70,6 +74,16 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
         self.vcid_counter = defaultdict(int)
 
         Graffiti.Graphable.__init__(self)
+        if self.report_time_s:
+            self.supervisor_glet =  Greenlet.spawn(self.supervisor_tree, self.report_time_s)
+
+    def supervisor_tree(self, report_time_s=5):
+        while True:
+            time.sleep(report_time_s)
+            log.debug(self.vcid_counter)
+            self.publish(self.vcid_counter, "monitor_vcid")
+            msg_type = MessageType.VCID_COUNT
+            self.publish((msg_type, self.vcid_counter), msg_type.name)
         
     def process(self, tagged_frame: TaggedFrame, topic=None):
         '''
@@ -84,7 +98,7 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             topics = self.routing_table_object[frame_vcid]
             self.vcid_counter[frame_vcid] += 1
             tagged_frame.channel_counter = self.vcid_counter[frame_vcid]
-            log.debug(f"{__name__} -> Found routing table: "
+            log.debug(f"Found routing table: "
                       f"{topics} for {tagged_frame}")
             for route in topics:
                 self.publish(tagged_frame, route)
@@ -101,7 +115,8 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
         for (route, vcids) in route_edges.items():
             nodes.append(Graffiti.Node(self.self_name,
                                        [(i, "AOS Frames") for i in self.inputs],
-                                       [(route, f"VCIDs: [{', '.join(vcids)}]")],
+                                       [(route, f"VCIDs: [{', '.join(vcids)}]"),
+                                        (MessageType.VCID_COUNT.name, MessageType.VCID_COUNT.value)],
                                        f"Routing Table: {self.path}",
                                        Graffiti.Node_Type.PLUGIN))
         return nodes

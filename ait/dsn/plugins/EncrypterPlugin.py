@@ -1,8 +1,13 @@
+from gevent import time, Greenlet, monkey
+monkey.patch_all()
+import ait
 from ait.dsn.encrypt.encrypter import EncrypterFactory
 from ait.core.server.plugins import Plugin
 from ait.core import log
 import ait.dsn.plugins.TCTF_Manager as tctf
 import ait.dsn.plugins.Graffiti as Graffiti
+from ait.core.sdls_utils import SDLS_Type, get_sdls_type
+from ait.core.message_types import MessageType
 
 
 
@@ -19,28 +24,30 @@ class Encrypter(Plugin,
     Then configure the managed parameters in the config.yaml as
     required by the encryption service.
     """
-    def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
+    def __init__(self, inputs=None, outputs=None, zmq_args=None, restart_delay_s=0, report_time_s=0, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
-        self.log_header = __name__ + "->"
+        self.restart_delay_s = restart_delay_s
+        self.report_time_s = report_time_s
         self.security_risk = False
-
+        
         # We never expected this plugin to be instantiated
         # if our intention was to run in SDLS_Type CLEAR mode.
         # We risk leaking keys and introduce unefined behavior.
-        self.expecting_sdls = tctf.get_sdls_type()
-        if self.expecting_sdls is tctf.SDLS_Type.CLEAR:
-            log.error(f"{self.log_header} CRITICAL CONFIGURATION ERROR: "
-                      "found parameter expected_sdls_type: CLEAR. "
-                      "This plugin expects <AUTH|ENC>. "
-                      "If this is not an error, comment out "
-                      "the encrypter plugin block. "
-                      "We will refuse to process TCTFs.")
+        self.expecting_sdls = get_sdls_type()
+        if self.expecting_sdls is SDLS_Type.CLEAR or self.expecting_sdls is SDLS_Type.FINAL:
+            print(f"CRITICAL CONFIGURATION ERROR: "
+                  "found parameter expected_sdls_type: {self.expecting_sdls}. "
+                  "This plugin expects <AUTH|ENC>. "
+                  "If this is not an error, comment out "
+                  "the encrypter plugin block. "
+                  "We will refuse to process TCTFs.")
             self.security_risk = True
         else:
             self.encrypter = EncrypterFactory().get()
             self.encrypter.configure()
             self.encrypter.connect()
-            log.info(f"{self.log_header} Encryption services started.")
+            log.info(f"Encryption services started.")
+            self.supervisor = Greenlet.spawn(self.supervisor_tree)
 
         Graffiti.Graphable.__init__(self)
 
@@ -54,26 +61,26 @@ class Encrypter(Plugin,
             # TCTFs to us since we were expecting To oeprate in CLEAR mode.
             # If another plugin is attempting to encrypt something through us,
             # we will refuse.
-            log.error(f"{self.log_header} "
-                      "Dropping clear TCTF and halting further processing. "
-                      "During startup we detected configuration parameter "
-                      "dsn.sle.tctf.expected_sdls_type: CLEAR. "
-                      "TCTF_Manager should not have been able to "
-                      "publish to us in this state. "
-                      "TCTFs should only be published by TCTF_Manager, "
-                      f"but we received one from {topic}. "
-                      "Check configuration parameter "
-                      "`dsn.sle.tctf.expected_sdls_type`.")
+            print(f""
+                  "Dropping clear TCTF and halting further processing. "
+                  "During startup we detected configuration parameter "
+                  "dsn.sle.tctf.expected_sdls_type: CLEAR. "
+                  "TCTF_Manager should not have been able to "
+                  "publish to us in this state. "
+                  "TCTFs should only be published by TCTF_Manager, "
+                  f"but we received one from {topic}. "
+                  "Check configuration parameter "
+                  "`dsn.sle.tctf.expected_sdls_type`.")
             return
 
         # Pre-encryption size checks
         if not data:
-            log.error(f"{self.log_header} received no data from {topic}")
+            log.error(f"received no data from {topic}")
         # Check for pre hand off to KMC size
         if tctf.check_tctf_size(data, self.expecting_sdls):
-            log.debug(f"{self.log_header} TCTF size from {topic} is ok")
+            log.debug(f"TCTF size from {topic} is ok")
         else:
-            log.error(f"{self.log_header} Initial TCTF received from {topic}"
+            log.error(f"Initial TCTF received from {topic}"
                       " is oversized! Undefined behavior will occur!")
             return
 
@@ -81,20 +88,20 @@ class Encrypter(Plugin,
         data = bytearray(data)
         crypt_result = self.encrypter.encrypt(data)
         if crypt_result.errors:
-            log.error(f"{self.log_header} Got error during encryption:"
+            log.error(f"Got error during encryption:"
                       f"{crypt_result.errors}")
             return
 
         # Check KMC's addition of SDLS headers did not
         # violate the final desired TCTF size.
         if tctf.check_tctf_size(crypt_result.result, tctf.SDLS_Type.FINAL):
-            log.debug(f"{self.log_header} Encrypted TCTF is properly sized.")
+            log.debug(f"Encrypted TCTF is properly sized.")
         else:
-            log.error(f"{self.log_header} Encrypted TCTF is oversized! "
+            log.error(f"Encrypted TCTF is oversized! "
                       "Undefined behavior will occur! Dropping TCTF")
             return
         if data == crypt_result.result:
-            log.error(f"{self.log_header} Encryption result "
+            log.error(f"Encryption result "
                       "was the same same as clear?")
             return
         else:
@@ -104,7 +111,43 @@ class Encrypter(Plugin,
     def graffiti(self):
         n = Graffiti.Node(self.self_name,
                           inputs=[(i, "TCTF Frame") for i in self.inputs],
-                          outputs=[],
+                          outputs=[(MessageType.KMC_STATUS.name,
+                                    MessageType.KMC_STATUS.value)],
                           label="Encrypt/Authenticate TCTF",
                           node_type=Graffiti.Node_Type.PLUGIN)
         return [n]
+
+    def supervisor_tree(self, msg=None):
+
+        def periodic_report(report_time=5):
+            while True:
+                time.sleep(report_time)
+                msg_type = MessageType.KMC_STATUS
+                msg = {'state': self.encrypter.is_connected()}
+                self.publish((msg_type, msg), msg_type.name)
+                log.debug(msg)
+
+        def high_priority(msg):
+            #self.publish(msg, "monitor_high_priority_raf")
+            pass
+        
+        def monitor(restart_delay_s=5):
+            #self.connect()
+            #time.sleep(restart_delay_s)
+            #while True:
+            #    time.sleep(restart_delay_s)
+            #    self.SLE_manager.schedule_status_report()
+            #    if self.SLE_manager._state == 'active' or self.SLE_manager._state == 'ready':
+            #        log.debug(f"SLE OK!")
+            #    else:
+            #        self.publish(f"RAF SLE Interface is not active! ",'monitor_high_priority_cltu')
+            #        self.handle_restart()
+            pass
+        
+        if msg:
+            high_priority(msg)
+            return
+        
+        if self.report_time_s:
+            reporter = Greenlet.spawn(periodic_report, self.report_time_s)
+        mon = Greenlet.spawn(monitor, self.restart_delay_s)
