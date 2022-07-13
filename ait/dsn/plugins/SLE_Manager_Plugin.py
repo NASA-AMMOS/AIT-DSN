@@ -55,7 +55,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
                        'report': self.SLE_manager.last_status_report_pdu,
                        'total_received': self.SLE_manager.receive_counter}
                 self.publish((msg_type, msg), msg_type.name)
-                log.info(f"{msg}")
+                log.debug(f"{msg}")
 
         def high_priority(msg):
             msg_type = MessageType.HIGH_PRIORITY_RAF_STATUS
