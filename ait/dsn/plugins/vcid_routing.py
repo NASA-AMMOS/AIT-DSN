@@ -1,14 +1,14 @@
 '''
 Implements a plugin which routes AOS frames by VCID
 '''
-import os
-import yaml
-import ait
 
 import gevent
 import gevent.monkey
-
 gevent.monkey.patch_all()
+
+import os
+import yaml
+import ait
 
 from ait.core.server.plugins import Plugin
 from ait.core import log

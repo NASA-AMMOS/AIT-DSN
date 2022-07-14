@@ -3,7 +3,6 @@
 '''A class which manages multiple SLE Object instances and keeps track of states'''
 import gevent
 import gevent.monkey
-
 gevent.monkey.patch_all()
 
 import atexit
