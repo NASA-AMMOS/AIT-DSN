@@ -1,7 +1,7 @@
-ait.core.plugins.vcid_routing module
+ait.dsn.plugins.vcid_routing module
 ======================================
 
-.. automodule:: ait.core.plugins.vcid_routing
+.. automodule:: ait.dsn.plugins.vcid_routing
    :members:
    :undoc-members:
    :show-inheritance:
