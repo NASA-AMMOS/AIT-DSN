@@ -161,7 +161,7 @@ We recommend that these steps be captured in a environment setup script.
     ## Without this, we get error along lines of:
     ## /lib64/libk5crypto.so.3: undefined symbol: EVP_KDF_ctrl, version OPENSSL_1_1_1b
     ## ..when loading the KMC Client.
-    set LD_PRELOAD_LIB = /usr/lib64/libcrypto.so.1.1
+    setenv LD_PRELOAD = /usr/lib64/libcrypto.so.1.1
 
 From this point, the AIT KMC wrapper should be able to load all libraries and Python modules.
 
