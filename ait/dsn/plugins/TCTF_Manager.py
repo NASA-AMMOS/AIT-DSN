@@ -34,6 +34,7 @@ class TCTF_Manager(Plugin):
                 virtual_channel_id: 0
                 frame_sequence_number: 0
                 apply_error_correction_field: True
+                add_frame_segmentation_byte: False
     """
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
                  command_subscriber=None, managed_parameters=None):
@@ -48,8 +49,15 @@ class TCTF_Manager(Plugin):
         self.vcID = ait.config.get(config_prefix+'virtual_channel_id', None)
         self.frame_seq_num = ait.config.get(config_prefix+'frame_sequence_number', None)
         self.apply_ecf = ait.config.get(config_prefix+'apply_error_correction_field', None)
+        self.add_segmentation_byte = ait.config.get(config_prefix+'add_frame_segmentation_byte', None)
 
     def process(self, data_field_byte_array, topic=None):
+
+        if self.add_segmentation_byte:
+            data_field_list = list(data_field_byte_array)
+            data_field_list.insert(0, 0xC0) #b11000000 (0xC0) indicates no segmentation
+            data_field_byte_array = bytearray(data_field_list)
+
         frame = tctf.TCTransFrame(tf_version_num=self.tf_version_num,
                                   bypass=self.bypass, cc=self.cc,
                                   rsvd=self.rsvd, scID=self.scID,

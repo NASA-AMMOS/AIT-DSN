@@ -41,7 +41,8 @@ All fields are mandatory unless otherwise stated (i.e. commented fields are opti
                 uplink_spacecraft_id: 123
                 virtual_channel_id: 0
                 frame_sequence_number: 0
-                apply_error_correction_field: True				
+                apply_error_correction_field: True
+                add_frame_segmentation_byte: False				
 
 Pipeline Configuration
 ----------------------
