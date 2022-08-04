@@ -1,26 +1,30 @@
+'''
+Creates a FCLTU instance and uploads any incoming CLTUs to the DSN via SLE
+'''
+
+import time
 from ait.core.server.plugins import Plugin
 import ait.core
 from ait.dsn.sle import CLTU
-import time
 
-class send_CLTU(Plugin):
+class SendCLTU(Plugin):
     '''
     Creates a FCLTU instance and uploads any incoming CLTUs to the DSN via SLE
     '''
 
-    def __init__(self, inputs=None, outputs=None, zmq_args=None, command_subscriber=None):
+    def __init__(self, inputs=None, outputs=None, zmq_args=None):
         super().__init__(inputs, outputs, zmq_args)
-        self.CLTU_manager = CLTU()
-        self.CLTU_manager.connect()
+        self.cltu_manager = CLTU()
+        self.cltu_manager.connect()
         time.sleep(2)
-        self.CLTU_manager.bind()
+        self.cltu_manager.bind()
         time.sleep(2)
-        self.CLTU_manager.start()
+        self.cltu_manager.start()
         time.sleep(2)
 
     def process(self, input_data, topic=None):
-        if self.CLTU_manager._state == "ready":
-            self.CLTU_manager.upload_cltu(input_data)
+        if self.cltu_manager._state == "ready":
+            self.cltu_manager.upload_cltu(input_data)
             self.publish(input_data)
             ait.core.log.debug("uploaded CLTU")
         else:
@@ -28,6 +32,6 @@ class send_CLTU(Plugin):
         return input_data
 
     def __del__(self):
-        self.CLTU_manager.stop()
-        self.CLTU_manager.unbind()
-        self.CLTU_manager.disconnect()
+        self.cltu_manager.stop()
+        self.cltu_manager.unbind()
+        self.cltu_manager.disconnect()
