@@ -50,16 +50,14 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         def periodic_report(report_time=5):
             while True:
                 time.sleep(report_time)
-                msg_type = MessageType.RAF_STATUS
                 msg = {'state': self.SLE_manager._state,
                        'report': self.SLE_manager.last_status_report_pdu,
                        'total_received': self.SLE_manager.receive_counter}
-                self.publish((msg_type, msg), msg_type.name)
+                self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
         def high_priority(msg):
-            msg_type = MessageType.HIGH_PRIORITY_RAF_STATUS
-            self.publish((msg_type, msg), msg_type.name)
+            self.publish(msg, MessageType.HIGH_PRIORITY_RAF_STATUS.name)
 
         def monitor(restart_delay_s=5):
             self.connect()
