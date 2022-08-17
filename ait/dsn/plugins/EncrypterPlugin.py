@@ -122,9 +122,8 @@ class Encrypter(Plugin,
         def periodic_report(report_time=5):
             while True:
                 time.sleep(report_time)
-                msg_type = MessageType.KMC_STATUS
                 msg = {'state': self.encrypter.is_connected()}
-                self.publish((msg_type, msg), msg_type.name)
+                self.publish(msg, MessageType.KMC_STATUS.name)
                 log.debug(msg)
 
         def high_priority(msg):

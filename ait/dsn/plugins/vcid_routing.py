@@ -75,16 +75,16 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
 
         Graffiti.Graphable.__init__(self)
         if self.report_time_s:
-            self.supervisor_glet =  Greenlet.spawn(self.supervisor_tree, self.report_time_s)
+            self.supervisor_glet = Greenlet.spawn(self.supervisor_tree, self.report_time_s)
 
     def supervisor_tree(self, report_time_s=5):
         while True:
             time.sleep(report_time_s)
             log.debug(self.vcid_counter)
-            self.publish(self.vcid_counter, "monitor_vcid")
-            msg_type = MessageType.VCID_COUNT
-            self.publish((msg_type, self.vcid_counter), msg_type.name)
-        
+            if self.vcid_counter:
+                self.publish(self.vcid_counter, "monitor_vcid")
+                self.publish(self.vcid_counter, MessageType.VCID_COUNT.name)
+
     def process(self, tagged_frame: TaggedFrame, topic=None):
         '''
         publishes incoming AOS frames to the routes specified in the routing table
