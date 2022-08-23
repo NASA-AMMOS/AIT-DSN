@@ -354,7 +354,7 @@ class RAF(common.SLE):
 
         if self.publish:
             msg_type = MessageType.RAF_DATA
-            self.publish((msg_type, tm_data), msg_type.name)
+            self.publish(tm_data, msg_type.name)
             self.receive_counter += 1
             
         if self._telem_sock:
