@@ -30,10 +30,11 @@ class BCHPlugin(Plugin):
 
         # handle case where number of bytes is not evenly divisible by 7
         # CCSDS standard states add alternating 0/1 fill bits starting with 0
-        number_of_filler_bytes = 7 - remainder_bytes
-        filler_bytes = bytearray(b"\x55")*number_of_filler_bytes
-        last_chunk = input_data[-remainder_bytes:] + filler_bytes
-        last_chunk_with_bch = BCH.generateBCH(last_chunk)
-        output_bytes = output_bytes + last_chunk_with_bch
+        if remainder_bytes != 0:
+            number_of_filler_bytes = 7 - remainder_bytes
+            filler_bytes = bytearray(b"\x55")*number_of_filler_bytes
+            last_chunk = input_data[-remainder_bytes:] + filler_bytes
+            last_chunk_with_bch = BCH.generateBCH(last_chunk)
+            output_bytes = output_bytes + last_chunk_with_bch
 
         self.publish(output_bytes)
