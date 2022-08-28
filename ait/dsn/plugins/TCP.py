@@ -443,13 +443,12 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
         
         def periodic_report(report_time=5):
             while True:
-                time.sleep(report_time)   
-                msg_type = MessageType.TCP_STATUS
+                time.sleep(report_time)
                 msg = []
                 for sub_list in self.topic_subscription_map.values():
                     msg += [i.status_map() for i in sub_list]
                 log.debug(msg)
-                self.publish((msg_type, msg), msg_type.name)
+                self.publish(msg,  MessageType.TCP_STATUS.name)
 
         def high_priority(msg):
             # self.publish(msg, "monitor_high_priority_cltu")
