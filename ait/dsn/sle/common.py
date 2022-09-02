@@ -140,6 +140,12 @@ class SLE(object):
             'random_number': None
         }
 
+    def __del__(self):
+        if self._socket:
+            self._socket.shutdown()
+        if self._telem_sock:
+            self._telem_sock.shutdown()
+
     @property
     def invoke_id(self):
         ''''''

@@ -20,7 +20,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def connect(self):
         log.info(f"Starting SLE interface.")
         try:
-            self.SLE_manager = ait.dsn.sle.RAF()
+            self.SLE_manager = ait.dsn.sle.RAF(self.publish)
 
             self.SLE_manager.connect()
             time.sleep(2)
@@ -29,7 +29,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             time.sleep(2)
 
             self.SLE_manager.start(None, None)
-            
+
             log.info("SLE Interface is up!")
 
         except Exception as e:
@@ -50,16 +50,14 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         def periodic_report(report_time=5):
             while True:
                 time.sleep(report_time)
-                msg_type = MessageType.RAF_STATUS
                 msg = {'state': self.SLE_manager._state,
                        'report': self.SLE_manager.last_status_report_pdu,
                        'total_received': self.SLE_manager.receive_counter}
-                self.publish((msg_type, msg), msg_type.name)
+                self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
         def high_priority(msg):
-            msg_type = MessageType.HIGH_PRIORITY_RAF_STATUS
-            self.publish((msg_type, msg), msg_type.name)
+            self.publish(msg, MessageType.HIGH_PRIORITY_RAF_STATUS.name)
 
         def monitor(restart_delay_s=5):
             self.connect()
@@ -76,7 +74,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         if msg:
             high_priority(msg)
             return
-        
+
         if self.report_time_s:
             reporter = Greenlet.spawn(periodic_report, self.report_time_s)
         mon = Greenlet.spawn(monitor, self.restart_delay_s)
@@ -107,9 +105,9 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         n = Graffiti.Node(self.self_name,
                           inputs=[(i, "AOS Telemetry Frame")
                                   for i in self.inputs],
-                          outputs=[(MessageType.RAF_DATA.name, MessageType.RAF_DATA.value),
-                                   (MessageType.RAF_STATUS.name, MessageType.RAF_STATUS.value),
-                                   (MessageType.HIGH_PRIORITY_RAF_STATUS.name, MessageType.HIGH_PRIORITY_RAF_STATUS.value)],
+                          outputs=[MessageType.RAF_DATA.to_tuple(),
+                                   MessageType.RAF_STATUS.to_tuple(),
+                                   MessageType.HIGH_PRIORITY_RAF_STATUS.to_tuple()],
                           label=("Forwards AOS Frames from SLE interface"),
                           node_type=Graffiti.Node_Type.PLUGIN)
         return [n]
