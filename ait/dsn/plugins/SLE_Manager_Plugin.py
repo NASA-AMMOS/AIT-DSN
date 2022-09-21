@@ -6,36 +6,32 @@ from ait.core.server.plugins import Plugin
 from ait.core.message_types import MessageType
 from ait.core import log
 import ait.dsn.plugins.Graffiti as Graffiti
+import ait
+from ait.dsn.sle import RAF
 
 
 """
 A plugin which creates an RAF connection with the DSN.
 Frames received via the RAF connection are sent to the output stream
 """
-import time
-import ait
-from ait.dsn.sle import RAF
-from ait.core.server.plugins import Plugin
 
 
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
                  zmq_args=None, report_time_s=0, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
-
-        self.raf_object = RAF()
-        self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
         
         self.restart_delay_s = 5
         self.supervisor = Greenlet.spawn(self.supervisor_tree)
         self.report_time_s = report_time_s
         Graffiti.Graphable.__init__(self)
+        self.receive_counter = 0
 
     def connect(self):
-        log.info(f"Starting SLE interface.")
+        log.info("Starting SLE interface.")
         try:
             self.raf_object = RAF()
-
+            self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
             self.raf_object.connect()
             time.sleep(2)
 
@@ -66,8 +62,8 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             while True:
                 time.sleep(report_time)
                 msg = {'state': self.raf_object._state,
-                       'report': self.raf_object.last_status_report_pdu,
-                       'total_received': self.raf_object.receive_counter}
+                       #'report': self.raf_object.last_status_report_pdu,
+                       'total_received': self.receive_counter}
                 self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
@@ -79,7 +75,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             time.sleep(restart_delay_s)
             while True:
                 time.sleep(restart_delay_s)
-                self.raf_object.schedule_status_report()
+                # self.raf_object.schedule_status_report()
                 if self.raf_object._state == 'active' or self.raf_object._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
@@ -140,4 +136,5 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             ait.core.log.info(err)
             return
 
-        self.publish(tm_data)
+        self.receive_counter += 1
+        self.publish(tm_data, MessageType.RAF_DATA.name)

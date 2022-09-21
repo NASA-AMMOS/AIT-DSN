@@ -31,8 +31,6 @@ import ait.dsn.sle.frames as frames
 from ait.dsn.sle.pdu.raf import *
 from ait.dsn.sle.pdu import raf
 
-from ait.core.message_types import MessageType
-
 
 class RAF(common.SLE):
     ''' SLE Return All Frames (RAF) interface class
@@ -95,7 +93,7 @@ class RAF(common.SLE):
     '''
     # TODO: Add error checking for actions based on current state
 
-    def __init__(self, *args, pub_sub_publish=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._inst_id = ait.config.get('dsn.sle.raf.inst_id',
                                        kwargs.get('inst_id', None))
         self._hostnames = ait.config.get('dsn.sle.raf.hostnames',
@@ -114,7 +112,6 @@ class RAF(common.SLE):
         self.frame_output_port = int(ait.config.get('dsn.sle.frame_output_port',
                                                     kwargs.get('frame_output_port',
                                                                ait.DEFAULT_FRAME_PORT)))
-        self.publish = pub_sub_publish
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -352,13 +349,8 @@ class RAF(common.SLE):
             ait.core.log.info(err)
             return
 
-        if self.publish:
-            msg_type = MessageType.RAF_DATA
-            self.publish(tm_data, msg_type.name)
-            self.receive_counter += 1
-            
         if self._telem_sock:
-            ait.core.log.debug('Sending {} with {} bytes to frame port'.format(tm_frame_class, len(tm_data)))
+            #ait.core.log.debug('Sending {} with {} bytes to frame port'.format(tm_frame_class, len(tm_data)))
             self._telem_sock.sendto(tm_data, ('localhost', self.frame_output_port))
 
     def _sync_notify_handler(self, pdu):
