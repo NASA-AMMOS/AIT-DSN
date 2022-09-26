@@ -6,31 +6,42 @@ from ait.core.server.plugins import Plugin
 from ait.core.message_types import MessageType
 from ait.core import log
 import ait.dsn.plugins.Graffiti as Graffiti
+import ait
+from ait.dsn.sle import RAF
+
+
+"""
+A plugin which creates an RAF connection with the DSN.
+Frames received via the RAF connection are sent to the output stream
+"""
+
 
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
                  zmq_args=None, report_time_s=0, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
+        
         self.restart_delay_s = 5
-        self.SLE_manager = None
         self.supervisor = Greenlet.spawn(self.supervisor_tree)
         self.report_time_s = report_time_s
         Graffiti.Graphable.__init__(self)
+        self.receive_counter = 0
 
     def connect(self):
-        log.info(f"Starting SLE interface.")
+        log.info("Starting SLE interface.")
         try:
-            self.SLE_manager = ait.dsn.sle.RAF(self.publish)
-
-            self.SLE_manager.connect()
+            self.raf_object = RAF()
+            self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
+            self.raf_object.connect()
             time.sleep(2)
 
-            self.SLE_manager.bind()
+            self.raf_object.bind()
             time.sleep(2)
 
-            self.SLE_manager.start(None, None)
+            self.raf_object.start(None, None)
+            time.sleep(2)
 
-            log.info("SLE Interface is up!")
+            log.info(f"SLE Interface is {self.raf_object._state}!")
 
         except Exception as e:
             msg = f"RAF SLE Interface Encountered exception {e}."
@@ -50,9 +61,9 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         def periodic_report(report_time=5):
             while True:
                 time.sleep(report_time)
-                msg = {'state': self.SLE_manager._state,
-                       'report': self.SLE_manager.last_status_report_pdu,
-                       'total_received': self.SLE_manager.receive_counter}
+                msg = {'state': self.raf_object._state,
+                       #'report': self.raf_object.last_status_report_pdu,
+                       'total_received': self.receive_counter}
                 self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
@@ -64,11 +75,11 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             time.sleep(restart_delay_s)
             while True:
                 time.sleep(restart_delay_s)
-                self.SLE_manager.schedule_status_report()
-                if self.SLE_manager._state == 'active' or self.SLE_manager._state == 'ready':
+                # self.raf_object.schedule_status_report()
+                if self.raf_object._state == 'active' or self.raf_object._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
-                    high_priority(f"RAF SLE Interface is {self.SLE_manager._state}!")
+                    high_priority(f"RAF SLE Interface is {self.raf_object._state}!")
                     self.handle_restart()
 
         if msg:
@@ -81,16 +92,16 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
 
     def handle_kill(self):
         try:
-            self.SLE_manager.stop()
+            self.raf_object.stop()
             time.sleep(2)
 
-            self.SLE_manager.unbind()
+            self.raf_object.unbind()
             time.sleep(2)
 
-            self.SLE_manager.disconnect()
+            self.raf_object.disconnect()
             time.sleep(2)
 
-        except:
+        except Exception as e:
             log.error(f"Encountered exception {e} while killing SLE manager")
 
     def process(self, topic=None):
@@ -111,3 +122,19 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
                           label=("Forwards AOS Frames from SLE interface"),
                           node_type=Graffiti.Node_Type.PLUGIN)
         return [n]
+
+    def _transfer_data_invoc_handler(self, pdu):
+        """"""
+        frame = pdu.getComponent()
+        if "data" in frame and frame["data"].isValue:
+            tm_data = frame["data"].asOctets()
+        else:
+            err = (
+                "RafTransferBuffer received but data cannot be located. "
+                "Skipping further processing of this PDU ..."
+            )
+            ait.core.log.info(err)
+            return
+
+        self.receive_counter += 1
+        self.publish(tm_data, MessageType.RAF_DATA.name)
