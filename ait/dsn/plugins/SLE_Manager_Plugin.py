@@ -19,6 +19,7 @@ Frames received via the RAF connection are sent to the output stream
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
                  zmq_args=None, report_time_s=0, **kwargs):
+        inputs = ['SLE_RAF_RESTART']
         super().__init__(inputs, outputs, zmq_args)
         
         self.restart_delay_s = 5
@@ -53,6 +54,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         msg = f"Restarting RAF SLE Interface in {self.restart_delay_s} seconds."
         log.error(msg)
         self.supervisor_tree(msg)
+        self.handle_kill()
         time.sleep(self.restart_delay_s)
         self.connect()
 
@@ -104,13 +106,10 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         except Exception as e:
             log.error(f"Encountered exception {e} while killing SLE manager")
 
-    def process(self, topic=None):
-        try:
-            pass
-
-        except Exception as e:
-            log.error(f"Encountered exception {e}.")
+    def process(self, data=None, topic=None):
+        if topic == "SLE_RAF_RESTART":
             self.handle_restart()
+            return
 
     def graffiti(self):
         n = Graffiti.Node(self.self_name,
