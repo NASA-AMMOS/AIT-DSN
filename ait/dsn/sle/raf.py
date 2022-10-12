@@ -101,13 +101,14 @@ class RAF(common.SLE):
         self._port = ait.config.get('dsn.sle.raf.port',
                                     kwargs.get('port', None))
 
-        super(self.__class__, self).__init__(*args, **kwargs)
+        self._auth_level = ait.config.get('dsn.sle.raf.auth_level',
+                                          kwargs.get('auth_level', 'none'))
+
+        super(self.__class__, self).__init__(auth_level=self._auth_level, *args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
         self._version = ait.config.get('dsn.sle.raf.version',
                                        kwargs.get('version', 4))
-        self._auth_level = ait.config.get('dsn.sle.raf.auth_level',
-                                          kwargs.get('auth_level', self._auth_level))
 
         self.frame_output_port = int(ait.config.get('dsn.sle.frame_output_port',
                                                     kwargs.get('frame_output_port',

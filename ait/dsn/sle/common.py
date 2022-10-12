@@ -117,9 +117,13 @@ class SLE(object):
                                              kwargs.get('peer_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
                                               kwargs.get('responder_port', 'default'))
-        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
+
+        self._conn_monitor = None
+        self._data_processor = None
+        self._socket = None
+        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         if not self._hostnames or not self._port:
             msg = 'Connection configuration missing hostnames ({}) or port ({})'
@@ -138,10 +142,7 @@ class SLE(object):
         }
 
     def __del__(self):
-        if self._socket:
-            self._socket.shutdown()
-        if self._telem_sock:
-            self._telem_sock.shutdown()
+        self.disconnect()
 
     @property
     def invoke_id(self):
@@ -167,6 +168,9 @@ class SLE(object):
 
     def send(self, data):
         ''' Send supplied data to DSN '''
+        if not self._socket:
+            ait.core.log.warn("Socket to DSN has not been established.")
+            return
         try:
             _, writeable, _ = gevent.select.select([], [self._socket], [])
             for i in writeable:
@@ -284,12 +288,12 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-        self._socket = None
 
         for hostname in self._hostnames:
             try:
                 # create new socket for each host attempted
                 self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._socket.settimeout(10)
                 self._socket.connect((hostname, self._port))
                 ait.core.log.info(f"Connection to DSN successful through {hostname}.")
                 break
@@ -340,10 +344,14 @@ class SLE(object):
         Disconnect the SLE and telemetry output sockets and kill the
         greenlets for monitoring and processing data.
         '''
-        self._socket.close()
-        self._telem_sock.close()
-        self._conn_monitor.kill()
-        self._data_processor.kill()
+        if self._socket:
+            self._socket.close()
+        if self._telem_sock:
+            self._telem_sock.close()
+        if self._conn_monitor:
+            self._conn_monitor.kill()
+        if self._data_processor:
+            self._data_processor.kill()
 
     def stop(self, pdu):
         ''' Send a SLE Stop PDU.
