@@ -93,6 +93,8 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         mon = Greenlet.spawn(monitor, self.restart_delay_s)
 
     def handle_kill(self):
+        if not self.raf_object:
+            return
         try:
             self.raf_object.stop()
             time.sleep(2)
