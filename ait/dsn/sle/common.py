@@ -141,15 +141,28 @@ class SLE(object):
             'random_number': None
         }
 
-    def __del__(self):
-        self.disconnect()
-
     @property
     def invoke_id(self):
         ''''''
         iid = self._invoke_id
         self._invoke_id += 1
         return iid
+
+    def shutdown(self, unbind=True):
+        # Unbind == False is a special case for CLTU which enters a bad state whenever an unbind is sent
+        # RAF should always unbind when in ready state, otherwise it will enter a bad state
+        if self._state == 'active':
+            ait.core.log.info(f"Sending stop. Current State: {self._state}")
+            self.stop()
+            time.sleep(2)
+
+        if self._state == 'ready' and unbind:
+            ait.core.log.info(f"Sending unbind. Current State: {self._state}")
+            self.unbind()
+            time.sleep(2)
+
+        ait.core.log.info(f"Sending disconnect. Current State: {self._state}")
+        self.disconnect()
 
     def add_handler(self, event, handler):
         ''' Add a "handler" function for an "event"
@@ -377,6 +390,8 @@ class SLE(object):
 
     def _send_heartbeat(self):
         ''''''
+        if not self._socket:
+            return
         hb = struct.pack(
                 TML_CONTEXT_HB_FORMAT,
                 TML_CONTEXT_HEARTBEAT_TYPE,
