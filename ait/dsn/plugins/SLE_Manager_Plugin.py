@@ -51,11 +51,8 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.supervisor_tree(msg)
 
     def handle_restart(self):
-        msg = f"Restarting RAF interface in {self.restart_delay_s} seconds."
-        log.error(msg)
         if self.raf_object:
             self.raf_object.shutdown()
-        self.supervisor_tree(msg)
         self.connect()
 
     def supervisor_tree(self, msg=None):
