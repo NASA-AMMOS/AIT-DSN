@@ -80,8 +80,10 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
                 if self.raf_object._state == 'active' or self.raf_object._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
-                    high_priority(f"RAF interface is {self.raf_object._state}!")
-                    log.info("Monitor restarting interface!")
+                    msg = ("Response not received from RAF SLE responder " 
+                           "during bind request. Bind unsuccessful")
+                    high_priority(msg)
+                    log.error(msg)
                     self.handle_restart()
 
         if msg:
