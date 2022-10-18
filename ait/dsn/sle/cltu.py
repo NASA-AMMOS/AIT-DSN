@@ -420,7 +420,7 @@ class CLTU(common.SLE):
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
                                                   self._peer_password):
                     # Authentication failed. Ignore processing the return
-                    ait.core.log.info('Bind unsuccessful. Authentication failed.')
+                    ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return
 
             if self._state == 'ready' or self._state == 'active':
