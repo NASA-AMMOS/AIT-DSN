@@ -92,13 +92,14 @@ class SLE(object):
     for interfacing with SLE.
 
     '''
-    _state = 'unbound'
-    _handlers = defaultdict(list)
-    _data_queue = gevent.queue.Queue()
-    _invoke_id = 0
-
+ 
     def __init__(self, *args, **kwargs):
         ''''''
+        self._state = 'unbound'
+        self._handlers = defaultdict(list)
+        self._data_queue = gevent.queue.Queue()
+        self._invoke_id = 0
+
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                                    kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
