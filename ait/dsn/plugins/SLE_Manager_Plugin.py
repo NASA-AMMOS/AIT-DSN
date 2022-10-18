@@ -35,13 +35,13 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.raf_object = RAF()
             self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
             self.raf_object.connect()
-            time.sleep(2)
+            time.sleep(3)
 
             self.raf_object.bind()
-            time.sleep(2)
+            time.sleep(3)
 
             self.raf_object.start(None, None)
-            time.sleep(2)
+            time.sleep(3)
 
             log.info(f"New Connection: RAF interface is {self.raf_object._state}!")
 

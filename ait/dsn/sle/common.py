@@ -285,6 +285,9 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only UNBIND in state 'ready', current state is '{self._state}'.")
+            return
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
@@ -301,7 +304,11 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-
+        if self._state != 'unbound':
+            # TODO According to ICD, the result of this function puts us in 'unbound' state. Why doesn't it explicitly do so?
+            ait.core.log.warn("Unexpected connect detected.")
+            ait.core.log.warn(f"Expected state to be 'unbound' instead of {self._state}. We do not know if DSN received. STOP or UNBIND.")
+            ait.core.log.warn("Connecting and transitioning into unbound state anyway.")
         for hostname in self._hostnames:
             try:
                 # create new socket for each host attempted
@@ -374,6 +381,10 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
+        if self._state != 'active':
+            ait.core.log.warn(f"Can not comply: Can only STOP in state 'active', current state is '{self._state}'.")
+            return
+        
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:

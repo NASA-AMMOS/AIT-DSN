@@ -159,6 +159,9 @@ class CLTU(common.SLE):
         CLTU-TRANSFER-DATA invocations
         '''
         start_invoc = CltuUserToProviderPdu()
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only START in state 'ready', current state is '{self._state}'.")
+            return    
 
         if self._auth_level == 'all':
             start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self.make_credentials()

@@ -171,6 +171,9 @@ class RAF(common.SLE):
                 :class:`ait.dsn.sle.pdu.raf.RequestedFrameQuality`
         
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only START in state 'ready', current state is '{self._state}'.")
+            return
         start_invoc = RafUsertoProviderPdu()
 
         if self._auth_level == 'all':
