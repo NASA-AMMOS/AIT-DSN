@@ -92,13 +92,14 @@ class SLE(object):
     for interfacing with SLE.
 
     '''
-    _state = 'unbound'
-    _handlers = defaultdict(list)
-    _data_queue = gevent.queue.Queue()
-    _invoke_id = 0
-
+ 
     def __init__(self, *args, **kwargs):
         ''''''
+        self._state = 'unbound'
+        self._handlers = defaultdict(list)
+        self._data_queue = gevent.queue.Queue()
+        self._invoke_id = 0
+
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                                    kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
@@ -141,15 +142,28 @@ class SLE(object):
             'random_number': None
         }
 
-    def __del__(self):
-        self.disconnect()
-
     @property
     def invoke_id(self):
         ''''''
         iid = self._invoke_id
         self._invoke_id += 1
         return iid
+
+    def shutdown(self, unbind=True):
+        # Unbind == False is a special case for CLTU which enters a bad state whenever an unbind is sent
+        # RAF should always unbind when in ready state, otherwise it will enter a bad state
+        if self._state == 'active':
+            ait.core.log.info(f"Sending stop. Current State: {self._state}")
+            self.stop()
+            time.sleep(2)
+
+        if self._state == 'ready' and unbind:
+            ait.core.log.info(f"Sending unbind. Current State: {self._state}")
+            self.unbind()
+            time.sleep(2)
+
+        ait.core.log.info(f"Sending disconnect. Current State: {self._state}")
+        self.disconnect()
 
     def add_handler(self, event, handler):
         ''' Add a "handler" function for an "event"
@@ -272,6 +286,9 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only UNBIND in state 'ready', current state is '{self._state}'.")
+            return
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
@@ -288,7 +305,11 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-
+        if self._state != 'unbound':
+            # TODO According to ICD, the result of this function puts us in 'unbound' state. Why doesn't it explicitly do so?
+            ait.core.log.warn("Unexpected connect detected.")
+            ait.core.log.warn(f"Expected state to be 'unbound' instead of {self._state}. We do not know if DSN received. STOP or UNBIND.")
+            ait.core.log.warn("Connecting and transitioning into unbound state anyway.")
         for hostname in self._hostnames:
             try:
                 # create new socket for each host attempted
@@ -361,6 +382,10 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
+        if self._state != 'active':
+            ait.core.log.warn(f"Can not comply: Can only STOP in state 'active', current state is '{self._state}'.")
+            return
+        
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
@@ -377,6 +402,8 @@ class SLE(object):
 
     def _send_heartbeat(self):
         ''''''
+        if not self._socket:
+            return
         hb = struct.pack(
                 TML_CONTEXT_HB_FORMAT,
                 TML_CONTEXT_HEARTBEAT_TYPE,

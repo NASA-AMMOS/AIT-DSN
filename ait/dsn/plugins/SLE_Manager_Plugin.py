@@ -27,6 +27,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         self.report_time_s = report_time_s
         Graffiti.Graphable.__init__(self)
         self.receive_counter = 0
+        self.raf_object = None
 
     def connect(self):
         log.info("Starting SLE interface.")
@@ -34,38 +35,36 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.raf_object = RAF()
             self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
             self.raf_object.connect()
-            time.sleep(2)
+            time.sleep(5)
 
             self.raf_object.bind()
-            time.sleep(2)
+            time.sleep(5)
 
             self.raf_object.start(None, None)
-            time.sleep(2)
+            time.sleep(5)
 
-            log.info(f"SLE Interface is {self.raf_object._state}!")
+            log.info(f"New Connection: RAF interface is {self.raf_object._state}!")
 
         except Exception as e:
             msg = f"RAF SLE Interface Encountered exception {e}."
             log.error(msg)
             self.supervisor_tree(msg)
-            self.handle_restart()
 
     def handle_restart(self):
-        msg = f"Restarting RAF SLE Interface in {self.restart_delay_s} seconds."
-        log.error(msg)
-        self.supervisor_tree(msg)
-        self.handle_kill()
-        time.sleep(self.restart_delay_s)
+        if self.raf_object:
+            self.raf_object.shutdown()
         self.connect()
 
     def supervisor_tree(self, msg=None):
 
         def periodic_report(report_time=5):
+            msg = {'state': None,
+                   'total_received': None}
             while True:
-                time.sleep(report_time)
-                msg = {'state': self.raf_object._state,
-                       #'report': self.raf_object.last_status_report_pdu,
-                       'total_received': self.receive_counter}
+                time.sleep(self.report_time_s)
+                msg['total_received'] = self.receive_counter
+                if self.raf_object:
+                   msg['state']: self.raf_object._state
                 self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
@@ -73,15 +72,18 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.publish(msg, MessageType.HIGH_PRIORITY_RAF_STATUS.name)
 
         def monitor(restart_delay_s=5):
-            self.connect()
-            time.sleep(restart_delay_s)
+            log.info("Initial start of RAF interface")
+            self.handle_restart()
             while True:
-                time.sleep(restart_delay_s)
+                time.sleep(self.report_time_s)
                 # self.raf_object.schedule_status_report()
                 if self.raf_object._state == 'active' or self.raf_object._state == 'ready':
                     log.debug(f"SLE OK!")
                 else:
-                    high_priority(f"RAF SLE Interface is {self.raf_object._state}!")
+                    msg = ("Response not received from RAF SLE responder " 
+                           "during bind request. Bind unsuccessful")
+                    high_priority(msg)
+                    log.error(msg)
                     self.handle_restart()
 
         if msg:
@@ -92,24 +94,9 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             reporter = Greenlet.spawn(periodic_report, self.report_time_s)
         mon = Greenlet.spawn(monitor, self.restart_delay_s)
 
-    def handle_kill(self):
-        if not self.raf_object:
-            return
-        try:
-            self.raf_object.stop()
-            time.sleep(2)
-
-            self.raf_object.unbind()
-            time.sleep(2)
-
-            self.raf_object.disconnect()
-            time.sleep(2)
-
-        except Exception as e:
-            log.error(f"Encountered exception {e} while killing SLE manager")
-
     def process(self, data=None, topic=None):
         if topic == "SLE_RAF_RESTART":
+            log.info("Received RAF restart directive!")
             self.handle_restart()
             return
 

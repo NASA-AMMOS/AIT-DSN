@@ -171,6 +171,9 @@ class RAF(common.SLE):
                 :class:`ait.dsn.sle.pdu.raf.RequestedFrameQuality`
         
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only START in state 'ready', current state is '{self._state}'.")
+            return
         start_invoc = RafUsertoProviderPdu()
 
         if self._auth_level == 'all':
@@ -283,7 +286,7 @@ class RAF(common.SLE):
                 responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
                     # Authentication failed. Ignore processing the return
-                    ait.core.log.info('Bind unsuccessful. Authentication failed.')
+                    ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return
 
             if self._state == 'ready' or self._state == 'active':
