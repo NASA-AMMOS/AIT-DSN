@@ -190,12 +190,24 @@ class SLE(object):
             for i in writeable:
                 i.sendall(data)
         except socket.error as e:
+            # FYI, the way this is architected, we can't actually recover.
+            # A plugin supervisor needs to reinitialize us.
             if e.errno == errno.ECONNRESET:
-                ait.core.log.error('Socket connection lost to DSN')
+                # DSN slammed the phone
+                ait.core.log.error('The DSN closed the connection while data was in transit.')
+                self._socket.close()
+            elif e.errno == errno.EPIPE:
+                # DSN cut the line
+                ait.core.log.error('The DSN closed the connection unexpectedly.')
                 self._socket.close()
             else:
-                ait.core.log.error('Unexpected error encountered when sending data. Aborting ...')
-                raise e
+                # ???
+                ait.core.log.error('Unexpected socket error encountered when sending data. Aborting ...')
+            ait.core.log.warn("Restart of SLE interface is required. Data loss may have occured.")
+            # Signal to plugin supervisors that we're in an undesired state
+            self._state = 'ERROR: DSN HANGUP' 
+            # Raise causes plugin supervisor to immediate restart
+            raise e
 
     def decode(self, message, asn1Spec):
         ''' Decode a chunk of ASN.1 data
@@ -335,6 +347,10 @@ class SLE(object):
 
         if self._socket is None:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
+            # Signal to plugin supervisors that we're in a bad state.
+            # We can't recover, plugin supervisor needs to reinitialize us
+            self._state = 'ERROR: DSN SOCKET NO RESPONSE'
+            # Raise causes plugin supervisior to immediate restart
             raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
