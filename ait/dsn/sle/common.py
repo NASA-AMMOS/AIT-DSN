@@ -207,7 +207,7 @@ class SLE(object):
             # Signal to plugin supervisors that we're in an undesired state
             self._state = 'ERROR: DSN HANGUP' 
             # Raise causes plugin supervisor to immediate restart
-            raise e
+            # raise e
 
     def decode(self, message, asn1Spec):
         ''' Decode a chunk of ASN.1 data
