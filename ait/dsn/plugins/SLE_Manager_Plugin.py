@@ -43,7 +43,13 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.raf_object.start(None, None)
             time.sleep(5)
 
-            log.info(f"New Connection: RAF interface is {self.raf_object._state}!")
+            if self.raf_object._state == 'active':
+                msg = f"New Connection: RAF interface is {self.raf_object._state}!"
+                log.info(msg)
+            else:
+                msg = "RAF Interface encountered an error during startup."
+                log.error(msg)
+            self.supervisor_tree(msg)
 
         except Exception as e:
             msg = f"RAF SLE Interface Encountered exception {e}."
