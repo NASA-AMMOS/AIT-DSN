@@ -18,8 +18,9 @@ Frames received via the RAF connection are sent to the output stream
 
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
-                 zmq_args=None, report_time_s=0, **kwargs):
-        inputs = ['SLE_RAF_RESTART']
+                 zmq_args=None, report_time_s=0, autorestart=True, **kwargs):
+        inputs = ['SLE_RAF_RESTART',
+                  'SLE_RAF_STOP']
         super().__init__(inputs, outputs, zmq_args)
         
         self.restart_delay_s = 5
@@ -28,6 +29,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         Graffiti.Graphable.__init__(self)
         self.receive_counter = 0
         self.raf_object = None
+        self.autorestart = autorestart
 
     def connect(self):
         log.info("Starting SLE interface.")
@@ -57,9 +59,13 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.supervisor_tree(msg)
 
     def handle_restart(self):
+        self.sle_stop()
+        self.connect()
+
+    def sle_stop(self):
         if self.raf_object:
             self.raf_object.shutdown()
-        self.connect()
+            time.sleep(self.restart_delay_s)
 
     def supervisor_tree(self, msg=None):
 
@@ -78,13 +84,15 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.publish(msg, MessageType.HIGH_PRIORITY_RAF_STATUS.name)
 
         def monitor(restart_delay_s=5):
-            log.info("Initial start of RAF interface")
-            self.handle_restart()
+            if self.autorestart:
+                log.info("Initial start of RAF interface")
+                self.handle_restart()
             while True:
                 time.sleep(self.report_time_s)
-                # self.raf_object.schedule_status_report()
-                if self.raf_object._state == 'active' or self.raf_object._state == 'ready':
+                if self.raf_object and self.raf_object._state == 'active':
                     log.debug(f"SLE OK!")
+                elif not self.autorestart:
+                    continue
                 else:
                     msg = ("Response not received from RAF SLE responder " 
                            "during bind request. Bind unsuccessful")
@@ -104,6 +112,10 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         if topic == "SLE_RAF_RESTART":
             log.info("Received RAF restart directive!")
             self.handle_restart()
+            return
+        elif topic == 'SLE_RAF_STOP':
+            log.info("Received RAF Stop Directive!")
+            self.sle_stop()
             return
 
     def graffiti(self):
