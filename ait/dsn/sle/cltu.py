@@ -109,13 +109,13 @@ class CLTU(common.SLE):
         self._port = ait.config.get('dsn.sle.fcltu.port',
                                     kwargs.get('port', None))
 
-        super(self.__class__, self).__init__(*args, **kwargs)
+        self._auth_level = ait.config.get('dsn.sle.fcltu.auth_level',
+                                          kwargs.get('auth_level', 'none'))
+        super(self.__class__, self).__init__(auth_level=self._auth_level, *args, **kwargs)
 
         self._service_type = 'fwdCltu'
         self._version = ait.config.get('dsn.sle.fcltu.version',
                                        kwargs.get('version', 4))
-        self._auth_level = ait.config.get('dsn.sle.fcltu.auth_level',
-                                          kwargs.get('auth_level', self._auth_level))
 
         self._handlers['CltuBindReturn'].append(self._bind_return_handler)
         self._handlers['CltuUnbindReturn'].append(self._unbind_return_handler)
@@ -159,6 +159,9 @@ class CLTU(common.SLE):
         CLTU-TRANSFER-DATA invocations
         '''
         start_invoc = CltuUserToProviderPdu()
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only START in state 'ready', current state is '{self._state}'.")
+            return    
 
         if self._auth_level == 'all':
             start_invoc['cltuStartInvocation']['invokerCredentials']['used'] = self.make_credentials()
@@ -417,7 +420,7 @@ class CLTU(common.SLE):
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
                                                   self._peer_password):
                     # Authentication failed. Ignore processing the return
-                    ait.core.log.info('Bind unsuccessful. Authentication failed.')
+                    ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return
 
             if self._state == 'ready' or self._state == 'active':

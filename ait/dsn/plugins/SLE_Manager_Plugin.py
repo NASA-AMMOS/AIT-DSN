@@ -6,53 +6,77 @@ from ait.core.server.plugins import Plugin
 from ait.core.message_types import MessageType
 from ait.core import log
 import ait.dsn.plugins.Graffiti as Graffiti
+import ait
+from ait.dsn.sle import RAF
+
+
+"""
+A plugin which creates an RAF connection with the DSN.
+Frames received via the RAF connection are sent to the output stream
+"""
+
 
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
-                 zmq_args=None, report_time_s=0, **kwargs):
+                 zmq_args=None, report_time_s=0, autorestart=True, **kwargs):
+        inputs = ['SLE_RAF_RESTART',
+                  'SLE_RAF_STOP']
         super().__init__(inputs, outputs, zmq_args)
+        
         self.restart_delay_s = 5
-        self.SLE_manager = None
         self.supervisor = Greenlet.spawn(self.supervisor_tree)
         self.report_time_s = report_time_s
         Graffiti.Graphable.__init__(self)
+        self.receive_counter = 0
+        self.raf_object = None
+        self.autorestart = autorestart
 
     def connect(self):
-        log.info(f"Starting SLE interface.")
+        log.info("Starting SLE interface.")
         try:
-            self.SLE_manager = ait.dsn.sle.RAF(self.publish)
+            self.raf_object = RAF()
+            self.raf_object._handlers['AnnotatedFrame']=[self._transfer_data_invoc_handler]
+            self.raf_object.connect()
+            time.sleep(5)
 
-            self.SLE_manager.connect()
-            time.sleep(2)
+            self.raf_object.bind()
+            time.sleep(5)
 
-            self.SLE_manager.bind()
-            time.sleep(2)
+            self.raf_object.start(None, None)
+            time.sleep(5)
 
-            self.SLE_manager.start(None, None)
-
-            log.info("SLE Interface is up!")
+            if self.raf_object._state == 'active':
+                msg = f"New Connection: RAF interface is {self.raf_object._state}!"
+                log.info(msg)
+            else:
+                msg = "RAF Interface encountered an error during startup."
+                log.error(msg)
+            self.supervisor_tree(msg)
 
         except Exception as e:
             msg = f"RAF SLE Interface Encountered exception {e}."
             log.error(msg)
             self.supervisor_tree(msg)
-            self.handle_restart()
 
     def handle_restart(self):
-        msg = f"Restarting RAF SLE Interface in {self.restart_delay_s} seconds."
-        log.error(msg)
-        self.supervisor_tree(msg)
-        time.sleep(self.restart_delay_s)
+        self.sle_stop()
         self.connect()
+
+    def sle_stop(self):
+        if self.raf_object:
+            self.raf_object.shutdown()
+            time.sleep(self.restart_delay_s)
 
     def supervisor_tree(self, msg=None):
 
         def periodic_report(report_time=5):
+            msg = {'state': None,
+                   'total_received': None}
             while True:
-                time.sleep(report_time)
-                msg = {'state': self.SLE_manager._state,
-                       'report': self.SLE_manager.last_status_report_pdu,
-                       'total_received': self.SLE_manager.receive_counter}
+                time.sleep(self.report_time_s)
+                msg['total_received'] = self.receive_counter
+                if self.raf_object:
+                   msg['state']: self.raf_object._state
                 self.publish(msg, MessageType.RAF_STATUS.name)
                 log.debug(f"{msg}")
 
@@ -60,15 +84,20 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.publish(msg, MessageType.HIGH_PRIORITY_RAF_STATUS.name)
 
         def monitor(restart_delay_s=5):
-            self.connect()
-            time.sleep(restart_delay_s)
+            if self.autorestart:
+                log.info("Initial start of RAF interface")
+                self.handle_restart()
             while True:
-                time.sleep(restart_delay_s)
-                self.SLE_manager.schedule_status_report()
-                if self.SLE_manager._state == 'active' or self.SLE_manager._state == 'ready':
+                time.sleep(self.report_time_s)
+                if self.raf_object and self.raf_object._state == 'active':
                     log.debug(f"SLE OK!")
+                elif not self.autorestart:
+                    continue
                 else:
-                    high_priority(f"RAF SLE Interface is {self.SLE_manager._state}!")
+                    msg = ("Response not received from RAF SLE responder " 
+                           "during bind request. Bind unsuccessful")
+                    high_priority(msg)
+                    log.error(msg)
                     self.handle_restart()
 
         if msg:
@@ -79,27 +108,15 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             reporter = Greenlet.spawn(periodic_report, self.report_time_s)
         mon = Greenlet.spawn(monitor, self.restart_delay_s)
 
-    def handle_kill(self):
-        try:
-            self.SLE_manager.stop()
-            time.sleep(2)
-
-            self.SLE_manager.unbind()
-            time.sleep(2)
-
-            self.SLE_manager.disconnect()
-            time.sleep(2)
-
-        except:
-            log.error(f"Encountered exception {e} while killing SLE manager")
-
-    def process(self, topic=None):
-        try:
-            pass
-
-        except Exception as e:
-            log.error(f"Encountered exception {e}.")
+    def process(self, data=None, topic=None):
+        if topic == "SLE_RAF_RESTART":
+            log.info("Received RAF restart directive!")
             self.handle_restart()
+            return
+        elif topic == 'SLE_RAF_STOP':
+            log.info("Received RAF Stop Directive!")
+            self.sle_stop()
+            return
 
     def graffiti(self):
         n = Graffiti.Node(self.self_name,
@@ -111,3 +128,19 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
                           label=("Forwards AOS Frames from SLE interface"),
                           node_type=Graffiti.Node_Type.PLUGIN)
         return [n]
+
+    def _transfer_data_invoc_handler(self, pdu):
+        """"""
+        frame = pdu.getComponent()
+        if "data" in frame and frame["data"].isValue:
+            tm_data = frame["data"].asOctets()
+        else:
+            err = (
+                "RafTransferBuffer received but data cannot be located. "
+                "Skipping further processing of this PDU ..."
+            )
+            ait.core.log.info(err)
+            return
+
+        self.receive_counter += 1
+        self.publish(tm_data, MessageType.RAF_DATA.name)

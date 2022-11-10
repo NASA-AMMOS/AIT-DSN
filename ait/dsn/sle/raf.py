@@ -31,8 +31,6 @@ import ait.dsn.sle.frames as frames
 from ait.dsn.sle.pdu.raf import *
 from ait.dsn.sle.pdu import raf
 
-from ait.core.message_types import MessageType
-
 
 class RAF(common.SLE):
     ''' SLE Return All Frames (RAF) interface class
@@ -95,7 +93,7 @@ class RAF(common.SLE):
     '''
     # TODO: Add error checking for actions based on current state
 
-    def __init__(self, *args, pub_sub_publish=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._inst_id = ait.config.get('dsn.sle.raf.inst_id',
                                        kwargs.get('inst_id', None))
         self._hostnames = ait.config.get('dsn.sle.raf.hostnames',
@@ -103,18 +101,18 @@ class RAF(common.SLE):
         self._port = ait.config.get('dsn.sle.raf.port',
                                     kwargs.get('port', None))
 
-        super(self.__class__, self).__init__(*args, **kwargs)
+        self._auth_level = ait.config.get('dsn.sle.raf.auth_level',
+                                          kwargs.get('auth_level', 'none'))
+
+        super(self.__class__, self).__init__(auth_level=self._auth_level, *args, **kwargs)
 
         self._service_type = 'rtnAllFrames'
         self._version = ait.config.get('dsn.sle.raf.version',
                                        kwargs.get('version', 4))
-        self._auth_level = ait.config.get('dsn.sle.raf.auth_level',
-                                          kwargs.get('auth_level', self._auth_level))
 
         self.frame_output_port = int(ait.config.get('dsn.sle.frame_output_port',
                                                     kwargs.get('frame_output_port',
                                                                ait.DEFAULT_FRAME_PORT)))
-        self.publish = pub_sub_publish
 
         self._handlers['RafBindReturn'].append(self._bind_return_handler)
         self._handlers['RafUnbindReturn'].append(self._unbind_return_handler)
@@ -173,6 +171,9 @@ class RAF(common.SLE):
                 :class:`ait.dsn.sle.pdu.raf.RequestedFrameQuality`
         
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only START in state 'ready', current state is '{self._state}'.")
+            return
         start_invoc = RafUsertoProviderPdu()
 
         if self._auth_level == 'all':
@@ -285,7 +286,7 @@ class RAF(common.SLE):
                 responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
                     # Authentication failed. Ignore processing the return
-                    ait.core.log.info('Bind unsuccessful. Authentication failed.')
+                    ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return
 
             if self._state == 'ready' or self._state == 'active':
@@ -352,13 +353,8 @@ class RAF(common.SLE):
             ait.core.log.info(err)
             return
 
-        if self.publish:
-            msg_type = MessageType.RAF_DATA
-            self.publish(tm_data, msg_type.name)
-            self.receive_counter += 1
-            
         if self._telem_sock:
-            ait.core.log.debug('Sending {} with {} bytes to frame port'.format(tm_frame_class, len(tm_data)))
+            #ait.core.log.debug('Sending {} with {} bytes to frame port'.format(tm_frame_class, len(tm_data)))
             self._telem_sock.sendto(tm_data, ('localhost', self.frame_output_port))
 
     def _sync_notify_handler(self, pdu):

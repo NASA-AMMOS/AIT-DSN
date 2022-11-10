@@ -92,16 +92,14 @@ class SLE(object):
     for interfacing with SLE.
 
     '''
-    _state = 'unbound'
-    _handlers = defaultdict(list)
-    _data_queue = gevent.queue.Queue()
-    _invoke_id = 0
-
+ 
     def __init__(self, *args, **kwargs):
         ''''''
-        self.send_counter = 0
-        self.receive_counter = 0
-        self.last_status_report_pdu = None
+        self._state = 'unbound'
+        self._handlers = defaultdict(list)
+        self._data_queue = gevent.queue.Queue()
+        self._invoke_id = 0
+
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                                    kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
@@ -120,9 +118,13 @@ class SLE(object):
                                              kwargs.get('peer_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
                                               kwargs.get('responder_port', 'default'))
-        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
+
+        self._conn_monitor = None
+        self._data_processor = None
+        self._socket = None
+        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         if not self._hostnames or not self._port:
             msg = 'Connection configuration missing hostnames ({}) or port ({})'
@@ -140,18 +142,28 @@ class SLE(object):
             'random_number': None
         }
 
-    def __del__(self):
-        if self._socket:
-            self._socket.shutdown()
-        if self._telem_sock:
-            self._telem_sock.shutdown()
-
     @property
     def invoke_id(self):
         ''''''
         iid = self._invoke_id
         self._invoke_id += 1
         return iid
+
+    def shutdown(self, unbind=True):
+        # Unbind == False is a special case for CLTU which enters a bad state whenever an unbind is sent
+        # RAF should always unbind when in ready state, otherwise it will enter a bad state
+        if self._state == 'active':
+            ait.core.log.info(f"Sending stop. Current State: {self._state}")
+            self.stop()
+            time.sleep(2)
+
+        if self._state == 'ready' and unbind:
+            ait.core.log.info(f"Sending unbind. Current State: {self._state}")
+            self.unbind()
+            time.sleep(2)
+
+        ait.core.log.info(f"Sending disconnect. Current State: {self._state}")
+        self.disconnect()
 
     def add_handler(self, event, handler):
         ''' Add a "handler" function for an "event"
@@ -170,18 +182,32 @@ class SLE(object):
 
     def send(self, data):
         ''' Send supplied data to DSN '''
+        if not self._socket:
+            ait.core.log.warn("Socket to DSN has not been established.")
+            return
         try:
             _, writeable, _ = gevent.select.select([], [self._socket], [])
             for i in writeable:
                 i.sendall(data)
-                self.send_counter += 1
         except socket.error as e:
+            # FYI, the way this is architected, we can't actually recover.
+            # A plugin supervisor needs to reinitialize us.
             if e.errno == errno.ECONNRESET:
-                ait.core.log.error('Socket connection lost to DSN')
+                # DSN slammed the phone
+                ait.core.log.error('The DSN closed the connection while data was in transit.')
+                self._socket.close()
+            elif e.errno == errno.EPIPE:
+                # DSN cut the line
+                ait.core.log.error('The DSN closed the connection unexpectedly.')
                 self._socket.close()
             else:
-                ait.core.log.error('Unexpected error encountered when sending data. Aborting ...')
-                raise e
+                # ???
+                ait.core.log.error('Unexpected socket error encountered when sending data. Aborting ...')
+            ait.core.log.warn("Restart of SLE interface is required. Data loss may have occured.")
+            # Signal to plugin supervisors that we're in an undesired state
+            self._state = 'ERROR: DSN HANGUP' 
+            # Raise causes plugin supervisor to immediate restart
+            # raise e
 
     def decode(self, message, asn1Spec):
         ''' Decode a chunk of ASN.1 data
@@ -272,6 +298,9 @@ class SLE(object):
             reason:
                 The reason code for why the unbind is happening.
         '''
+        if self._state != 'ready':
+            ait.core.log.warn(f"Can not comply: Can only UNBIND in state 'ready', current state is '{self._state}'.")
+            return
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
@@ -288,12 +317,16 @@ class SLE(object):
         Initialize TCP connection with DSN and send context message
         to configure communication.
         '''
-        self._socket = None
-
+        if self._state != 'unbound':
+            # TODO According to ICD, the result of this function puts us in 'unbound' state. Why doesn't it explicitly do so?
+            ait.core.log.warn("Unexpected connect detected.")
+            ait.core.log.warn(f"Expected state to be 'unbound' instead of {self._state}. We do not know if DSN received. STOP or UNBIND.")
+            ait.core.log.warn("Connecting and transitioning into unbound state anyway.")
         for hostname in self._hostnames:
             try:
                 # create new socket for each host attempted
                 self._socket = gevent.socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._socket.settimeout(10)
                 self._socket.connect((hostname, self._port))
                 ait.core.log.info(f"Connection to DSN successful through {hostname}.")
                 break
@@ -314,6 +347,10 @@ class SLE(object):
 
         if self._socket is None:
             ait.core.log.error('Connection failure with DSN. Aborting ...')
+            # Signal to plugin supervisors that we're in a bad state.
+            # We can't recover, plugin supervisor needs to reinitialize us
+            self._state = 'ERROR: DSN SOCKET NO RESPONSE'
+            # Raise causes plugin supervisior to immediate restart
             raise Exception('Unable to connect to DSN through any provided hostnames.')
 
         self._conn_monitor = gevent.spawn(conn_handler, self)
@@ -344,10 +381,14 @@ class SLE(object):
         Disconnect the SLE and telemetry output sockets and kill the
         greenlets for monitoring and processing data.
         '''
-        self._socket.close()
-        self._telem_sock.close()
-        self._conn_monitor.kill()
-        self._data_processor.kill()
+        if self._socket:
+            self._socket.close()
+        if self._telem_sock:
+            self._telem_sock.close()
+        if self._conn_monitor:
+            self._conn_monitor.kill()
+        if self._data_processor:
+            self._data_processor.kill()
 
     def stop(self, pdu):
         ''' Send a SLE Stop PDU.
@@ -357,6 +398,10 @@ class SLE(object):
                 The PyASN1 class instance that should be configured with
                 generic SLE attributes, encoded, and sent to SLE.
         '''
+        if self._state != 'active':
+            ait.core.log.warn(f"Can not comply: Can only STOP in state 'active', current state is '{self._state}'.")
+            return
+        
         if self._auth_level == 'all':
             pdu['invokerCredentials']['used'] = self.make_credentials()
         else:
@@ -373,6 +418,8 @@ class SLE(object):
 
     def _send_heartbeat(self):
         ''''''
+        if not self._socket:
+            return
         hb = struct.pack(
                 TML_CONTEXT_HB_FORMAT,
                 TML_CONTEXT_HEARTBEAT_TYPE,
