@@ -18,7 +18,7 @@ import os
 import unittest
 import binascii
 
-import nose.tools
+import pytest
 from unittest import mock
 
 import ait.core.cfg as cfg
@@ -71,7 +71,7 @@ class TestFactory(unittest.TestCase):
         encr = EncrypterFactory().get(null_classname)
         assert isinstance(encr, NullEncrypter)
 
-        with nose.tools.assert_raises(ImportError):
+        with pytest.raises(ImportError):
             EncrypterFactory().get(invalid_classname)
 
 class TestNullEncrypter(unittest.TestCase):
@@ -144,7 +144,7 @@ class TestKmcEncrypter(unittest.TestCase):
         assert ait_result.has_errors
 
         # Failed import of KMC lib results in a Name error
-        #with nose.tools.assert_raises(NameError):
+        #with pytest.raises(NameError):
         #    encr.connect()
         encr.connect()
         assert not encr.is_connected()
