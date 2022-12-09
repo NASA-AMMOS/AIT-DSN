@@ -26,7 +26,7 @@ with io.open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name = 'ait-dsn',
-    version = '2.0.1-rc1',
+    version = '2.1.0',
     description  = description,
     long_description = long_description,
     long_description_content_type = 'text/x-rst',
@@ -38,8 +38,7 @@ setup(
     namespace_packages = ['ait'],
 
     install_requires = [
-        'greenlet==0.4.16',
-        'ait-core>=2.0.0',
+        'ait-core>=2.4.0',
         'pyasn1',
         'bitstring'
     ],
@@ -51,9 +50,8 @@ setup(
             'sphinxcontrib-httpdomain'
         ],
         'tests': [
-            'nose',
-            'coverage',
-            'mock',
+            'pytest',
+            'pytest-cov',
             'pylint'
         ],
     },

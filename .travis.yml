@@ -1,6 +1,6 @@
 language: python
 python:
-  - "3.7"
+  - "3.10"
 
 branches:
   only:
@@ -12,4 +12,4 @@ env:
 install:
   - pip install .[tests]
 
-script: python setup.py nosetests
+script: pytest --ignore ait/dsn/bin/examples --cov=ait
