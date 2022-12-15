@@ -33,6 +33,7 @@ class Graffiti(Plugin):
         self.graph = graphviz.Digraph('data-flow',
                                       comment='data-flow',
                                       strict=True)
+        self.graph.ratio = 'expand'
 
         self.telem_api_stream = ait.config.get(
              "server.api-telemetry-streams", [])

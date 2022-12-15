@@ -112,10 +112,10 @@ class SLE(object):
                                             kwargs.get('initiator_id', 'LSE'))
         self._responder_id = ait.config.get('dsn.sle.responder_id',
                                             kwargs.get('responder_id', 'SSE'))
-        self._password = ait.config.get('dsn.sle.password',
-                                        kwargs.get('password', None))
-        self._peer_password = ait.config.get('dsn.sle.peer_password',
-                                             kwargs.get('peer_password', None))
+        self._initiator_pw = ait.config.get('dsn.sle.initiator_pw',
+                                            kwargs.get('initiator_pw', None))
+        self._responder_pw = ait.config.get('dsn.sle.responder__password',
+                                            kwargs.get('responder_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
                                               kwargs.get('responder_port', 'default'))
         self._auth_level = ait.config.get('dsn.sle.auth_level',
@@ -453,7 +453,7 @@ class SLE(object):
         random_number = random.randint(0, 2147483647)
         self._local_entity_auth['time'] = now
         self._local_entity_auth['random_number'] = random_number
-        return self._generate_encoded_credentials(now, random_number, self._initiator_id, self._password)
+        return self._generate_encoded_credentials(now, random_number, self._initiator_id, self._initiator_pw)
 
     def _check_return_credentials(self, responder_performer_credentials, username, password):
         decoded_credentials = decode(responder_performer_credentials.asOctets(), ISP1Credentials())[0]
@@ -464,7 +464,7 @@ class SLE(object):
         performer_credentials = self._generate_encoded_credentials(cred_time,
                                                                    random_number,
                                                                    self._responder_id,
-                                                                   self._peer_password)
+                                                                   self._responder_pw)
         return performer_credentials == responder_performer_credentials
 
     def _generate_encoded_credentials(self, current_time, random_number, username, password):

@@ -284,7 +284,7 @@ class RAF(common.SLE):
         if 'positive' in result:
             if self._auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['rafBindReturn']['performerCredentials']['used']
-                if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._peer_password):
+                if not self._check_return_credentials(responder_performer_credentials, self._responder_id, self._responder_pw):
                     # Authentication failed. Ignore processing the return
                     ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return

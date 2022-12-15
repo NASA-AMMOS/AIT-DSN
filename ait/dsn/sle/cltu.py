@@ -418,7 +418,7 @@ class CLTU(common.SLE):
             if self._auth_level in ['bind', 'all']:
                 responder_performer_credentials = pdu['cltuBindReturn']['performerCredentials']['used']
                 if not self._check_return_credentials(responder_performer_credentials, self._responder_id,
-                                                  self._peer_password):
+                                                  self._responder_pw):
                     # Authentication failed. Ignore processing the return
                     ait.core.log.error('Bind unsuccessful. Authentication failed.')
                     return
