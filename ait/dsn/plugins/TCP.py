@@ -10,7 +10,7 @@ import enum
 import errno
 import ait.dsn.plugins.Graffiti as Graffiti
 from ait.core.message_types import MessageType
-
+from sunrise.CmdMetaData import CmdMetaData
 
 class Mode(enum.Enum):
     TRANSMIT = enum.auto()
@@ -388,14 +388,19 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
 
         :returns: data from topic
         """
-        if len(data) == 0:
-            log.info('received no data')
+        if not data:
+            log.info('Received no data')
+            return
         subs = self.topic_subscription_map[topic]
         subs = [sub for sub in subs if sub.mode is Mode.TRANSMIT]
         for sub in subs:
-            sub.send(data)
-        #log.info('TCP manager publishing')
+            if isinstance(data, CmdMetaData):
+                sub.send(data.payload_bytes)
+            else:
+                sub.send(data)
         self.publish(data)
+        if isinstance(data, CmdMetaData):
+            self.publish(data, MessageType.CL_UPLINK_COMPLETE.name)
         return data
 
     def graffiti(self):
