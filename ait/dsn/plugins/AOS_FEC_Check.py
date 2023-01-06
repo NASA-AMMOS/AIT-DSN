@@ -57,7 +57,7 @@ class AOS_FEC_Check():
             if corrupt:
                 log.error(f""
                           f"Expected ECF {expected_ecf} did not match "
-                          f"actual ecf {actual_ecf}")
+                          f"actual ecf.")
             return corrupt
 
         if not raw_frame:
