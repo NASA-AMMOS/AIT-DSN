@@ -15,7 +15,7 @@ STRICT = False
 class TaggedFrame:
     frame: bytearray
     vcid: int
-    channel_counter: int
+    channel_counter: int = 0
     absolute_counter: int = 0
     corrupt_frame: bool = False
     out_of_sequence: bool = False
@@ -32,16 +32,23 @@ class TaggedFrame:
         return res
 
 
-class AOS_FEC_Check():
+class AOS_Tagger():
     crc_func = crc_hqx
-    vcid_counter = {}
+    frame_counter_modulo = 16777216  # As defined in CCSDS ICD: https://public.ccsds.org/Pubs/732x0b4.pdf
 
-    def __init__(self):
+    def __init__(self, publish):
+        self.publish = publish
+        self.absolute_counter = 0
+        vcids = ait.config.get('dsn.sle.aos.virtual_channels')._config  # what a low IQ move...
+        self.vcid_sequence_counter = {i: 0 for i in vcids.keys()}
+        self.vcid_loss_count = {**self.vcid_sequence_counter}
+        self.vcid_corrupt_count = {**self.vcid_sequence_counter}
+        self.hot = {i: False for i in self.vcid_sequence_counter.keys()}
         return
 
-    def tag_fec(self, raw_frame):
+    def tag_frame(self, raw_frame):
 
-        def isCorrupt(frame):
+        def tag_corrupt():
             try:
                 data_field_end_index = frame.defaultConfig.data_field_endIndex
             except Exception as e:
@@ -53,34 +60,44 @@ class AOS_FEC_Check():
             block = raw_frame[:data_field_end_index]
             actual_ecf = self.crc_func(block, 0xFFFF).to_bytes(2, 'big')
             corrupt = actual_ecf != expected_ecf
+            tagged_frame.corrupt_frame = corrupt
 
-            if corrupt:
-                log.error(f""
-                          f"Expected ECF {expected_ecf} did not match "
-                          f"actual ecf.")
-            return corrupt
+            if tagged_frame.corrupt_frame:
+                log.error(f"Expected ECF {expected_ecf} did not match actual ecf.")
+                self.vcid_corrupt_count[tagged_frame.vcid] += 1
+                self.publish(self.vcid_corrupt_count, MT.CHECK_FRAME_ECF_MISMATCH.name)
+            return
 
-        if not raw_frame:
-            log.error(f"I was sent no data!")
+        def tag_out_of_sequence():
+            expected_vcid_count = (self.vcid_sequence_counter[tagged_frame.vcid] % self.frame_counter_modulo) + 1
+
+            #rint(f"{tagged_frame.vcid=} {expected_vcid_count=} {tagged_frame.channel_counter=} {self.hot[tagged_frame.vcid]=}")
+            #print(self.hot[tagged_frame.vcid] and not tagged_frame.idle and not tagged_frame.channel_counter == expected_vcid_count)
+
+            if self.hot[tagged_frame.vcid] and not tagged_frame.idle and not tagged_frame.channel_counter == expected_vcid_count:
+                tagged_frame.out_of_sequence = True
+                log.warn(f"Out of Sequence Frame VCID {tagged_frame.vcid}: expected {expected_vcid_count} but got {tagged_frame.channel_counter}")
+                self.vcid_loss_count[tagged_frame.vcid] += 1
+                self.publish(self.vcid_loss_count, MT.CHECK_FRAME_OUT_OF_SEQUENCE.name)
+
+            self.hot[tagged_frame.vcid] = True
+            self.vcid_sequence_counter[tagged_frame.vcid] = tagged_frame.channel_counter
+            self.absolute_counter += 1
+            tagged_frame.absolute_counter = self.absolute_counter
             return
 
         frame = AOSTransFrame(raw_frame)
         vcid = int(frame.virtual_channel)
-
-        corrupt_frame = isCorrupt(frame)
-        if corrupt_frame:
-            log.error(f"FEC NOT OKAY! {raw_frame}")
-            log.debug(f"Ok")
-            if STRICT:
-                exit()
-        
-        channel_counter = self.vcid_counter.get(vcid, 0) + 1
-        self.vcid_counter[vcid] = channel_counter
+        idle = frame.is_idle_frame
+        channel_counter = int.from_bytes(frame.get('virtual_channel_frame_count'), 'big')
         tagged_frame = TaggedFrame(frame=raw_frame,
                                    vcid=vcid,
-                                   corrupt_frame=corrupt_frame,
-                                   channel_counter=channel_counter,
-                                   idle=frame.is_idle)
+                                   idle=idle,
+                                   channel_counter=channel_counter)
+
+        tag_corrupt()
+        tag_out_of_sequence()
+
         return tagged_frame
 
 
@@ -90,39 +107,15 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
-        self.checker = AOS_FEC_Check()
-        self.absolute_counter = 0
+        self.tagger = AOS_Tagger(self.publish)
         Graffiti.Graphable.__init__(self)
-        vcids = ait.config.get('dsn.sle.aos.virtual_channels')._config  # what a low IQ move...
-        self.vcid_sequence_counter = {i: 0 for i in vcids.keys()}
-        self.vcid_loss_count = {**self.vcid_sequence_counter}
-        self.vcid_corrupt_count = {**self.vcid_sequence_counter}
-        self.hot = {i: False for i in self.vcid_sequence_counter.keys()}
 
     def process(self, data, topic=None):
         if not data:
             log.error("received no data!")
             return
 
-        tagged_frame = self.checker.tag_fec(data)
-        expected_vcid_count = (self.vcid_sequence_counter[tagged_frame.vcid] % 16777216) + 1
-        #print(self.hot[tagged_frame.vcid] and not tagged_frame.idle and not tagged_frame.channel_counter == expected_vcid_count)
-        if self.hot[tagged_frame.vcid] and not tagged_frame.idle and not tagged_frame.channel_counter == expected_vcid_count:
-            tagged_frame.out_of_sequence = True
-            log.warn(f"Out of Sequence Frame VCID {tagged_frame.vcid}: expected {expected_vcid_count} but got {tagged_frame.channel_counter}")
-            self.vcid_loss_count[tagged_frame.vcid] += 1
-            self.publish(self.vcid_loss_count, MT.CHECK_FRAME_OUT_OF_SEQUENCE.name)
-
-        self.hot[tagged_frame.vcid] = True
-
-        self.vcid_sequence_counter[tagged_frame.vcid] = tagged_frame.channel_counter
-        self.absolute_counter += 1
-        tagged_frame.absolute_counter = self.absolute_counter
-
-        if tagged_frame.corrupt_frame:
-            self.vcid_corrupt_count[tagged_frame.vcid] += 1
-            self.publish(self.vcid_corrupt_count, MT.CHECK_FRAME_ECF_MISMATCH.name)
-
+        tagged_frame = self.tagger.tag_frame(data)
         self.publish(tagged_frame)
         return tagged_frame
 
