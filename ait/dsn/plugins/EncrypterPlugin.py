@@ -55,7 +55,7 @@ class Encrypter(Plugin,
         self.encrypter.close()
         return
 
-    def process(self, data, topic=None):
+    def process(self, cmd_struct, topic=None):
         if self.security_risk or not topic == "TCTF_Manager":
             # TCTF Manager should have never published to
             # TCTFs to us since we were expecting To oeprate in CLEAR mode.
@@ -74,10 +74,10 @@ class Encrypter(Plugin,
             return
 
         # Pre-encryption size checks
-        if not data:
+        if not cmd_struct:
             log.error(f"received no data from {topic}")
         # Check for pre hand off to KMC size
-        if tctf.check_tctf_size(data, self.expecting_sdls):
+        if tctf.check_tctf_size(cmd_struct.payload_bytes, self.expecting_sdls):
             log.debug(f"TCTF size from {topic} is ok")
         else:
             log.error(f"Initial TCTF received from {topic}"
@@ -85,7 +85,7 @@ class Encrypter(Plugin,
             return
 
         # Encrypt and check
-        data = bytearray(data)
+        data = bytearray(cmd_struct.payload_bytes)
         crypt_result = self.encrypter.encrypt(data)
         if crypt_result.errors:
             log.error(f"Got error during encryption:"
@@ -94,19 +94,21 @@ class Encrypter(Plugin,
 
         # Check KMC's addition of SDLS headers did not
         # violate the final desired TCTF size.
-        if tctf.check_tctf_size(crypt_result.result, tctf.SDLS_Type.FINAL):
+        if tctf.check_tctf_size(cmd_struct.payload_bytes, tctf.SDLS_Type.FINAL):
             log.debug(f"Encrypted TCTF is properly sized.")
+            cmd_struct.frame_size_valid = True
         else:
             log.error(f"Encrypted TCTF is oversized! "
                       "Undefined behavior will occur! Dropping TCTF")
             return
-        if data == crypt_result.result:
+        if cmd_struct.payload_bytes == crypt_result.result:
             log.error(f"Encryption result "
                       "was the same same as clear?")
             return
         else:
             # Looks good to publish
-            self.publish(crypt_result.result)
+            cmd_struct.payload_bytes = crypt_result.result
+            self.publish(cmd_struct)
 
     def graffiti(self):
         n = Graffiti.Node(self.self_name,

@@ -79,11 +79,13 @@ class TCTF_Manager(Plugin,
 
         Graffiti.Graphable.__init__(self)
 
-    def process(self, data_field_byte_array, topic=None):
-        if not data_field_byte_array:
+    def process(self, cmd_struct, topic=None):
+        if not cmd_struct:
             log.error(f"Received no data from {topic}")
-        if not check_data_field_size(data_field_byte_array):
+            return
+        if not check_data_field_size(cmd_struct.payload_bytes):
             log.error(f"Failed payload check from {topic}")
+            cmd_struct.payload_size_valid = False
         else:
             log.debug(f"Passed payload check")
         frame = tctf.TCTransFrame(tf_version_num=self.tf_version_num,
@@ -91,7 +93,7 @@ class TCTF_Manager(Plugin,
                                   rsvd=self.rsvd, scID=self.scID,
                                   vcID=self.vcID,
                                   frame_seq_num=self.frame_seq_num,
-                                  data_field=data_field_byte_array,
+                                  data_field=cmd_struct.payload_bytes,
                                   apply_ecf=self.apply_ecf)
 
         try:
@@ -103,12 +105,15 @@ class TCTF_Manager(Plugin,
         
         log.debug(f"{encoded_frame}")
 
+        cmd_struct.payload_bytes = encoded_frame
         if check_tctf_size(encoded_frame):
-            log.debug(f"TCTF passed size check.")
+            log.debug("TCTF passed size check.")
+            cmd_struct.payload_size_valid = True
         else:
-            log.info(f"Failed TCTF size check.")
+            log.info("Failed TCTF size check.")
+            cmd_struct.payload_size_valid = False
         
-        self.publish(encoded_frame) 
+        self.publish(cmd_struct)
         self.frame_seq_num = (self.frame_seq_num + 1) % 255
         return encoded_frame
 
@@ -217,3 +222,6 @@ def check_data_field_size(user_data_field, sdls_type=None):
     if not res:
         log.error(f"{res}. Got size {len(user_data_field)} but expected <= {maximum} ")
     return res
+
+
+# TODO Just pass length
