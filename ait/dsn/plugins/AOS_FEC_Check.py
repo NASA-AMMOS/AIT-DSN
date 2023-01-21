@@ -40,6 +40,7 @@ class AOS_Tagger():
         self.publish = publish
         self.absolute_counter = 0
         vcids = ait.config.get('dsn.sle.aos.virtual_channels')._config  # what a low IQ move...
+        vcids['Unknown'] = None
         self.vcid_sequence_counter = {i: 0 for i in vcids.keys()}
         self.vcid_loss_count = {**self.vcid_sequence_counter}
         self.vcid_corrupt_count = {**self.vcid_sequence_counter}
@@ -64,11 +65,19 @@ class AOS_Tagger():
 
             if tagged_frame.corrupt_frame:
                 log.error(f"Expected ECF {expected_ecf} did not match actual ecf.")
-                self.vcid_corrupt_count[tagged_frame.vcid] += 1
+                if tagged_frame.vcid not in self.vcid_corrupt_count:
+                    self.vcid_corrupt_count['Unknown'] += 1
+                else:
+                    self.vcid_corrupt_count[tagged_frame.vcid] += 1
                 self.publish(self.vcid_corrupt_count, MT.CHECK_FRAME_ECF_MISMATCH.name)
             return
 
         def tag_out_of_sequence():
+            if tagged_frame.vcid not in self.vcid_sequence_counter:
+                # Junk Frame
+                tagged_frame.out_of_sequence = True
+                tagged_frame.absolute_counter += 1
+                return 
             expected_vcid_count = (self.vcid_sequence_counter[tagged_frame.vcid] % self.frame_counter_modulo) + 1
 
             #rint(f"{tagged_frame.vcid=} {expected_vcid_count=} {tagged_frame.channel_counter=} {self.hot[tagged_frame.vcid]=}")
