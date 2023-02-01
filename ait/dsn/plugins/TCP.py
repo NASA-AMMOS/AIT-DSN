@@ -324,7 +324,7 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
     """
 
     def __init__(self, inputs=None, outputs=None, zmq_args=None,
-                 subscriptions={}, report_time_s=0, *kwargs):
+                 subscriptions={}, report_time_s=0, **kwargs):
         """
         Create Subscriptions based on config.yaml entries.
         Forks a process to handle receiving subscriptions.
