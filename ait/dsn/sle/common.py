@@ -58,7 +58,7 @@ import gevent
 import gevent.queue
 import gevent.socket
 import gevent.select
-import gevent.monkey; gevent.monkey.patch_all()
+import gevent.monkey; gevent.monkey.patch_time()
 
 import pyasn1.error
 from pyasn1.codec.ber.encoder import encode
@@ -92,13 +92,13 @@ class SLE(object):
     for interfacing with SLE.
 
     '''
-    _state = 'unbound'
-    _handlers = defaultdict(list)
-    _data_queue = gevent.queue.Queue()
-    _invoke_id = 0
 
     def __init__(self, *args, **kwargs):
         ''''''
+        self._state = 'unbound'
+        self._handlers = defaultdict(list)
+        self._data_queue = gevent.queue.Queue()
+        self._invoke_id = 0
         self._downlink_frame_type = ait.config.get('dsn.sle.downlink_frame_type',
                                                    kwargs.get('downlink_frame_type', 'TMTransFrame'))
         self._heartbeat = ait.config.get('dsn.sle.heartbeat',
@@ -117,7 +117,6 @@ class SLE(object):
                                              kwargs.get('peer_password', None))
         self._responder_port = ait.config.get('dsn.sle.responder_port',
                                               kwargs.get('responder_port', 'default'))
-        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._auth_level = ait.config.get('dsn.sle.auth_level',
                                           kwargs.get('auth_level', 'none'))
 
@@ -166,9 +165,11 @@ class SLE(object):
             for i in writeable:
                 i.sendall(data)
         except socket.error as e:
+            self._state = 'unbound'
             if e.errno == errno.ECONNRESET:
                 ait.core.log.error('Socket connection lost to DSN')
                 self._socket.close()
+                self._socket = None
             else:
                 ait.core.log.error('Unexpected error encountered when sending data. Aborting ...')
                 raise e
@@ -306,6 +307,8 @@ class SLE(object):
             ait.core.log.error('Connection failure with DSN. Aborting ...')
             raise Exception('Unable to connect to DSN through any provided hostnames.')
 
+        self._telem_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ait.core.log.info("Starting conn monitor for %s", type(self))
         self._conn_monitor = gevent.spawn(conn_handler, self)
         self._data_processor = gevent.spawn(data_processor, self)
 
@@ -335,7 +338,9 @@ class SLE(object):
         greenlets for monitoring and processing data.
         '''
         self._socket.close()
+        self._socket = None
         self._telem_sock.close()
+        self._telem_sock = None
         self._conn_monitor.kill()
         self._data_processor.kill()
 
