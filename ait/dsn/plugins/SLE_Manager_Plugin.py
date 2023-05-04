@@ -9,6 +9,7 @@ import ait.dsn.plugins.Graffiti as Graffiti
 import ait
 from ait.dsn.sle import RAF
 
+import datetime as dt
 
 """
 A plugin which creates an RAF connection with the DSN.
@@ -18,7 +19,7 @@ Frames received via the RAF connection are sent to the output stream
 
 class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
     def __init__(self, inputs=None, outputs=None,
-                 zmq_args=None, report_time_s=0, autorestart=True, **kwargs):
+                 zmq_args=None, report_time_s=0, autorestart=True, start=None, stop=None**kwargs):
         inputs = ['SLE_RAF_RESTART',
                   'SLE_RAF_STOP']
         super().__init__(inputs, outputs, zmq_args)
@@ -31,6 +32,13 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
         self.raf_object = None
         self.autorestart = autorestart
 
+        if start and stop:
+            self.start = dt.date.fromisoformat(start)
+            self.stop = dt.date.fromisoformat(stop)
+        else:
+            self.start = None
+            self.stop = None
+
     def connect(self):
         log.info("Starting SLE interface.")
         try:
@@ -42,7 +50,7 @@ class SLE_Manager_Plugin(Plugin, Graffiti.Graphable):
             self.raf_object.bind()
             time.sleep(5)
 
-            self.raf_object.start(None, None)
+            self.raf_object.start(self.start, self.stop)
             time.sleep(5)
 
             if self.raf_object._state == 'active':
