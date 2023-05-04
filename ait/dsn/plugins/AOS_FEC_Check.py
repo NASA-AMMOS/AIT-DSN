@@ -4,7 +4,6 @@ from ait.core import log
 from ait.dsn.sle.frames import AOSTransFrame
 from binascii import crc_hqx
 from dataclasses import dataclass
-import ait.dsn.plugins.Graffiti as Graffiti
 import ait
 from ait.core.message_types import MessageType as MT
 
@@ -110,14 +109,13 @@ class AOS_Tagger():
         return tagged_frame
 
 
-class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
+class AOS_FEC_Check_Plugin(Plugin):
     '''
     Check if a AOS frame fails a Forward Error Correction Check
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None, **kwargs):
         super().__init__(inputs, outputs, zmq_args)
         self.tagger = AOS_Tagger(self.publish)
-        Graffiti.Graphable.__init__(self)
 
     def process(self, data, topic=None):
         if not data:
@@ -127,11 +125,3 @@ class AOS_FEC_Check_Plugin(Plugin, Graffiti.Graphable):
         tagged_frame = self.tagger.tag_frame(data)
         self.publish(tagged_frame)
         return tagged_frame
-
-    def graffiti(self):
-        n = Graffiti.Node(self.self_name,
-                          inputs=[(i, "Raw AOS Frames") for i in self.inputs],
-                          outputs=[],
-                          label="Check Forward Error Correction Field",
-                          node_type=Graffiti.Node_Type.PLUGIN)
-        return [n]

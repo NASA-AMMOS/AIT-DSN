@@ -5,14 +5,10 @@ from ait.dsn.encrypt.encrypter import EncrypterFactory
 from ait.core.server.plugins import Plugin
 from ait.core import log
 import ait.dsn.plugins.TCTF_Manager as tctf
-import ait.dsn.plugins.Graffiti as Graffiti
 from ait.core.sdls_utils import SDLS_Type, get_sdls_type
 from ait.core.message_types import MessageType
 
-
-
-class Encrypter(Plugin,
-                Graffiti.Graphable):
+class Encrypter(Plugin):
     """
     Add the following lines to config.yaml:
 
@@ -48,8 +44,6 @@ class Encrypter(Plugin,
             self.encrypter.connect()
             log.info(f"Encryption services started.")
             self.supervisor = Greenlet.spawn(self.supervisor_tree)
-
-        Graffiti.Graphable.__init__(self)
 
     def __del__(self):
         self.encrypter.close()
@@ -109,15 +103,6 @@ class Encrypter(Plugin,
             # Looks good to publish
             cmd_struct.payload_bytes = crypt_result.result
             self.publish(cmd_struct)
-
-    def graffiti(self):
-        n = Graffiti.Node(self.self_name,
-                          inputs=[(i, "TCTF Frame") for i in self.inputs],
-                          outputs=[(MessageType.KMC_STATUS.name,
-                                    MessageType.KMC_STATUS.value)],
-                          label="Encrypt/Authenticate TCTF",
-                          node_type=Graffiti.Node_Type.PLUGIN)
-        return [n]
 
     def supervisor_tree(self, msg=None):
 

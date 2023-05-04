@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from gevent import Greenlet, socket, select, sleep, time
 import enum
 import errno
-import ait.dsn.plugins.Graffiti as Graffiti
 from ait.core.message_types import MessageType
 from sunrise.CmdMetaData import CmdMetaData
 
@@ -289,7 +288,7 @@ class Subscription:
         return data
 
 
-class TCP_Manager(Plugin, Graffiti.Graphable):
+class TCP_Manager(Plugin):
     """
     Customize the template within the config.yaml plugin block:
 
@@ -350,9 +349,6 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
         self.glet = Greenlet.spawn(self.handle_recv)
         self.supervisor_tree = Greenlet.spawn(self.supervisor_tree)
 
-        Graffiti.Graphable.__init__(self)
-
-
     def handle_recv(self):
         """
         Block until a receiving Subscription's socket has data
@@ -402,47 +398,6 @@ class TCP_Manager(Plugin, Graffiti.Graphable):
         if isinstance(data, CmdMetaData):
             self.publish(data, MessageType.CL_UPLINK_COMPLETE.name)
         return data
-
-    def graffiti(self):
-        nodes = []
-
-        n = Graffiti.Node(self.self_name,
-                          inputs=[(i, "PUB/SUB Message") for i in self.inputs],
-                          outputs=[],
-                          label="",
-                          node_type=Graffiti.Node_Type.PLUGIN)
-
-        nodes.append(n)
-
-        for (topic, subs) in self.topic_subscription_map.items():
-            for sub in subs:
-                if sub.mode is Mode.TRANSMIT:
-                    n = Graffiti.Node(self.self_name,
-                                      inputs=[],
-                                      outputs=[(sub.hostname,
-                                                f"{sub.topic}\n"
-                                                f"Port: {sub.port}")],
-                                      label="Manage TCP Transmit and Receive",
-                                      node_type=Graffiti.Node_Type.TCP_SERVER)
-
-                else:  # sub.mode is Mode.RECEIVE:
-                    n = Graffiti.Node(self.self_name,
-                                      inputs=[(sub.hostname,
-                                               f"{sub.topic}\n"
-                                               f"Port: {sub.port}")],
-                                      outputs=[(sub.topic, "Bytes"),],
-                                      label="Manage TCP Transmit and Receive",
-                                      node_type=Graffiti.Node_Type.TCP_CLIENT)
-                nodes.append(n)
-                
-        n = Graffiti.Node(self.self_name,
-                          inputs=[],
-                          outputs=[(MessageType.TCP_STATUS.name,
-                                    MessageType.TCP_STATUS.value)],
-                          label="Manage TCP Transmit and Receive",
-                          node_type=Graffiti.Node_Type.TCP_CLIENT)
-        nodes.append(n)
-        return nodes
     
     def supervisor_tree(self, msg=None):
         

@@ -14,10 +14,8 @@ from ait.dsn.sle.frames import AOSTransFrame
 from ait.dsn.plugins.AOS_FEC_Check import TaggedFrame
 from ait.core.message_types import MessageType
 
-import ait.dsn.plugins.Graffiti as Graffiti
 
-
-class AOSFrameRouter(Plugin, Graffiti.Graphable):
+class AOSFrameRouter(Plugin):
     '''
     Routes AOS frames by VCID according to a routing table defined by a yaml file.
     Arguments to the range operator are inclusive.
@@ -73,7 +71,6 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
             log.error("Unable to load routing table .yaml file")
         self.vcid_counter = defaultdict(int)
 
-        Graffiti.Graphable.__init__(self)
         if self.report_time_s:
             self.supervisor_glet = Greenlet.spawn(self.supervisor_tree, self.report_time_s)
 
@@ -104,22 +101,6 @@ class AOSFrameRouter(Plugin, Graffiti.Graphable):
                 self.publish(tagged_frame, route)
         else:
             log.error(f"No routes specified for VCID {frame_vcid}")
-
-    def graffiti(self):
-        nodes = []
-        route_edges = defaultdict(list)
-        for (vcid, routes) in self.routing_table_object.items():
-            for route in routes:
-                route_edges[route].append(f"{vcid}")
-
-        for (route, vcids) in route_edges.items():
-            nodes.append(Graffiti.Node(self.self_name,
-                                       [(i, "AOS Frames") for i in self.inputs],
-                                       [(route, f"VCIDs: [{', '.join(vcids)}]"),
-                                        (MessageType.VCID_COUNT.name, MessageType.VCID_COUNT.value)],
-                                       f"Routing Table: {self.path}",
-                                       Graffiti.Node_Type.PLUGIN))
-        return nodes
 
     def get_frame_vcid(self, frame):
         '''
