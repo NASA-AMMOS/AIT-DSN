@@ -566,6 +566,3 @@ class CLTUServer(DatagramServer):
         Pass data to the SLE services CLTU service
         '''
         self._sle_interfaces.append_cltu_data(data)
-
-
-

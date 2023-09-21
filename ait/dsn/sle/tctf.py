@@ -24,7 +24,7 @@ class ICD:
     """
     class Sizes(Enum):
         """
-        Defines various useful size constants derrived from the CCSDS ICD. 
+        Defines various useful size constants derrived from the CCSDS ICD.
         TCTFS in the SDLS Protocol may define values smaller than the ones described here.
         """
         MAX_FRAME_OCTETS = 1024
@@ -91,12 +91,12 @@ class ICD:
 
 class TCTransFrame():
     """
-    An instance of TCTransFrame fully defines a TCTF. 
+    An instance of TCTransFrame fully defines a TCTF.
     Encoding is deferred until the encode method is called.
-    
+
     The static decode method will translate a TCTF binary into a named tuple.
 
-    apply_ecf defines whether the ECF field should be calculated and attached to the TCTF. 
+    apply_ecf defines whether the ECF field should be calculated and attached to the TCTF.
 
     Parameters are expected to comply with CCSDS standard, and no validation is done on them.
     """

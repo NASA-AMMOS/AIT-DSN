@@ -34,7 +34,7 @@ from ait.dsn.sle.pdu import raf
 
 class RAF(common.SLE):
     ''' SLE Return All Frames (RAF) interface class
-    
+
     The RAF class extends the ait.dsn.sle.common.SLE base interface class
     and implements the RAF specification.
 
@@ -137,7 +137,7 @@ class RAF(common.SLE):
 
     def unbind(self, reason=0):
         ''' Unbind from the RAF interface
-        
+
         Arguments:
             reason:
                 An optional integer indicating the reason for the unbind. The
@@ -168,7 +168,7 @@ class RAF(common.SLE):
                 The quality of data to be returned from the interface. Valid
                 options are defined in
                 :class:`ait.dsn.sle.pdu.raf.RequestedFrameQuality`
-        
+
         '''
         start_invoc = RafUsertoProviderPdu()
 
@@ -203,7 +203,7 @@ class RAF(common.SLE):
 
     def schedule_status_report(self, report_type='immediately', cycle=None):
         ''' Send a status report schedule request to the RAF interface
-        
+
         Arguments:
             report_type (string):
                 The type of report type. One of 'immediately', 'periodically',
@@ -348,7 +348,7 @@ class RAF(common.SLE):
             )
             ait.core.log.info(err)
             return
-        
+
         tm_frame_class = getattr(frames, self._downlink_frame_type)
         tmf = tm_frame_class(tm_data)
 

@@ -11,7 +11,7 @@ import traceback
 
 '''
 
-usage: ait_encrypt.py [-h] --mode {encrypt,decrypt} --type TYPE --input INPUT 
+usage: ait_encrypt.py [-h] --mode {encrypt,decrypt} --type TYPE --input INPUT
                       [--output OUTPUT] [--verbose]
 
 Performs encryption or decryption on bytes from a file.
@@ -25,12 +25,12 @@ optional arguments:
   --input INPUT         Input filename, required. (default: None)
   --output OUTPUT       Output filename, optional. (default: None)
   --verbose             Print debug messages. (default: False)
-  
+
 Examples:
 
   $ ait_encrypt --mode encrypt --type null --input input.bin  --output output.bin
   $ ait_encrypt --mode decrypt --type null --input output.bin --output restored.bin
-  
+
 '''
 
 this = sys.modules[__name__]

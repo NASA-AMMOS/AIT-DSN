@@ -56,7 +56,7 @@ class CLTU(common.SLE):
     CltuUnbindReturn
         Response back from the provider after a unbind request has been
         sent to the interface.
-        
+
     CltuStartReturn
         Response back from the provider after a start data request has been
         sent to the interface.
@@ -141,7 +141,7 @@ class CLTU(common.SLE):
 
     def unbind(self, reason=0):
         ''' Unbind from the CLTU interface
-        
+
         Arguments:
             reason:
                 An optional integer indicating the reason for the unbind. The
@@ -177,7 +177,7 @@ class CLTU(common.SLE):
         super(self.__class__, self).stop(pdu)
 
     #TODO save_cltu method
-    
+
     def upload_cltu(self, tc_data, earliest_time=None, latest_time=None, delay=0, notify=False):
         ''' Upload a CLTU to the service
 
@@ -581,7 +581,7 @@ class CLTU(common.SLE):
     def _get_param_return_handler(self, pdu):
         ''''''
         pdu = pdu['cltuGetParameterReturn']
-    
+
     def _peer_abort_handler(self, pdu):
         ''''''
         pdu = pdu['cltuPeerAbortInvocation']

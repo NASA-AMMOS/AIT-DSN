@@ -47,4 +47,3 @@ repos:
         language: system
         stages: [push]
         pass_filenames: false
-

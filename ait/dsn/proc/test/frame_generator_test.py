@@ -1,33 +1,30 @@
 #!/usr/bin/env python
-
 # Advanced Multi-Mission Operations System (AMMOS) Instrument Toolkit (AIT)
 #
-import struct
 import socket
+import struct
 import time
 
 import ait.core
-from ait.dsn.sle.frames import AOSTransFrame, AOSConfig, AOSDataFieldType
+from ait.dsn.sle.frames import AOSConfig
+from ait.dsn.sle.frames import AOSDataFieldType
+from ait.dsn.sle.frames import AOSTransFrame
 
 ## ==================================================
 ## ==================================================
 ## ==================================================
-
-
 
 
 ## -----------------------------------------
 ## Setup the output port information
-out_host = 'localhost'
+out_host = "localhost"
 out_port = 3726
 out_dest = (out_host, out_port)
 frame_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
-
 def int_to_bytes(val, num_bytes):
-    return val.to_bytes(num_bytes, byteorder='big')
-
+    return val.to_bytes(num_bytes, byteorder="big")
 
 
 ## -----------------------------------------
@@ -65,9 +62,9 @@ def inject_seqcount(seqcount):
 
 def build_ccsds_packet(seqcount):
     ba = bytearray()
-    ba += bytearray( CCSDS_HDR_BYTES_0_1_BYTES )
+    ba += bytearray(CCSDS_HDR_BYTES_0_1_BYTES)
     hrd_bytes_2_3 = inject_seqcount(seqcount)
-    ba += bytearray( int_to_bytes(hrd_bytes_2_3 ,2) )
+    ba += bytearray(int_to_bytes(hrd_bytes_2_3, 2))
     ba += bytearray(CCSDS_HDR_BYTES_4_5_BYTES)
     ba += bytearray(CCSDS_BODY_BYTES)
     return ba
@@ -80,6 +77,7 @@ def break_ccsds_packet(packet):
     partial_b = packet[half_len:]
     partials = (partial_a, partial_b)
     return partials
+
 
 ## -----------------------------------------
 ## Create an AOSFrame of type MPDU with packet
@@ -107,16 +105,16 @@ frame_count = AOS_HDR_BYTES_2_3_4_INT
 def build_aos_frame(aos_framecount, mpdu_hdr_ptr=0):
     ba = bytearray()
     ba += bytearray(AOS_HDR_BYTES_0_1_BYTES)
-    ba += bytearray( int_to_bytes(aos_framecount , 3) )
+    ba += bytearray(int_to_bytes(aos_framecount, 3))
     ba += bytearray(AOS_HDR_BYTES_5_BYTES)
     ##ba += bytearray(MPDU_HDR_BYTES_0_1_BYTES)
-    ba += bytearray( int_to_bytes(mpdu_hdr_ptr , 2) )
+    ba += bytearray(int_to_bytes(mpdu_hdr_ptr, 2))
     return ba
 
 
 def build_frame(aos_framecount, ccsds_seqcount):
     mpdu_frame_head = build_aos_frame(aos_framecount)
-    mpdu_frame_body =  build_ccsds_packet(ccsds_seqcount)
+    mpdu_frame_body = build_ccsds_packet(ccsds_seqcount)
     aos_mpdu_full = mpdu_frame_head + mpdu_frame_body
     return aos_mpdu_full
 
@@ -125,10 +123,7 @@ frame_count = 0
 seq_count = 0
 frame_count = 3
 
-virt_chan_map = {1: "b_pdu",
-                 2: "m_pdu",
-                 3: "vca_sdu",
-                 4: "idle"}
+virt_chan_map = {1: "b_pdu", 2: "m_pdu", 3: "vca_sdu", 4: "idle"}
 
 # The shared AOS config, indicating which optional fields exists and the
 # Virtual channel map
@@ -137,24 +132,29 @@ aos_cfg = AOSConfig(virtual_channels=virt_chan_map)
 ## -----------------------------------------
 ## Emit whole frames
 
+
 def test_reset():
-    print('Running test_reset(): Sending frames that will include a reset packet...')
+    print("Running test_reset(): Sending frames that will include a reset packet...")
 
     count_list = [0, 2, 4, 1, 3, 6, 7, 0, 1, 2]
 
     for i in count_list:
-        print('-----------------')
+        print("-----------------")
         frame_data = build_frame(i, i)
         aos_frame = AOSTransFrame(config=aos_cfg, data=frame_data)
-        print('Sending seqcount {} with {} bytes to frame port'.format(i, len(frame_data)))
+        print(
+            "Sending seqcount {} with {} bytes to frame port".format(i, len(frame_data))
+        )
         frame_socket.sendto(frame_data, out_dest)
         ##time.sleep(3)
+
 
 ## -----------------------------------------
 ## Emit frames with partials
 
+
 def test_partials():
-    print('Running test_partials(): Sending frames with partial CCSDS packets...')
+    print("Running test_partials(): Sending frames with partial CCSDS packets...")
 
     count_list = [0, 1, 2, 3, 4]
 
@@ -183,17 +183,16 @@ def test_partials():
     packet = build_ccsds_packet(pkt_count)
     pkt_count += 1
 
-    (part_a,part_b) = break_ccsds_packet(packet)
+    (part_a, part_b) = break_ccsds_packet(packet)
     frame_data = frame_data + part_a
 
     frame_list.append(frame_data)
-
 
     ## ---------------------------------
     ## Frame 2: Build an AOS frame with partial packet then full packet
 
     mpdu_hdr_ptr = len(part_b)
-    frame_head = build_aos_frame(aos_framecount, mpdu_hdr_ptr )
+    frame_head = build_aos_frame(aos_framecount, mpdu_hdr_ptr)
     aos_framecount += 1
 
     packet = build_ccsds_packet(pkt_count)
@@ -202,7 +201,6 @@ def test_partials():
     frame_data = frame_head + part_b + packet
 
     frame_list.append(frame_data)
-
 
     ## ---------------------------------
     ## Frame 3: Build an AOS frame with full packet
@@ -222,30 +220,37 @@ def test_partials():
 
     for count, frame_data in enumerate(frame_list):
         aos_frame = AOSTransFrame(config=aos_cfg, data=frame_data)
-        print('-----------------')
-        print('Sending partials frame {} with {} bytes to frame port'.format(count, len(frame_data)))
+        print("-----------------")
+        print(
+            "Sending partials frame {} with {} bytes to frame port".format(
+                count, len(frame_data)
+            )
+        )
         frame_socket.sendto(frame_data, out_dest)
         ##time.sleep(3)
+
 
 ## -----------------------------------------
 ## Emit whole frames with mod logic
 
-def test_modulo():
-    print('Running test_reset(): Sending frames that will include a mid-range value')
 
-    count_list = [0, 2, 8192, 1, 8193, 8194, 7, 11100, 11101, 1,  2]
+def test_modulo():
+    print("Running test_reset(): Sending frames that will include a mid-range value")
+
+    count_list = [0, 2, 8192, 1, 8193, 8194, 7, 11100, 11101, 1, 2]
 
     for i in count_list:
-        print('-----------------')
+        print("-----------------")
         frame_data = build_frame(i, i)
         aos_frame = AOSTransFrame(config=aos_cfg, data=frame_data)
-        print('Sending seqcount {} with {} bytes to frame port'.format(i, len(frame_data)))
+        print(
+            "Sending seqcount {} with {} bytes to frame port".format(i, len(frame_data))
+        )
         frame_socket.sendto(frame_data, out_dest)
         ##time.sleep(3)
 
 
-
-if __name__ == '__main__':
-    #test_reset()
-    #test_partials()
+if __name__ == "__main__":
+    # test_reset()
+    # test_partials()
     test_modulo()

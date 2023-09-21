@@ -8,7 +8,7 @@ Downlink
 There are two different procedures available for downlink of data from your spacecraft or instrument, "Return All Frames" (RAF) and "Return Channel Frames" (RCF). AIT provides interfaces for both, and which one you use will depend on the needs of your specific project.
 
 
-Return All Frames (RAF) 
+Return All Frames (RAF)
 ^^^^^^^^^^^^^^^^^^^^^^^
 The SLE standard for RAF is available online `here <https://public.ccsds.org/Pubs/911x1b4.pdf>`_. RAF is an SLE transfer service that delivers to a mission user all telemetry frames from one space link physical channel.
 
@@ -22,4 +22,4 @@ Uplink
 
 Forward Communications Link Transmission Unit (F-CLTU)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The SLE standard for F-CLTU is available online `here <https://public.ccsds.org/Pubs/912x1b4.pdf>`_. The Forward CLTU service is a SLE transfer service that enables a mission to send Communications Link Transmission Units (CLTU) PDUs to a spacecraft. 
+The SLE standard for F-CLTU is available online `here <https://public.ccsds.org/Pubs/912x1b4.pdf>`_. The Forward CLTU service is a SLE transfer service that enables a mission to send Communications Link Transmission Units (CLTU) PDUs to a spacecraft.

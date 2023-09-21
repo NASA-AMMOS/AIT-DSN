@@ -12,15 +12,15 @@ config.yaml snippet:
    sle:
        frame_output_port: 2568
 
-  
+
 Since the DSN interface does not publish to the PUB/SUB network,
 you will need to configure a UDP port to loop the frame back into AIT.
 
 .. code-block:: none
-                
+
    - stream:
          name: telemetry_stream
-         input: 
+         input:
              - 2568
 
 Next, the AOS configuration must be added, as shown in the example below.
@@ -40,7 +40,7 @@ Next, the AOS configuration must be added, as shown in the example below.
                    4: "m_pdu"
                    63: "idle"
 
-                       
+
 Finally, the AOS_to_CCSDS must be configured.
 
 .. code-block:: none

@@ -80,4 +80,3 @@ The local and remote configurable MIB fields and their defaults are described be
 * ``'transmission_mode'`` - the transmission mode; defaults to NO_ACK.
 
 * ``'crc_required_on_transmission'`` - whether a CRC is required on each transmission; defaults to False.
-

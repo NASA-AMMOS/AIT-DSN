@@ -38,7 +38,7 @@ default:
                 name: ait.dsn.encrypt.kmc_encrypter.KmcSdlsEncrypter
                 config:
                     kmc_properties:
-                      - property1=value1  ( or 'property1 = value1' ? or 'property1: value1' ? ) 
+                      - property1=value1  ( or 'property1 = value1' ? or 'property1: value1' ? )
                       - property2=value2
                          ...
                       - propertyN=valueN

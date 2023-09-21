@@ -21,7 +21,7 @@ class AOSFrameRouter(Plugin):
         inputs:
             - __telempkts__
         default_topic: default_AOS_topic
-        routing_table: 
+        routing_table:
             path: aos_routing_table.yaml
 
     example routing table .yaml file:
@@ -44,7 +44,7 @@ class AOSFrameRouter(Plugin):
             - 63
     '''
     def __init__(self, inputs=None, outputs=None, zmq_args=None, routing_table=None, default_topic=None):
-        
+
         super().__init__(inputs, outputs, zmq_args)
 
         self.default_topic = default_topic
@@ -62,7 +62,7 @@ class AOSFrameRouter(Plugin):
         publishes incoming AOS frames to the routes specified in the routing table
 
         :param input_data: AOS frame as bytes
-        :type input_data: bytes, bytearray 
+        :type input_data: bytes, bytearray
         '''
         frame_vcid = self.get_frame_vcid(input_data)
         if frame_vcid in self.routing_table_object:
