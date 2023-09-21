@@ -39,7 +39,7 @@ setup(
 
     install_requires = [
         'greenlet==0.4.16',
-        'ait-core>=2.0.0',
+        'ait-core>=2.0.0,<=2.3.5',
         'pyasn1',
         'bitstring'
     ],
@@ -54,7 +54,8 @@ setup(
             'nose',
             'coverage',
             'mock',
-            'pylint'
+            'pylint',
+            'pytest'
         ],
     },
 
