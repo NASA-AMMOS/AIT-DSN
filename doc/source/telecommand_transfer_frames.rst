@@ -42,7 +42,7 @@ All fields are mandatory unless otherwise stated (i.e. commented fields are opti
                 virtual_channel_id: 0
                 frame_sequence_number: 0
                 apply_error_correction_field: True
-                add_frame_segmentation_byte: False				
+                add_frame_segmentation_byte: False
 
 Pipeline Configuration
 ----------------------
@@ -51,7 +51,7 @@ In Sample Configuration Part II, the resulting Command Processing Pipeline will 
 
 1. The TCTF_Manager plugin will receive a payload from the *command_stream* topic, whenever a message is published on the *command_stream* tpoic on the PUB/SUB network. Plugins can be configured to subscribe to other plugins by replacing *command_stream* with the plugins PUB/SUB topic.
 2. The TCTF_manager plugin will encode the payload as a CCSDS Telecommand Transfer Frame and increment its internal frame_sequence number.
-3. The TCTF_Manager plugin will publish the encoded TCTF on the *TCTF_Manager* topic of the PUB/SUB network. When a plugin is loaded, a PUB/SUB topic with the name of the plugin is automatically created. 
+3. The TCTF_Manager plugin will publish the encoded TCTF on the *TCTF_Manager* topic of the PUB/SUB network. When a plugin is loaded, a PUB/SUB topic with the name of the plugin is automatically created.
 4. Plugins downstream of the TCTF_Manager_Plugin may be configured as the next receiving plugin in the command processing pipeline by subscribing to the *TCTF_Manager* topic on the PUB/SUB network. To do so, the next plugin in the pipeline must to contain the following snippet in their config.yaml block:
 
    ::
@@ -66,14 +66,14 @@ Managed Parameters
 Sample Configuration Part I shows how managed parameters can be configured.
 
 When *apply_error_correction_field: True*, the CRC of the TCTF will be calculated and appended to the the rear of the frame as per
-CCSDS standards. 
+CCSDS standards.
 
 *uplink_spacecraft_id* is referred to as *spacecraft_id* in CCSDS documentation.
 This naming deviation is to differentiate uplink and downlink spacecraft ids.
 The usage of the *uplink_spacecraft_id* remains the same as in CCSDS documentation.
 
 The remaining managed parameter names and usages reflect those found in CCSDS documentation.
-   
+
 Validation
 ^^^^^^^^^^
 

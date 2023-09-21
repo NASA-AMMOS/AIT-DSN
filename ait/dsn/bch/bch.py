@@ -1,21 +1,21 @@
 #!/usr/bin/env python
- 
+
 """
 bch.py provides a BCH (Bose, Chaudhuri, Hocquenghem) code class
- 
+
 Author: Kabir Marwah / ASU
- 
+
 """
 
 import ait.core.log
- 
+
 class BCH():
     """
     The BCH class is intended to provide methods and attributes to
     generate BCH code blocks and appends them to TC Transfer Frames, to produce
     a valid CLTU that can be interpreted by IRIS v2 Radio
     """
- 
+
     def __init__(self):
         pass
 
@@ -42,7 +42,7 @@ class BCH():
             # Initialize the bch_parity_bits with seven 0s
             bch_parity_bits_past    = [0, 0, 0, 0, 0, 0, 0]
             bch_parity_bits_current = [0, 0, 0, 0, 0, 0, 0]
- 
+
             # Convert the data bytes to bit
             #encoded_bits = BCH.toBits(input_byte_array)
             encoded_bits_str = BCH.byteArrayToBitStr(input_byte_array)
@@ -55,14 +55,14 @@ class BCH():
             # Perform the logic to generate the BCH code block
             # Iterate through all 56 input bits
             for index, bit in enumerate(encoded_bits_str):
- 
+
                 # Cast the binary string value to an integer so bitwise xor can be performed
                 bit_int = int(bit)
- 
+
                 # Copy the current bch parity bits into bch parity bits past list
                 for i, b in enumerate(bch_parity_bits_current):
                     bch_parity_bits_past[i] = b
- 
+
                 # Perform BCH code block arithmetic
                 bch_parity_bits_current[6] = (bch_parity_bits_past[6] ^ bit_int) ^ bch_parity_bits_past[5]
                 bch_parity_bits_current[5] = bch_parity_bits_past[4]
@@ -71,14 +71,14 @@ class BCH():
                 bch_parity_bits_current[2] = (bch_parity_bits_past[6] ^ bit_int) ^ bch_parity_bits_past[1]
                 bch_parity_bits_current[1] = bch_parity_bits_past[0]
                 bch_parity_bits_current[0] = bch_parity_bits_past[6] ^ bit_int
- 
+
                 # Copy the output bit integer to output_bits list that will be returned
                 output_bits[index] = bit_int
- 
+
             # Calculate the complement of bch_parity_bits_current and append to end the of output_bits
             for i in range(56, 63):
                 output_bits[i] = 1 ^ bch_parity_bits_current[62 - i]
- 
+
             # Add final bch filler bit (0)
             output_bits[63] = 0
 

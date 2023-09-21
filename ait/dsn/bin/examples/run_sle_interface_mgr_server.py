@@ -177,4 +177,3 @@ if __name__ == '__main__':
     finally:
         sle_mgr_srvs.tear_down_services()
         sle_mgr_srvs.kill_servers()
-

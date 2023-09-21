@@ -11,21 +11,20 @@
 # laws and regulations. User has the responsibility to obtain export licenses,
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
-
 import os
 import unittest
+
 import mock
 
 import ait.core
 from ait.dsn.bch.bch import BCH
 
 # Supress logging because noisy
-patcher = mock.patch('ait.core.log.info')
+patcher = mock.patch("ait.core.log.info")
 patcher.start()
 
 
 class BCHTest(unittest.TestCase):
-
     def setUp(self):
         pass
 
@@ -33,12 +32,11 @@ class BCHTest(unittest.TestCase):
         pass
 
     def test_success_encode(self):
+        input_bytearr_1 = bytearray(b"\x00\x01\x02\x03\x04\x05\x06")
+        input_bytearr_2 = bytearray(b"\xA0\xB1\xC2\xD3\xE4\xF5\x06")
 
-        input_bytearr_1 = bytearray(b'\x00\x01\x02\x03\x04\x05\x06')
-        input_bytearr_2 = bytearray(b'\xA0\xB1\xC2\xD3\xE4\xF5\x06')
-
-        expect_out_bytearr_1 = bytearray(b'\x00\x01\x02\x03\x04\x05\x06\xC6')
-        expect_out_bytearr_2 = bytearray(b'\xA0\xB1\xC2\xD3\xE4\xF5\x06\x7A')
+        expect_out_bytearr_1 = bytearray(b"\x00\x01\x02\x03\x04\x05\x06\xC6")
+        expect_out_bytearr_2 = bytearray(b"\xA0\xB1\xC2\xD3\xE4\xF5\x06\x7A")
 
         output_bytearr_1 = BCH.generateBCH(input_bytearr_1)
         output_bytearr_2 = BCH.generateBCH(input_bytearr_2)
@@ -49,11 +47,10 @@ class BCHTest(unittest.TestCase):
         self.assertEqual(len(expect_out_bytearr_2), len(output_bytearr_2))
         self.assertEqual(expect_out_bytearr_2, output_bytearr_2)
 
-
     def test_reject_encode(self):
         input_bytearr_1 = None
-        input_bytearr_2 = bytearray(b'\x00\x01\x02\x03\x04\x05')
-        input_bytearr_3 = bytearray(b'\x00\x01\x02\x03\x04\x05\x06\x07')
+        input_bytearr_2 = bytearray(b"\x00\x01\x02\x03\x04\x05")
+        input_bytearr_3 = bytearray(b"\x00\x01\x02\x03\x04\x05\x06\x07")
 
         expect_out_bytearr_1 = None
         expect_out_bytearr_2 = None
@@ -62,7 +59,6 @@ class BCHTest(unittest.TestCase):
         output_bytearr_1 = BCH.generateBCH(input_bytearr_1)
         output_bytearr_2 = BCH.generateBCH(input_bytearr_2)
         output_bytearr_3 = BCH.generateBCH(input_bytearr_3)
-
 
         self.assertIsNone(output_bytearr_1)
         self.assertIsNone(output_bytearr_2)

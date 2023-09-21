@@ -11,30 +11,35 @@
 # laws and regulations. User has the responsibility to obtain export licenses,
 # or other export authority as may be required before exporting such
 # information to foreign countries or providing access to foreign persons.
-
+import binascii
 import datetime as dt
 import inspect
 import os
 import unittest
-import binascii
+from unittest import mock
 
 import nose.tools
-from unittest import mock
 
 import ait.core.cfg as cfg
 import ait.core.db as db
 import ait.core.dmc as dmc
 import ait.core.tlm as tlm
-from ait.dsn.encrypt.encrypter import EncryptMode, EncryptResult, EncrypterFactory, NullEncrypter
+from ait.dsn.encrypt.encrypter import EncrypterFactory
+from ait.dsn.encrypt.encrypter import EncryptMode
+from ait.dsn.encrypt.encrypter import EncryptResult
+from ait.dsn.encrypt.encrypter import NullEncrypter
 
 
-tc4_1_hexstr =  "2003009e00ff000100001880d037008c197f0b000100840000344892bbc54f5395297d4c371" \
-                "72f2a3c46f6a81c1349e9e26ac80985d8bbd55a5814c662e49fba52f99ba09558cd21cf268b" \
-                "8e50b2184137e80f76122034c580464e2f06d2659a50508bdfe9e9a55990ba4148af896d8a6" \
-                "eebe8b5d2258685d4ce217a20174fdd4f0efac62758c51b04e55710a47209c923b641d19a39" \
-                "001f9e986166f5ffd95555"
+tc4_1_hexstr = (
+    "2003009e00ff000100001880d037008c197f0b000100840000344892bbc54f5395297d4c371"
+    "72f2a3c46f6a81c1349e9e26ac80985d8bbd55a5814c662e49fba52f99ba09558cd21cf268b"
+    "8e50b2184137e80f76122034c580464e2f06d2659a50508bdfe9e9a55990ba4148af896d8a6"
+    "eebe8b5d2258685d4ce217a20174fdd4f0efac62758c51b04e55710a47209c923b641d19a39"
+    "001f9e986166f5ffd95555"
+)
 ## tc4_1_bytes = bytes.fromhex(tc4_1_hexstr)
 tc4_1_byte_arr = bytearray(binascii.unhexlify(tc4_1_hexstr))
+
 
 class TestEncryptResultObject(unittest.TestCase):
     def test_default_init(self):
@@ -44,24 +49,26 @@ class TestEncryptResultObject(unittest.TestCase):
         assert res.errors is None
         assert res.mode == EncryptMode.ENCRYPT
 
-        input = 'foobar'
+        input = "foobar"
         result = [1, 2, 3]
-        errors = ['error1', 'error2']
+        errors = ["error1", "error2"]
         res = EncryptResult(input=input, result=result, errors=errors)
         assert res.input == input
         assert res.result == result
         assert res.errors == errors
         assert res.mode == EncryptMode.ENCRYPT
 
-        res = EncryptResult(mode=EncryptMode.DECRYPT, input=input, result=result, errors=errors)
+        res = EncryptResult(
+            mode=EncryptMode.DECRYPT, input=input, result=result, errors=errors
+        )
         assert res.input == input
         assert res.result == result
         assert res.errors == errors
         assert res.mode == EncryptMode.DECRYPT
 
+
 class TestFactory(unittest.TestCase):
     def test_factory(self):
-
         encr = EncrypterFactory().get()
         assert isinstance(encr, NullEncrypter)
 
@@ -74,9 +81,10 @@ class TestFactory(unittest.TestCase):
         with nose.tools.assert_raises(ImportError):
             EncrypterFactory().get(invalid_classname)
 
+
 class TestNullEncrypter(unittest.TestCase):
     def test_null_encrypter(self):
-        encr_clz = 'ait.dsn.encrypt.encrypter.NullEncrypter'
+        encr_clz = "ait.dsn.encrypt.encrypter.NullEncrypter"
         encr = EncrypterFactory().get(encr_clz)
         assert isinstance(encr, NullEncrypter)
         assert not encr.is_connected()
@@ -91,7 +99,7 @@ class TestNullEncrypter(unittest.TestCase):
         assert encr._vcids_filter is None
 
         vcid_list = [3, 6, 9]
-        enc_cfg = {'vcid_filter': vcid_list, 'debug_enabled' : True}
+        enc_cfg = {"vcid_filter": vcid_list, "debug_enabled": True}
         encr.configure(**enc_cfg)
         assert encr._debug_enabled
         assert encr._vcids_filter == vcid_list
@@ -121,13 +129,14 @@ class TestNullEncrypter(unittest.TestCase):
 
 
 class TestKmcEncrypter(unittest.TestCase):
-    '''
+    """
     Unit test assumes we cannot load the KMC Encrypter dependencies, since
     they are not available on the standard AIT dev environment
-    '''
+    """
+
     def test_kmc_encrypter(self):
-        encr_mod_name = 'ait.dsn.encrypt.kmc_encrypter'
-        encr_clz_name = 'KmcSdlsEncrypter'
+        encr_mod_name = "ait.dsn.encrypt.kmc_encrypter"
+        encr_clz_name = "KmcSdlsEncrypter"
         encr_full_clz = encr_mod_name + "." + encr_clz_name
         encr = EncrypterFactory().get(encr_full_clz)
 
@@ -144,7 +153,7 @@ class TestKmcEncrypter(unittest.TestCase):
         assert ait_result.has_errors
 
         # Failed import of KMC lib results in a Name error
-        #with nose.tools.assert_raises(NameError):
+        # with nose.tools.assert_raises(NameError):
         #    encr.connect()
         encr.connect()
         assert not encr.is_connected()
@@ -152,7 +161,6 @@ class TestKmcEncrypter(unittest.TestCase):
         ait_result = encr.encrypt(tc4_1_byte_arr)
         assert ait_result.mode == EncryptMode.ENCRYPT
         assert ait_result.has_errors
-
 
         ait_result = encr.decrypt(tc4_1_byte_arr)
         assert ait_result.mode == EncryptMode.DECRYPT

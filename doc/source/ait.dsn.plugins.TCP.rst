@@ -2,7 +2,7 @@ AIT SLE User Guide
 ==================
 
 The TCP forwarding plugin facilitates forwarding pipeline data over TCP.
-The plugin can be configured for an arbitrary number of server or clients for each PUB/SUB topic. 
+The plugin can be configured for an arbitrary number of server or clients for each PUB/SUB topic.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -40,7 +40,7 @@ Customize the template within the config.yaml plugin block:
 
 * The value *Server_Name1* is an arbitrary nickname for the connection.
 
-* The *port* option is mandatory for all connections.  
+* The *port* option is mandatory for all connections.
 
 * The *hostname* field is optional.
   + When defined, the plugin will attempt to establish connection to this server (Client Mode).
@@ -51,4 +51,3 @@ Customize the template within the config.yaml plugin block:
   + *mode:RECEIVE* specifies that the connection will forward data from the specified TCP client/server to the specified PUB/SUB topic.
 * The *timeout_seconds* field is optional and specifies how long a Server Mode connection should wait for a client before giving up and dropping the data. Defaults to 5 seconds if not specified.
 * *receive_size_bytes* specifies how much data to receive from the Server/Client when operating in RECEIVE mode. Defaults to 1024 if not specified.
-  

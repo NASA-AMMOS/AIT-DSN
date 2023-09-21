@@ -425,7 +425,7 @@ class RCF(common.SLE):
             )
             ait.core.log.info(err)
             return
-            
+
         tm_frame_class = getattr(frames, self._downlink_frame_type)
         tmf = tm_frame_class(tm_data)
 

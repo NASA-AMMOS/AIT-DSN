@@ -123,7 +123,7 @@ RcfGetParameter.componentType = namedtype.NamedTypes(
     namedtype.NamedType('parReportingCycle', univ.Sequence(componentType=namedtype.NamedTypes(
         namedtype.NamedType('parameterName', ParameterName()),
         namedtype.NamedType('parameterValue', CurrentReportingCycle())
-        
+
     )).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4))),
 
     namedtype.NamedType('parReqGvcId', univ.Sequence(componentType=namedtype.NamedTypes(

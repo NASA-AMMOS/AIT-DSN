@@ -119,4 +119,3 @@ Assumptions/Decisions
     If gaps are not allowed, then no skipping will ever take place.  As such, no gaps should only be used for telemetry playback that is known to have no missing packets.
 
     Partials cleanup is part of the scheduled cleanup as controlled by cleanup_poll.  ApidInfo cleanup is handled as packets are added to the instance.
-

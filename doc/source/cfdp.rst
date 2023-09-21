@@ -1,7 +1,7 @@
 Overview of CFDP
 ================
 
-`CFDP <https://public.ccsds.org/pubs/727x0b4.pdf>`_ (`CCSDS <https://public.ccsds.org/default.aspx>`_ File Delivery Protocol) defines a standard for space-to-ground, ground-to-space, and space-to-space file transfer, which may be initiated by a file sending or receiving entity. Using CFDP allows for communication between spacecraft or instruments through files rather than packets, which may simplify Ground Data System and Flight Software processes. Here we provide an overview of the protocol, including terms and concepts that will be helpful to know in using AIT's CFDP implementation. 
+`CFDP <https://public.ccsds.org/pubs/727x0b4.pdf>`_ (`CCSDS <https://public.ccsds.org/default.aspx>`_ File Delivery Protocol) defines a standard for space-to-ground, ground-to-space, and space-to-space file transfer, which may be initiated by a file sending or receiving entity. Using CFDP allows for communication between spacecraft or instruments through files rather than packets, which may simplify Ground Data System and Flight Software processes. Here we provide an overview of the protocol, including terms and concepts that will be helpful to know in using AIT's CFDP implementation.
 
 Entities & File Delivery Units
 ------------------------------
@@ -10,7 +10,7 @@ A **CFDP protocol entity** is a functioning instance of a CFDP implementation, s
 
 Protocol Data Units
 -------------------
-FDUs are usually transmitted in multiple **protocol data units (PDUs)**, which will all by tagged with the same **transaction ID**, which uniquely identifieds a single instance of FDU delivery and contains the ID of the source CFDP entity together with a sequence number specific to that entity. 
+FDUs are usually transmitted in multiple **protocol data units (PDUs)**, which will all by tagged with the same **transaction ID**, which uniquely identifieds a single instance of FDU delivery and contains the ID of the source CFDP entity together with a sequence number specific to that entity.
 
 A PDU can be one of three types - a **file data PDU**, a **file directive PDU**, or a **metadata PDU**. A file data PDU contains the contents of the file being delivered, while a file directive PDU contains only metadata and other non-file information for the protocol. A metadata PDU contains the following:
 
