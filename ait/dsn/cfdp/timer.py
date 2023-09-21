@@ -75,4 +75,3 @@ class Timer(object):
             return elapsed
         # timer is off, return 0
         return 0
-
