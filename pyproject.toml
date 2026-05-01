@@ -20,7 +20,7 @@ packages = [
 [tool.poetry.dependencies]
 python           = '>= 3.10 < 3.12'
 greenlet         = '^3.1.1'
-ait-core         = {path = "../AIT-Core", develop = true}
+ait-core         = '>= 2.4.0'
 pyasn1           = '*'
 bitstring        = '*'
 xmltodict        = '*'
