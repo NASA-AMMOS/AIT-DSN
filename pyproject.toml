@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name         = 'ait-dsn'
-version      = '2.1.1'
+version      = '2.2.0'
 description  = "APIs for connecting to ground stations via CCSDS interfaces"
 license = 'MIT'
 readme = 'README.rst'
@@ -20,7 +20,7 @@ packages = [
 [tool.poetry.dependencies]
 python           = '>= 3.10 < 3.12'
 greenlet         = '^3.1.1'
-ait-core         = '>= 2.4.0'
+ait-core         = '>= 3.1.0'
 pyasn1           = '*'
 bitstring        = '*'
 xmltodict        = '*'
