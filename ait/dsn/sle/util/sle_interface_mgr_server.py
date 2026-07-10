@@ -115,7 +115,7 @@ class SleMgrServers(gevent.Greenlet):
             self.sle_mgr.api,
             handler_class=geventwebsocket.handler.WebSocketHandler)
 
-        self.cltu_udp_server = CLTUServer(listener=self._udp_port, sle_interfaces=self.sle_mgr)
+        self.cltu_udp_server = CLTUServer(listener=(self._host, self._udp_port), sle_interfaces=self.sle_mgr)
 
         self.cltu_udp_socket = None
 
