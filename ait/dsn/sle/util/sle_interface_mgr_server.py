@@ -51,11 +51,13 @@ from ait.dsn.sle.util.sle_interface_manager import SLEInterfaceManager, CLTUServ
 
 class SleMgrServers(gevent.Greenlet):
 
-    default_sle_mgr_host = '127.0.0.1'  # Localhost
-    default_sle_mgr_udp_port = 9000     # UDP Port: 9000
-    default_sle_mgr_rest_port = 7654    # REST Port: 7654
+    default_sle_mgr_host = '127.0.0.1'      # Default host for REST API
+    default_sle_mgr_udp_host = '127.0.0.1'  # Default host for UDP CLTU server (secure default)
+    default_sle_mgr_udp_port = 9000         # UDP Port: 9000
+    default_sle_mgr_rest_port = 7654        # REST Port: 7654
 
     sle_mgr_host = default_sle_mgr_host
+    sle_mgr_udp_host = default_sle_mgr_udp_host
     sle_mgr_udp_port = default_sle_mgr_udp_port
     sle_mgr_rest_port = default_sle_mgr_rest_port
 
@@ -74,18 +76,31 @@ class SleMgrServers(gevent.Greenlet):
         '''
         Constructor creates SLEInterfaceManager, attaches handlers,
         and builds servers.
+
         :param services: List of ServiceType enums
         :param kwargs: Keyword arg values
+            - host: Host address for REST API (default: 127.0.0.1)
+            - udp_host: Host address for UDP CLTU server (default: 127.0.0.1)
+                       To expose CLTU ingestion beyond localhost, explicitly set this
+                       to the desired IP address and ensure proper security controls
+                       (firewall rules, VPN, trusted source IPs) are in place.
+            - udp_port: UDP port for CLTU ingestion (default: 9000)
+            - rest_port: REST API port (default: 7654)
+            - verbose: Enable verbose logging (default: False)
         '''
         self._services = services
 
         self._rest_port = kwargs.get('rest_port', SleMgrServers.default_sle_mgr_rest_port)
         self._udp_port = kwargs.get('udp_port', SleMgrServers.default_sle_mgr_udp_port)
         self._host = kwargs.get('host', SleMgrServers.default_sle_mgr_host)
+        self._udp_host = kwargs.get('udp_host', SleMgrServers.default_sle_mgr_udp_host)
         self._verbose = kwargs.get('verbose', False)
 
+        # Security validation: warn if UDP host is non-loopback
+        self._validate_udp_host_security()
+
         self.rest_url_base = f"http://{self._host}:{self._rest_port}"
-        self.udp_dest = (self._host, self._udp_port)
+        self.udp_dest = (self._udp_host, self._udp_port)
 
         if ServiceType.NONE in self._services:
             self._services.remove(ServiceType.NONE)
@@ -102,6 +117,48 @@ class SleMgrServers(gevent.Greenlet):
         gevent.Greenlet.__init__(self)
 
 
+    def _is_loopback_address(self, host):
+        '''
+        Check if the given host is a loopback address
+        :param host: Host address to check
+        :return: True if loopback, False otherwise
+        '''
+        loopback_addresses = ['127.0.0.1', 'localhost', '::1', '0:0:0:0:0:0:0:1']
+        return host.lower() in loopback_addresses
+
+    def _validate_udp_host_security(self):
+        '''
+        Validates and warns about non-loopback UDP bindings.
+
+        Security control for GHSA-gj83-67wr-82mv: CLTU ingestion over UDP
+        should default to loopback binding. Non-loopback binding requires
+        explicit configuration via the udp_host parameter.
+
+        Logs a warning when UDP server is configured to bind to non-loopback
+        addresses to ensure operators are aware of the security implications.
+        '''
+        if not self._is_loopback_address(self._udp_host):
+            # Log warning when binding to non-loopback address
+            warning_msg = (
+                f"WARNING: UDP CLTU ingestion service configured to bind to "
+                f"non-loopback address '{self._udp_host}'.\n"
+                f"\n"
+                f"CLTU ingestion accepts telecommands that are forwarded to spacecraft. "
+                f"Exposing this service beyond localhost requires:\n"
+                f"  1. Network-level controls (firewall rules, trusted source IPs)\n"
+                f"  2. Additional authentication mechanisms (VPN, mutual TLS, etc.)\n"
+                f"  3. Documented security review and approval\n"
+                f"\n"
+                f"Ensure appropriate security controls are in place before deployment."
+            )
+            if self._verbose:
+                ait.core.log.warn(warning_msg)
+            else:
+                # Always log security warnings, even if not verbose
+                ait.core.log.info(
+                    f"UDP CLTU server binding to non-loopback address '{self._udp_host}'. "
+                    f"Ensure security controls are in place."
+                )
 
     def build_servers(self):
         '''
@@ -115,7 +172,7 @@ class SleMgrServers(gevent.Greenlet):
             self.sle_mgr.api,
             handler_class=geventwebsocket.handler.WebSocketHandler)
 
-        self.cltu_udp_server = CLTUServer(listener=self._udp_port, sle_interfaces=self.sle_mgr)
+        self.cltu_udp_server = CLTUServer(listener=(self._udp_host, self._udp_port), sle_interfaces=self.sle_mgr)
 
         self.cltu_udp_socket = None
 
