@@ -1,5 +1,5 @@
-ait.dsn.plugins.vcid_routing module
-======================================
+ait.dsn.plugins.vcid\_routing module
+====================================
 
 .. automodule:: ait.dsn.plugins.vcid_routing
    :members:

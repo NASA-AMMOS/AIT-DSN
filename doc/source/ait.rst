@@ -1,17 +1,4 @@
-ait package
-===========
+ait namespace
+=============
 
-Subpackages
------------
-
-.. toctree::
-
-    ait.dsn
-
-Module contents
----------------
-
-.. automodule:: ait
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. py:module:: ait

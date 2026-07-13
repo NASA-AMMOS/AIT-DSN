@@ -1,11 +1,7 @@
-ait.dsn.encrypt.encrypter package
-===================================
-
-
-Module contents
----------------
+ait.dsn.encrypt.encrypter module
+================================
 
 .. automodule:: ait.dsn.encrypt.encrypter
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

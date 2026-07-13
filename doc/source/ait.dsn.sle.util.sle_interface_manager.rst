@@ -1,5 +1,7 @@
-ait.dsn.bin.ait\_sle\_interface\_manager Module
+ait.dsn.sle.util.sle\_interface\_manager module
 ===============================================
 
-.. autobottle:: ait.dsn.sle.util.sle_interface_manager:SLEInterfaceManager().api
-   :include-empty-docstring:
+.. automodule:: ait.dsn.sle.util.sle_interface_manager
+   :members:
+   :undoc-members:
+   :show-inheritance:

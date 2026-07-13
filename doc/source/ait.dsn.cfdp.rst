@@ -5,15 +5,17 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
-    ait.dsn.cfdp.machines
-    ait.dsn.cfdp.pdu
-    ait.dsn.cfdp.test
+   ait.dsn.cfdp.machines
+   ait.dsn.cfdp.pdu
+   ait.dsn.cfdp.test
 
 Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    ait.dsn.cfdp.cfdp
    ait.dsn.cfdp.events
@@ -28,6 +30,6 @@ Module contents
 ---------------
 
 .. automodule:: ait.dsn.cfdp
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
