@@ -5,30 +5,25 @@ Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
 
-   ait.dsn.sle.pdu
-   ait.dsn.sle.test
-   ait.dsn.sle.util
+    ait.dsn.sle.pdu
 
 Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
 
    ait.dsn.sle.cltu
    ait.dsn.sle.common
    ait.dsn.sle.frames
    ait.dsn.sle.raf
    ait.dsn.sle.rcf
-   ait.dsn.sle.tctf
-   ait.dsn.sle.utils
+   ait.dsn.sle.util
 
 Module contents
 ---------------
 
 .. automodule:: ait.dsn.sle
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:

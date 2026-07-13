@@ -5,7 +5,6 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
 
    ait.dsn.cfdp.pdu.eof
    ait.dsn.cfdp.pdu.filedata
@@ -18,6 +17,6 @@ Module contents
 ---------------
 
 .. automodule:: ait.dsn.cfdp.pdu
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:

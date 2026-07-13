@@ -5,7 +5,6 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
 
    ait.dsn.sle.pdu.cltu.cltuv4
    ait.dsn.sle.pdu.cltu.cltuv5
@@ -15,6 +14,6 @@ Module contents
 ---------------
 
 .. automodule:: ait.dsn.sle.pdu.cltu
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:

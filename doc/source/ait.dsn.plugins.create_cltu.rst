@@ -1,5 +1,5 @@
-ait.dsn.plugins.create\_cltu module
-===================================
+ait.dsn.plugins.create_cltu module
+======================================
 
 .. automodule:: ait.dsn.plugins.create_cltu
    :members:

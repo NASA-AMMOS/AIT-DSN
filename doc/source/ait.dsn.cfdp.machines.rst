@@ -5,7 +5,6 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
 
    ait.dsn.cfdp.machines.machine
    ait.dsn.cfdp.machines.receiver1
@@ -15,6 +14,6 @@ Module contents
 ---------------
 
 .. automodule:: ait.dsn.cfdp.machines
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:

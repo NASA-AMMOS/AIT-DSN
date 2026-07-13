@@ -1,19 +1,7 @@
-ait.dsn.sle.util package
-========================
-
-Submodules
-----------
-
-.. toctree::
-   :maxdepth: 4
-
-   ait.dsn.sle.util.sle_interface_manager
-   ait.dsn.sle.util.sle_interface_mgr_server
-
-Module contents
----------------
+ait.dsn.sle.util module
+=======================
 
 .. automodule:: ait.dsn.sle.util
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:

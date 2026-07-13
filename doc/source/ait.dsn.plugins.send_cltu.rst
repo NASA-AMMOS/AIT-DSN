@@ -1,5 +1,5 @@
-ait.dsn.plugins.send\_cltu module
-=================================
+ait.dsn.plugins.send_cltu module
+======================================
 
 .. automodule:: ait.dsn.plugins.send_cltu
    :members:
