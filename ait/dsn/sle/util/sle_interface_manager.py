@@ -511,28 +511,28 @@ class SLEInterfaceManager():
         if srvc_info.state != ServiceState.STARTED:
             ait.core.log.error(f"{interface} instance is not started. Unable to upload.")
             bottle.response.status = 400
+        else:
+            if srvc_info.type == ServiceType.CLTU:
+                proceed = True
+                data_len = len(srvc_info.data)
 
-        if srvc_info.type == ServiceType.CLTU:
-            proceed = True
-            data_len = len(srvc_info.data)
+                if self.verbose:
+                    if data_len == 0:
+                        ait.core.log.info("No CLTU data to push.")
+                    else:
+                        ait.core.log.info(f"Pushing {data_len} chunks of CLTU data")
 
-            if self.verbose:
-                if data_len == 0:
-                    ait.core.log.info("No CLTU data to push.")
-                else:
-                    ait.core.log.info(f"Pushing {data_len} chunks of CLTU data")
-
-            while srvc_info.data and proceed:
-                data_to_push = srvc_info.data[0]
-                try:
-                    self.cltu_service.service.upload_cltu(data_to_push)
-                    del srvc_info.data[0]
-                    if self.verbose:
-                        ait.core.log.info(f"tc_data sent: {data_to_push}")
-                except Exception as e:
-                    ait.core.log.error(f"Error occurred while uploading CLTU data: {e}")
-                    bottle.response.status = 400
-                    proceed = False
+                while srvc_info.data and proceed:
+                    data_to_push = srvc_info.data[0]
+                    try:
+                        self.cltu_service.service.upload_cltu(data_to_push)
+                        del srvc_info.data[0]
+                        if self.verbose:
+                            ait.core.log.info(f"tc_data sent: {data_to_push}")
+                    except Exception as e:
+                        ait.core.log.error(f"Error occurred while uploading CLTU data: {e}")
+                        bottle.response.status = 400
+                        proceed = False
 
 
     def append_cltu_data(self, data):
