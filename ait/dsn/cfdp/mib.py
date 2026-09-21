@@ -62,6 +62,9 @@ class MIB(object):
         path: path to directory where files are loaded/dumped
         """
         self._path = path
+        # Create MIB directory if it doesn't exist
+        if not os.path.exists(path):
+            os.makedirs(path)
         self._local = copy.deepcopy(local_mib_fields)
         # use default values for remote entities unless specifically set
         self._remote = defaultdict(lambda: copy.deepcopy(remote_mib_fields))
