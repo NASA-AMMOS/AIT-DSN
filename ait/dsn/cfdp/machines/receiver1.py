@@ -14,6 +14,7 @@
 
 import os
 import shutil
+from pathlib import Path
 
 import ait.dsn.cfdp.pdu
 from ait.dsn.cfdp.events import Event
@@ -35,6 +36,31 @@ class Receiver1(Machine):
     S1 = "WAIT_FOR_METADATA"
     # State 2, has received MD, waiting for EOF
     S2 = "WAIT_FOR_EOF"
+
+    def _validate_destination_path(self, incoming_root, destination_path):
+        """Validate destination path is safe and contained within incoming directory"""
+        # Reject absolute paths
+        if os.path.isabs(destination_path):
+            ait.core.log.error('Receiver -- absolute destination path rejected: {0}'.format(destination_path))
+            return (False, None)
+
+        # Resolve both paths canonically
+        resolved_incoming_root = Path(incoming_root).resolve()
+        proposed_destination = Path(incoming_root) / destination_path
+        resolved_destination = proposed_destination.resolve()
+
+        # Check if resolved destination is contained within incoming root
+        try:
+            resolved_destination.relative_to(resolved_incoming_root)
+        except ValueError:
+            ait.core.log.error('Receiver -- path traversal detected. Destination {0} escapes incoming root {1}'
+                               .format(resolved_destination, resolved_incoming_root))
+            return (False, None)
+        except Exception as e:
+            ait.core.log.error('Receiver -- path validation error: {0}'.format(str(e)))
+            return (False, None)
+
+        return (True, str(resolved_destination))
 
     def __init__(self, cfdp, transaction_id, *args, **kwargs):
         super(Receiver1, self).__init__(cfdp, transaction_id, *args, **kwargs)
@@ -98,10 +124,15 @@ class Receiver1(Machine):
                 if self.metadata.file_transfer:
                     # File transfer -- we will eventually received file data,
                     # so we arrange for the eventual arrival of the file.
-                    # Get the file path of the final destination file
-                    # Get the absolute directory path so we can check if it exists,
-                    # and store the full file path for later use
-                    self.file_path = os.path.join(os.path.join(self.kernel._data_paths['incoming'], pdu.destination_path))
+                    # Validate destination path to prevent path traversal
+                    is_valid, validated_path = self._validate_destination_path(
+                        self.kernel._data_paths['incoming'], pdu.destination_path)
+                    if not is_valid:
+                        ait.core.log.error('Receiver {0} -- invalid destination path: {1}'
+                                      .format(self.transaction.entity_id, pdu.destination_path))
+                        return self.fault_handler(ConditionCode.FILESTORE_REJECTION)
+
+                    self.file_path = validated_path
                     ait.core.log.info('File Destination Path: ' + self.file_path)
 
                     # Open a temp file for incoming file data to go to
