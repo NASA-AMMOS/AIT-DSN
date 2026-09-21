@@ -1,3 +1,7 @@
+.. image:: https://readthedocs.org/projects/ait-dsn/badge/?version=latest
+    :target: https://ait-dsn.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 AMMOS Instrument Toolkit (AIT) Deep Space Network (DSN) Interface
 =================================================================
 
@@ -30,14 +34,3 @@ For information on how to contribute please see the `AIT Contributing
 Guide <https://github.com/NASA-AMMOS/AIT-Core/wiki/Contributing>`__
 
 --------------
-
-|travis|
-|docs|
-
-.. |travis| image:: https://travis-ci.com/NASA-AMMOS/AIT-DSN.svg?branch=master
-    :target: https://travis-ci.com/NASA-AMMOS/AIT-DSN
-
-.. |docs| image:: https://readthedocs.org/projects/ait-dsn/badge/?version=master
-    :alt: Documentation Status
-    :scale: 100%
-    :target: https://ait-dsn.readthedocs.io/en/latest/?badge=master
