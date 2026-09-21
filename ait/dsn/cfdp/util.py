@@ -91,7 +91,7 @@ def checksum_of_word(word_list):
         word_list:
             list of integers with max length 4 (more will be ignored), each integer representing a byte
     """
-    if len(word_list) < 4:
+    while len(word_list) < 4:
         word_list.append(0)
     word = word_list[0] << 24
     word += word_list[1] << 16
