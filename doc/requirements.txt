@@ -1,3 +1,4 @@
 sphinx>=4.2
 sphinx-rtd-theme
 sphinxcontrib-httpdomain
+sphinxcontrib-autohttp

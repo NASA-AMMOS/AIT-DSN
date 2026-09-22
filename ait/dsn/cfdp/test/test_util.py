@@ -13,7 +13,8 @@
 # information to foreign countries or providing access to foreign persons.
 import os
 
-from ait.dsn.cfdp.util import calc_checksum, checksum_of_word
+from ait.dsn.cfdp.util import calc_checksum
+from ait.dsn.cfdp.util import checksum_of_word
 
 
 def test_checksum_of_word_pads_a_short_word():
@@ -25,7 +26,7 @@ def test_checksum_of_word_pads_a_short_word():
 
 def test_calc_checksum_handles_every_tail_length(tmpdir):
     for size in range(1, 9):
-        path = os.path.join(str(tmpdir), 'f{}.bin'.format(size))
-        with open(path, 'wb') as fh:
+        path = os.path.join(str(tmpdir), "f{}.bin".format(size))
+        with open(path, "wb") as fh:
             fh.write(bytes(range(1, size + 1)))
         assert calc_checksum(path) is not None
